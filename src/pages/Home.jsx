@@ -212,9 +212,9 @@ const HomePage = () => {
             )}
           </div>
 
-          <div className="mt-8 text-center md:hidden">
-            <Link to="/products" className="btn-secondary">
-              View All Products
+          <div className="mt-8 text-center md:hidden w-full max-w-sm mx-auto">
+            <Link to="/products" className="btn-secondary inline-flex items-center justify-center">
+              View All
               <ArrowRight className="w-5 h-5 ml-2" />
             </Link>
           </div>

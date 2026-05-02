@@ -13,14 +13,11 @@ const Footer = () => {
               Discover exquisite necklace jewelry for every occasion. From bridal elegance to party glamour, we bring you the finest pieces.
             </p>
             <div className="flex space-x-4 mt-4">
-              <a href="#" className="text-luxury-300 hover:text-gold-400 transition-colors">
+              <a href="https://www.instagram.com/panstellia" className="text-luxury-300 hover:text-gold-400 transition-colors">
                 <Instagram className="w-5 h-5" />
               </a>
               <a href="#" className="text-luxury-300 hover:text-gold-400 transition-colors">
                 <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                <Twitter className="w-5 h-5" />
               </a>
             </div>
           </div>
@@ -90,15 +87,15 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-center text-luxury-300">
                 <MapPin className="w-5 h-5 mr-2" />
-                <span>123 Jewelry Lane, Mumbai, India</span>
+                <span>9A, Indhira Nagar, Neyveli, Cuddlore, TamilNadu, India</span>
               </li>
               <li className="flex items-center text-luxury-300">
                 <Phone className="w-5 h-5 mr-2" />
-                <span>+91 98765 43210</span>
+                <span>+91 78100 32622, +91 90802 32622</span>
               </li>
               <li className="flex items-center text-luxury-300">
                 <Mail className="w-5 h-5 mr-2" />
-                <span>contact@panstellia.com</span>
+                <span>support@panstellia.com</span>
               </li>
             </ul>
           </div>

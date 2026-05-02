@@ -64,9 +64,9 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
 {/* Logo */}
-          <Link to="/" className="flex items-center">
-            <img src="/favicon.svg" alt="Panstellia" className="h-16 w-auto" />
-            <span className="font-serif text-2xl font-bold text-luxury-800 ml-2">Panstellia</span>
+          <Link to="/" className="flex items-center md:gap-2">
+            <img src="/favicon.svg" alt="Panstellia" className="hidden md:flex h-16 w-auto" />
+            <span className="font-serif text-xl md:text-2xl font-bold text-luxury-800">Panstellia</span>
           </Link>
 
           {/* Desktop Navigation */}
