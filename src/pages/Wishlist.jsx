@@ -3,6 +3,7 @@ import { Heart, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
 import { toast } from 'react-toastify';
+import { getDirectImageUrl } from '../utils/imageUtils';
 
 const WishlistPage = () => {
   const { wishlistItems, removeFromWishlist } = useWishlist();
@@ -62,9 +63,9 @@ const WishlistPage = () => {
           {wishlistItems.map(item => (
             <div key={item.id} className="bg-white rounded-xl shadow-md overflow-hidden">
               <Link to={`/product/${item.id}`}>
-                <div className="relative overflow-hidden aspect-[3/4]">
+<div className="relative overflow-hidden aspect-[3/4]">
                   <img
-                    src={item.image}
+                    src={getDirectImageUrl(item.image)}
                     alt={item.name}
                     className="w-full h-full object-cover"
                   />

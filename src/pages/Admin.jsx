@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
 import { db } from '../services/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
+import { getDirectImageUrl } from '../utils/imageUtils';
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -387,14 +388,17 @@ const AdminPage = () => {
                         <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-luxury-200">
+<tbody className="divide-y divide-luxury-200">
                       {products.map(product => (
                         <tr key={product.id}>
                           <td className="px-4 py-3">
                             <img
-                              src={product.image}
+                              src={getDirectImageUrl(product.image)}
                               alt={product.name}
                               className="w-12 h-12 object-cover rounded"
+                              onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/48?text=No+Image';
+                              }}
                             />
                           </td>
                           <td className="px-4 py-3 text-luxury-900">{product.name}</td>

@@ -3,6 +3,7 @@ import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { getDirectImageUrl } from '../utils/imageUtils';
 
 const CartPage = () => {
   const { user } = useAuth();
@@ -63,9 +64,9 @@ const CartPage = () => {
           <div className="lg:col-span-2 space-y-4">
             {cartItems.map(item => (
               <div key={item.id} className="bg-white rounded-xl shadow-md p-4 flex gap-4">
-                <Link to={`/product/${item.id}`} className="w-24 h-24 flex-shrink-0">
+<Link to={`/product/${item.id}`} className="w-24 h-24 flex-shrink-0">
                   <img
-                    src={item.image}
+                    src={getDirectImageUrl(item.image)}
                     alt={item.name}
                     className="w-full h-full object-cover rounded-lg"
                   />

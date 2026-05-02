@@ -5,6 +5,7 @@ import { useProducts } from '../context/ProductContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { toast } from 'react-toastify';
+import { getDirectImageUrl } from '../utils/imageUtils';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -35,10 +36,13 @@ const ProductDetailPage = () => {
     );
   }
 
-  const wishlisted = isInWishlist(product.id);
+const wishlisted = isInWishlist(product.id);
   const discount = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
+
+  // Convert Google Drive URLs to direct image URLs
+  const imageUrl = getDirectImageUrl(product.image);
 
   const relatedProducts = products
     .filter(p => p.category === product.category && p.id !== product.id)
@@ -87,13 +91,13 @@ const ProductDetailPage = () => {
           <span className="text-luxury-900">{product.name}</span>
         </nav>
 
-        {/* Product Info */}
+{/* Product Info */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div className="space-y-4">
             <div className="relative overflow-hidden rounded-xl aspect-square bg-white">
               <img
-                src={product.image}
+                src={imageUrl}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
@@ -104,7 +108,7 @@ const ProductDetailPage = () => {
               )}
             </div>
             <div className="flex gap-4 overflow-x-auto scrollbar-hide">
-              {[product.image].map((img, index) => (
+              {[imageUrl].map((img, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
@@ -231,7 +235,7 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        {/* Related Products */}
+{/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className="mt-16">
             <h2 className="font-serif text-2xl font-bold text-luxury-900 mb-8">
@@ -243,7 +247,7 @@ const ProductDetailPage = () => {
                   <div className="card">
                     <div className="relative overflow-hidden aspect-[3/4]">
                       <img
-                        src={p.image}
+                        src={getDirectImageUrl(p.image)}
                         alt={p.name}
                         className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
                       />

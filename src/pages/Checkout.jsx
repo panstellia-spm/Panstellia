@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { loadRazorpay } from '../services/payment';
+import { getDirectImageUrl } from '../utils/imageUtils';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -293,9 +294,9 @@ const CheckoutPage = () => {
               
               <div className="space-y-4">
                 {cartItems.map(item => (
-                  <div key={item.id} className="flex gap-3">
+<div key={item.id} className="flex gap-3">
                     <img
-                      src={item.image}
+                      src={getDirectImageUrl(item.image)}
                       alt={item.name}
                       className="w-16 h-16 object-cover rounded-lg"
                     />

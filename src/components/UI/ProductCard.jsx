@@ -4,6 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
+import { getDirectImageUrl } from '../../utils/imageUtils';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
@@ -45,9 +46,12 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  const discount = product.originalPrice 
+const discount = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
+
+  // Convert Google Drive URLs to direct image URLs
+  const imageUrl = getDirectImageUrl(product.image);
 
   return (
     <Link to={`/product/${product.id}`} className="group block">
@@ -55,7 +59,7 @@ const ProductCard = ({ product }) => {
         {/* Image Container */}
         <div className="relative overflow-hidden aspect-[3/4]">
           <img
-            src={product.image}
+            src={imageUrl}
             alt={product.name}
             className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
           />
