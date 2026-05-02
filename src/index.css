@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply font-sans bg-luxury-50 text-luxury-900 antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-gold-500 to-gold-600 text-white px-6 py-3 rounded-lg 
+           font-medium transition-all duration-300 hover:shadow-lg hover:scale-105 
+           hover:from-gold-600 hover:to-gold-700 active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply border-2 border-gold-500 text-gold-600 px-6 py-3 rounded-lg 
+           font-medium transition-all duration-300 hover:bg-gold-500 hover:text-white 
+           active:scale-95;
+  }
+  
+  .btn-ghost {
+    @apply text-luxury-600 px-4 py-2 rounded-lg transition-all duration-200 
+           hover:bg-luxury-100 active:scale-95;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 
+           hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border border-luxury-200 rounded-lg focus:outline-none 
+           focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-all 
+           placeholder:text-luxury-400;
+  }
+  
+  .link {
+    @apply text-gold-600 hover:text-gold-700 transition-colors duration-200 
+           underline-offset-4 hover:underline;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-gold {
+    @apply bg-gold-100 text-gold-700;
+  }
+  
+  .badge-success {
+    @apply bg-green-100 text-green-700;
+  }
+  
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-700;
+  }
+  
+  .badge-error {
+    @apply bg-red-100 text-red-700;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-gold-500 to-gold-700;
+  }
+  
+  .bg-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4c4a0' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-luxury-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gold-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gold-400;
+}
+
+/* Toast customization */
+.Toastify__toast-container {
+  @apply z-50;
+}
+
+.Toastify__toast {
+  @apply rounded-lg shadow-lg;
+}
+
+.Toastify__toast-body {
+  @apply font-sans;
+}
+
+/* Loading skeleton animation */
+@keyframes skeleton {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: skeleton 1.5s ease-in-out infinite;
+}
