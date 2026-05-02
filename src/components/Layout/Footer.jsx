@@ -6,9 +6,9 @@ const Footer = () => {
     <footer className="bg-luxury-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand */}
+{/* Brand */}
           <div>
-            <h3 className="font-serif text-2xl font-bold text-gradient mb-4">Panstellia</h3>
+            <img src="/favicon.svg" alt="Panstellia" className="h-12 w-auto mb-4" />
             <p className="text-luxury-300 text-sm leading-relaxed">
               Discover exquisite necklace jewelry for every occasion. From bridal elegance to party glamour, we bring you the finest pieces.
             </p>
