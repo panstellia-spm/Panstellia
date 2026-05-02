@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection - each user can only read/write their own document
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId && 
+                       request.resource.data.keys().hasAll(['email', 'createdAt']);
+      allow update, delete: if request.auth.uid == userId;
+    }
+    
+    // Products collection - public read, admin write
+    match /products/{productId} {
+      allow read: if true; // Anyone can view products
+      allow create, update, delete: if request.auth != null && 
+                                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Carts collection - user-specific access
+    match /carts/{userId} {
+      allow read, write: if request.auth.uid == userId;
+      allow delete: if request.auth.uid == userId;
+    }
+    
+    // Wishlist collection - user-specific access
+    match /wishlist/{userId} {
+      allow read, write: if request.auth.uid == userId;
+      allow delete: if request.auth.uid == userId;
+    }
+    
+    // Orders collection - users can create and read their own orders
+    match /orders/{orderId} {
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && 
+                     (resource.data.userId == request.auth.uid || 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      allow update: if request.auth != null && 
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
