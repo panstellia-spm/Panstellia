@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Check for admin emails
-  const adminEmails = ['admin@panstellia.com']; // Add your admin email here
+  const adminEmails = ['support@panstellia.com']; // Add your admin email here
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -71,6 +71,7 @@ export const AuthProvider = ({ children }) => {
         name,
         email,
         role: 'user',
+        isAdmin: adminEmails.includes(email),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -106,6 +107,7 @@ export const AuthProvider = ({ children }) => {
           email: user.email,
           photoURL: user.photoURL,
           role: 'user',
+          isAdmin: adminEmails.includes(user.email),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
