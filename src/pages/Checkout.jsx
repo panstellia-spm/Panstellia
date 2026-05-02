@@ -4,7 +4,7 @@ import { CreditCard, Lock, ChevronLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { loadRazorpay } from '../services/payment';
+import { createRazorpayOrder, verifyPayment, openCheckout } from '../services/payment';
 import { getDirectImageUrl } from '../utils/imageUtils';
 
 const CheckoutPage = () => {
@@ -40,8 +40,7 @@ const CheckoutPage = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handlePayment = async () => {
     setLoading(true);
 
     try {
@@ -50,51 +49,39 @@ const CheckoutPage = () => {
         throw new Error('Please fill in all required fields');
       }
 
-      // Initialize Razorpay payment
-      const razorpay = await loadRazorpay();
+      // Calculate amount in paise (Razorpay expects paise)
+      const amountInPaise = Math.round(total * 100);
       
-      if (!razorpay) {
-        throw new Error('Failed to load payment gateway');
+      // Validate minimum amount (100 paise = ₹1)
+      if (amountInPaise < 100) {
+        throw new Error('Minimum order amount is ₹1');
       }
 
-      // Create order data
-      const orderData = {
-        amount: total * 100, // Razorpay expects amount in paise
-        currency: 'INR',
-        receipt: `order_${Date.now()}`,
-        userId: user.uid,
-        items: cartItems,
-        shippingAddress: formData
-      };
+      // Step 1: Create order on our backend (which calls Razorpay API)
+      const orderData = await createRazorpayOrder(
+        amountInPaise,
+        'INR',
+        {
+          receipt: `order_${Date.now()}`,
+          notes: {
+            userId: user.uid,
+            customerEmail: formData.email,
+            customerName: formData.name
+          }
+        }
+      );
 
-      // Open Razorpay checkout
-      // Note: In production, you would create an order on your server first
-      // and use the order_id here. This is a demo implementation.
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'YOUR_KEY_ID',
-        amount: total * 100,
+      const { order_id } = orderData;
+
+      // Step 2: Open Razorpay checkout with order_id
+      const razorpayOptions = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SkY8Bdi8iAl2go',
+        amount: amountInPaise,
         currency: 'INR',
         name: 'Panstellia',
         description: 'Purchase of necklace jewelry',
         image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200',
-        handler: async (response) => {
-          // Payment successful
-          toast.success('Payment successful!', {
-            position: 'bottom-right'
-          });
-          
-          // Clear cart
-          await clearCart();
-          
-          // Navigate to success page
-          navigate('/order-success', {
-            state: {
-              orderId: response.razorpay_payment_id,
-              items: cartItems,
-              total
-            }
-          });
-        },
+        order_id: order_id, // Use the order_id from our backend
         prefill: {
           name: formData.name,
           email: formData.email,
@@ -102,19 +89,68 @@ const CheckoutPage = () => {
         },
         theme: {
           color: '#db912d'
+        },
+        // Handle successful payment
+        onSuccess: async (response) => {
+          try {
+            // Step 3: Verify payment signature
+            const verificationResult = await verifyPayment(
+              response.razorpay_payment_id,
+              response.razorpay_order_id,
+              response.razorpay_signature
+            );
+
+            if (verificationResult.verified) {
+              // Payment verified successfully
+              toast.success('Payment successful!', {
+                position: 'bottom-right'
+              });
+              
+              // Clear cart
+              await clearCart();
+              
+              // Navigate to success page
+              navigate('/order-success', {
+                state: {
+                  orderId: response.razorpay_payment_id,
+                  items: cartItems,
+                  total
+                }
+              });
+            } else {
+              throw new Error('Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            toast.error('Payment verification failed. Please contact support.', {
+              position: 'bottom-right'
+            });
+          }
+        },
+        // Handle modal dismiss (user cancelled)
+        onDismiss: () => {
+          toast.info('Payment cancelled', {
+            position: 'bottom-right'
+          });
         }
       };
 
-      const rzp = new razorpay(options);
-      rzp.open();
+      // Open Razorpay checkout
+      await openCheckout(razorpayOptions);
       
     } catch (error) {
+      console.error('Payment error:', error);
       toast.error(error.message || 'Payment failed', {
         position: 'bottom-right'
       });
     }
 
     setLoading(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await handlePayment();
   };
 
   if (!user || cartItems.length === 0) {
@@ -157,7 +193,7 @@ const CheckoutPage = () => {
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-luxury-700 mb-2">
+<label className="block text-sm font-medium text-luxury-700 mb-2">
                     Email Address *
                   </label>
                   <input
@@ -294,7 +330,7 @@ const CheckoutPage = () => {
               
               <div className="space-y-4">
                 {cartItems.map(item => (
-<div key={item.id} className="flex gap-3">
+                  <div key={item.id} className="flex gap-3">
                     <img
                       src={getDirectImageUrl(item.image)}
                       alt={item.name}

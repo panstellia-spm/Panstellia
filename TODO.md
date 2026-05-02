@@ -1,78 +1,63 @@
-# Panstellia - E-Commerce Website Project Plan
+# Razorpay Integration TODO
 
-## Project Overview
-- **Project Name**: Panstellia
-- **Type**: E-Commerce Website (Necklace Jewelry)
-- **Tech Stack**: React + Vite, Firebase (Firestore + Auth), Razorpay, Tailwind CSS, React Router
+## Implementation Plan
 
-## Core Tasks
+- [x] Analyze project stack and understand requirements
+- [x] STEP 1: Create .env file with Razorpay credentials
+- [x] STEP 2: Update .gitignore to include .env
+- [x] STEP 3: Create Netlify Function - create-order.js
+- [x] STEP 4: Create Netlify Function - verify-payment.js
+- [x] STEP 5: Update src/services/payment.js
+- [x] STEP 6: Update src/pages/Checkout.jsx
+- [x] STEP 7: Test and verify the integration
 
-### Phase 1: Project Setup
-- [ ] Initialize Vite React project
-- [ ] Install dependencies (firebase, razorpay, react-router-dom, tailwindcss, etc.)
-- [ ] Configure Tailwind CSS
-- [ ] Set up project folder structure
+## Files Created/Modified
 
-### Phase 2: Firebase Configuration
-- [ ] Create Firebase config service
-- [ ] Set up Firestore collections (users, products, carts, wishlist, orders)
-- [ ] Configure Firebase Auth
-- [ ] Write Firestore security rules
+### New Files:
+1. `.env` - Razorpay credentials (NOT committed to git)
+2. `.env.example` - Template for environment variables
+3. `.env.development` - Vite development variables
+4. `netlify/functions/create-order.js` - Create order endpoint
+5. `netlify/functions/verify-payment.js` - Verify payment endpoint
 
-### Phase 3: Authentication System
-- [ ] Create AuthContext
-- [ ] Signup page
-- [ ] Login page
-- [ ] Logout functionality
-- [ ] Protected routes
+### Modified Files:
+1. `.gitignore` - Added .env and env files
+2. `src/services/payment.js` - Updated to use Netlify Functions
+3. `src/pages/Checkout.jsx` - Updated to use order-first flow
 
-### Phase 4: Core Pages
-- [ ] Home page (Banner, Featured collections, Trending products)
-- [ ] Product listing page
-- [ ] Product detail page
-- [ ] Cart page
-- [ ] Wishlist page
-- [ ] Checkout page
-- [ ] Order history page
+## Credentials Used
+- RAZORPAY_KEY_ID: rzp_test_SkY8Bdi8iAl2go
+- RAZORPAY_KEY_SECRET: 8p8VzThHYmyzmDhyl2WWPpJq
 
-### Phase 5: Admin Panel
-- [ ] Admin login
-- [ ] Add products
-- [ ] Edit/Delete products
-- [ ] View all orders
-- [ ] Dashboard analytics
+## Testing
 
-### Phase 6: Payment Integration
-- [ ] Razorpay integration
-- [ ] Checkout flow
-- [ ] Order success/failure handling
+### Test Card Details:
+- Card Number: 5267 3181 8792 3049
+- Expiry: Any future date (e.g., 12/28)
+- CVV: Any 3 digits (e.g., 123)
+- OTP: Any 6 digits (e.g., 123456)
 
-### Phase 7: UI/UX Enhancement
-- [ ] Premium luxury theme
-- [ ] Animations
-- [ ] Loading skeletons
-- [ ] Toast notifications
-- [ ] Error handling
+### Testing Steps:
+1. Start dev server: `npm run dev`
+2. Add items to cart
+3. Go to checkout page
+4. Fill in shipping details
+5. Click "Pay" button
+6. Enter test card details in Razorpay modal
+7. Complete payment
+8. Verify redirects to success page
 
-### Phase 8: Deployment
-- [ ] Build React app
-- [ ] Deployment guide for GoDaddy
+## Manual Steps Required
 
-## Files Structure
-```
-panstellia/
-├── src/
-│   ├── components/
-│   │   ├── Layout/
-│   │   ├── UI/
-│   │   └── ...
-│   ├── pages/
-│   ├── context/
-│   ├── services/
-│   ├── utils/
-│   └── ...
-├── public/
-└── config files
-```
+### Netlify Dashboard Setup:
+1. Go to Netlify Dashboard > Site Settings > Environment Variables
+2. Add the following variables:
+   - RAZORPAY_KEY_ID = rzp_test_SkY8Bdi8iAl2go
+   - RAZORPAY_KEY_SECRET = 8p8VzThHYmyzmDhyl2WWPpJq
+3. Deploy the site to Netlify
 
-## Status: IN PROGRESS
+### Important Notes:
+- The `.env` file is for local development only
+- Server-side variables must be configured in Netlify Dashboard
+- Never commit `.env` file to version control
+- The KEY_SECRET should never be exposed to frontend code
