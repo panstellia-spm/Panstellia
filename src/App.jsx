@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ProductProvider } from './context/ProductContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import Layout from './components/Layout/Layout';
 
@@ -64,12 +65,13 @@ const AdminRoute = ({ children }) => {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ProductProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ProductProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Layout />}>
                   <Route index element={<HomePage />} />
@@ -139,6 +141,7 @@ function App() {
         theme="light"
       />
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
