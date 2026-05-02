@@ -6,7 +6,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   signInWithPopup,
-  GoogleAuthProvider
+  GoogleAuthProvider,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
@@ -129,6 +130,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const resetPassword = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  };
+
   const value = {
     user,
     userData,
@@ -137,7 +146,8 @@ export const AuthProvider = ({ children }) => {
     signup,
     login,
     signInWithGoogle,
-    logout
+    logout,
+    resetPassword
   };
 
   return (
@@ -148,3 +158,4 @@ export const AuthProvider = ({ children }) => {
 };
 
 export default AuthContext;
+

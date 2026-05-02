@@ -44,7 +44,7 @@ const HomePage = () => {
     {
       icon: RefreshCw,
       title: 'Easy Returns',
-      description: '30-day return policy'
+      description: '10-day return policy'
     },
     {
       icon: Star,
@@ -71,7 +71,7 @@ const HomePage = () => {
             >
               <div className="inline-flex items-center px-4 py-2 bg-gold-100 rounded-full text-gold-700 text-sm font-medium mb-6">
                 <Sparkles className="w-4 h-4 mr-2" />
-                New Collection 2024
+                New Collection 2026
               </div>
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold text-luxury-900 leading-tight">
                 Elegance in

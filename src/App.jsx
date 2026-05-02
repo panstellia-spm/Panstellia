@@ -21,7 +21,10 @@ import CheckoutPage from './pages/Checkout';
 import WishlistPage from './pages/Wishlist';
 import OrdersPage from './pages/Orders';
 import OrderSuccessPage from './pages/OrderSuccess';
+import ForgotPasswordPage from './pages/ForgotPassword';
 import AdminPage from './pages/Admin';
+import AboutUsPage from './pages/AboutUs';
+
 
 import { useAuth } from './context/AuthContext';
 
@@ -79,8 +82,11 @@ function App() {
                   <Route path="product/:id" element={<ProductDetailPage />} />
                   <Route path="login" element={<LoginPage />} />
                   <Route path="signup" element={<SignupPage />} />
+                  <Route path="forgot-password" element={<ForgotPasswordPage />} />
                   <Route path="cart" element={<CartPage />} />
+
                   <Route path="wishlist" element={<WishlistPage />} />
+                  <Route path="about-us" element={<AboutUsPage />} />
                   
                   {/* Protected Routes */}
                   <Route 
