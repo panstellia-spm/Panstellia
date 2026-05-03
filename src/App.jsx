@@ -24,6 +24,10 @@ import OrderSuccessPage from './pages/OrderSuccess';
 import ForgotPasswordPage from './pages/ForgotPassword';
 import AdminPage from './pages/Admin';
 import AboutUsPage from './pages/AboutUs';
+import PrivacyPolicyPage from './pages/PrivacyPolicy';
+import TermsConditionsPage from './pages/TermsConditions';
+import ShippingPolicyPage from './pages/ShippingPolicy';
+
 
 
 import { useAuth } from './context/AuthContext';
@@ -87,6 +91,9 @@ function App() {
 
                   <Route path="wishlist" element={<WishlistPage />} />
                   <Route path="about-us" element={<AboutUsPage />} />
+                  <Route path="privacy" element={<PrivacyPolicyPage />} />
+                  <Route path="terms" element={<TermsConditionsPage />} />
+                  <Route path="shipping" element={<ShippingPolicyPage />} />
                   
                   {/* Protected Routes */}
                   <Route 
@@ -97,6 +104,7 @@ function App() {
                       </ProtectedRoute>
                     } 
                   />
+
                   <Route 
                     path="orders" 
                     element={

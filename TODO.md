@@ -1,18 +1,12 @@
-# Compact & Enhanced About Us Page - Implementation Steps
+# Policy Popup Pages Implementation
 
 **Status: In Progress**
 
-## Approved Plan Breakdown:
-1. [ ] **Create TODO.md** (current step - tracking progress)
-2. [ ] **Edit src/pages/AboutUs.jsx**:
-   - Restructure to 4 main sections: Hero, Journey/Team carousel, Craft grid, Testimonials+CTA
-   - Add lazy loading, improved responsiveness, optimized animations
-3. [ ] **Test the page**:
-   - Run `npm run dev`
-   - Visit http://localhost:5173/about-us
-   - Check desktop/mobile views, load times, interactions
-4. [ ] **Verify completion**:
-   - Page ~60% shorter, faster, enhanced UX
-   - Use attempt_completion
-
-**Next step:** Edit AboutUs.jsx
+## Plan Steps:
+- [x] 1. Create TODO.md ✓
+- [x] 2. Create src/pages/PrivacyPolicy.jsx ✓
+- [x] 3. Create src/pages/TermsConditions.jsx ✓  
+- [x] 4. Create src/pages/ShippingPolicy.jsx ✓
+- [x] 5. Edit src/App.jsx (add imports/routes) ✓
+- [x] 6. Test pages/routes (npm run dev running on http://localhost:5174, pages accessible via Footer/Signup links or direct /privacy /terms /shipping) ✓
+- [x] 7. Mark complete & attempt_completion ✓
