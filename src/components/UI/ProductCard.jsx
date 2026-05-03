@@ -13,9 +13,7 @@ const ProductCard = ({ product }) => {
   
   const wishlisted = isInWishlist(product.id);
 
-  const handleAddToCart = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleAddToCart = async () => {
     setIsAdding(true);
     try {
       await addToCart(product);
@@ -30,9 +28,7 @@ const ProductCard = ({ product }) => {
     setIsAdding(false);
   };
 
-  const handleWishlist = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleWishlist = () => {
     if (wishlisted) {
       removeFromWishlist(product.id);
       toast.info('Removed from wishlist', {
@@ -54,10 +50,10 @@ const discount = product.originalPrice
   const imageUrl = getDirectImageUrl(product.image);
 
   return (
-    <Link to={`/product/${product.id}`} className="group block">
+    <div className="group block cursor-pointer">
       <div className="card">
         {/* Image Container */}
-        <div className="relative overflow-hidden aspect-[4/5]">
+        <Link to={`/product/${product.id}`} className="block relative overflow-hidden aspect-[4/5]">
           <img
             src={imageUrl}
             alt={product.name}
@@ -66,36 +62,38 @@ const discount = product.originalPrice
           
           {/* Discount Badge */}
           {discount > 0 && (
-            <div className="absolute top-3 left-3 badge badge-error">
+            <div className="absolute top-3 left-3 badge badge-error pointer-events-none">
               -{discount}%
             </div>
           )}
-          
-          {/* Wishlist Button */}
+        </Link>
+        
+        {/* Wishlist Button */}
+        <button
+          onClick={handleWishlist}
+          type="button"
+          className={`absolute top-3 right-3 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 z-10 ${
+            wishlisted ? 'text-red-500' : 'text-luxury-400 hover:text-red-500'
+          }`}
+        >
+          <Heart className={`w-5 h-5 ${wishlisted ? 'fill-current' : ''}`} />
+        </button>
+        
+        {/* Quick Add Button */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
           <button
-            onClick={handleWishlist}
-            className={`absolute top-3 right-3 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 ${
-              wishlisted ? 'text-red-500' : 'text-luxury-400 hover:text-red-500'
-            }`}
+            onClick={handleAddToCart}
+            disabled={isAdding}
+            type="button"
+            className="w-full bg-white text-luxury-900 py-2 rounded-lg font-medium flex items-center justify-center hover:bg-gold-50 transition-colors disabled:opacity-50"
           >
-            <Heart className={`w-5 h-5 ${wishlisted ? 'fill-current' : ''}`} />
+            <ShoppingBag className="w-4 h-4 mr-2" />
+            {isAdding ? 'Adding...' : 'Quick Add'}
           </button>
-          
-          {/* Quick Add Button */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-            <button
-              onClick={handleAddToCart}
-              disabled={isAdding}
-              className="w-full bg-white text-luxury-900 py-2 rounded-lg font-medium flex items-center justify-center hover:bg-gold-50 transition-colors disabled:opacity-50"
-            >
-              <ShoppingBag className="w-4 h-4 mr-2" />
-              {isAdding ? 'Adding...' : 'Quick Add'}
-            </button>
-          </div>
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <Link to={`/product/${product.id}`} className="block p-4 hover:opacity-90 transition-opacity">
           {/* Category */}
           <p className="text-xs text-gold-600 font-medium uppercase tracking-wider">
             {product.category}
@@ -136,9 +134,9 @@ const discount = product.originalPrice
               </span>
             )}
           </div>
-        </div>
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 };
 
