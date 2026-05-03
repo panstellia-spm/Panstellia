@@ -4,6 +4,7 @@ import { Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 import { toast } from 'react-toastify';
+import SEOHelmet from '../utils/seoHelmet';
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -52,6 +53,12 @@ const ForgotPasswordPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-luxury-50 py-12 px-4">
+      <SEOHelmet 
+        title="Forgot Password | Panstellia"
+        description="Reset your Panstellia account password. Enter your email to receive password reset instructions."
+        keywords="forgot password, reset password, account recovery"
+        canonical="https://panstellia.com/forgot-password"
+      />
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}

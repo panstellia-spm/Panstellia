@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Filter, X, Grid, List } from 'lucide-react';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/UI/ProductCard';
+import SEOHelmet from '../utils/seoHelmet';
 
 const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -19,7 +20,7 @@ const ProductsPage = () => {
     sortBy: 'newest'
   });
 
-  const categories = ['All', 'Gold', 'Silver', 'Bridal', 'Party Wear'];
+  const categories = ['All', 'Gold', 'Silver', 'Lux Wear', 'Party Wear'];
   const sortOptions = [
     { value: 'newest', label: 'Newest' },
     { value: 'price-low', label: 'Price: Low to High' },
@@ -75,6 +76,12 @@ const ProductsPage = () => {
 
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
+      <SEOHelmet 
+        title={`${filters.category !== 'All' ? filters.category : 'All'} Necklaces | Panstellia`}
+        description={`Browse our ${filters.category !== 'All' ? filters.category.toLowerCase() : 'complete collection of'} necklace jewelry. Premium quality designs for every occasion.`}
+        keywords={`${filters.category !== 'All' ? filters.category.toLowerCase() + ' necklaces' : 'necklaces'}, jewelry, luxury jewelry`}
+        canonical={`https://panstellia.com/products${filters.category !== 'All' ? `?category=${filters.category}` : ''}`}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">

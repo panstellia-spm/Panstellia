@@ -10,7 +10,7 @@ const Footer = () => {
           <div>
             <img src="/favicon.svg" alt="Panstellia" className="h-12 w-auto mb-4" />
             <p className="text-luxury-300 text-sm leading-relaxed">
-              Discover exquisite necklace jewelry for every occasion. From bridal elegance to party glamour, we bring you the finest pieces.
+              Discover exquisite necklace jewelry for every occasion. From Lux Wear elegance to party glamour, we bring you the finest pieces.
             </p>
             <div className="flex space-x-4 mt-4">
               <a href="https://www.instagram.com/panstellia" className="text-luxury-300 hover:text-gold-400 transition-colors">
@@ -42,8 +42,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/products?category=Bridal" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                  Bridal Collection
+                <Link to="/products?category=Lux Wear" className="text-luxury-300 hover:text-gold-400 transition-colors">
+                  Lux Wear Collection
                 </Link>
               </li>
               <li>

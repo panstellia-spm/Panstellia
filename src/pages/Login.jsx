@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import SEOHelmet from '../utils/seoHelmet';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -76,6 +77,12 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-luxury-50 py-12 px-4">
+      <SEOHelmet 
+        title="Login | Panstellia"
+        description="Sign in to your Panstellia account to access your orders, wishlist, and personalized recommendations."
+        keywords="login, sign in, account"
+        canonical="https://panstellia.com/login"
+      />
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}

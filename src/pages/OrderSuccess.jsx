@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle, ShoppingBag, ArrowRight } from 'lucide-react';
+import SEOHelmet from '../utils/seoHelmet';
 
 const OrderSuccessPage = () => {
   const location = useLocation();
@@ -7,6 +8,12 @@ const OrderSuccessPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-luxury-50 py-12 px-4">
+      <SEOHelmet 
+        title="Order Successful | Panstellia"
+        description="Your order has been placed successfully! Track your order and check delivery status."
+        keywords="order confirmation, order placed, thank you"
+        canonical="https://panstellia.com/order-success"
+      />
       <div className="max-w-md w-full text-center">
         <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle className="w-12 h-12 text-green-500" />

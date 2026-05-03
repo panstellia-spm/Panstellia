@@ -1,0 +1,23 @@
+# Panstellia robots.txt
+# Allow search engine crawlers to index the site
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /checkout
+Disallow: /cart
+Disallow: /.well-known/
+
+# Specific rules for Googlebot
+User-agent: Googlebot
+Allow: /
+
+# Specific rules for Bingbot
+User-agent: Bingbot
+Allow: /
+
+# Crawl delay for all bots
+Crawl-delay: 0.5
+
+# Sitemap
+Sitemap: https://panstellia.com/sitemap.xml

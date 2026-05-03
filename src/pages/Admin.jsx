@@ -132,7 +132,7 @@ const AdminPage = () => {
     }
   };
 
-  const categories = ['Gold', 'Silver', 'Bridal', 'Party Wear'];
+  const categories = ['Gold', 'Silver', 'Lux Wear', 'Party Wear'];
   
   const stats = {
     totalProducts: products.length,

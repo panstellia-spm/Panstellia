@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -73,11 +74,12 @@ const AdminRoute = ({ children }) => {
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <ProductProvider>
-            <CartProvider>
-              <WishlistProvider>
+      <HelmetProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <ProductProvider>
+              <CartProvider>
+                <WishlistProvider>
                 <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Layout />}>
@@ -155,6 +157,7 @@ function App() {
         theme="light"
       />
     </BrowserRouter>
+      </HelmetProvider>
     </ErrorBoundary>
   );
 }

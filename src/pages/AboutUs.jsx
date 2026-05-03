@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, Star, Users, Award, Crown, Leaf, Clock, Heart, ArrowRight, ChevronLeft, ChevronRight, Quote, Play } from 'lucide-react';
+import SEOHelmet from '../utils/seoHelmet';
 
 const AboutUsPage = () => {
   const journeyItems = [
@@ -11,14 +12,14 @@ const AboutUsPage = () => {
   ];
 
   const teamMembers = [
-    { name: 'Cimoen Moses', role: 'Founder & MD', specialty: 'Gold Filigree', img: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&amp;h=300&amp;fit=crop&amp;crop=face&amp;loading=lazy' },
+    { name: 'Cimoen Moses', role: 'Founder & MD', specialty: 'Curated Selection', img: 'https://i.ibb.co/Ldr9v8Mv/CM.png' },
   ];
 
   const craftSteps = [
     { icon: Crown, title: 'Design', desc: 'Traditional-modern fusion' },
-    { icon: Star, title: 'Gem Sourcing', desc: 'Ethical 22K gold' },
+    { icon: Star, title: 'Gem Sourcing', desc: 'Ethical collections' },
     { icon: Sparkles, title: 'Handcrafting', desc: 'Artisan precision' },
-    { icon: Award, title: 'Quality Certified', desc: 'Lifetime guarantee' }
+    { icon: Award, title: 'Quality Certified', desc: 'Longtime guarantee' }
   ];
 
   const testimonials = [
@@ -31,22 +32,45 @@ const AboutUsPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-luxury-50">
+      <SEOHelmet 
+        title="About Panstellia | Luxury Jewelry Heritage Since 2024"
+        description="Learn about Panstellia's journey in luxury jewelry. Traditional craftsmanship meets modern design. Explore our heritage, team, and commitment to quality."
+        keywords="about jewelry, luxury brand, jewelry craftsmanship, heirloom jewelry, handmade necklaces"
+        canonical="https://panstellia.com/about-us"
+      />
       {/* Compact Hero */}
-      <section className="relative h-[60vh] md:h-[70vh] flex items-center bg-gradient-to-br from-luxury-900 to-gold-500/20 overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&amp;w=1920&amp;fit=crop')] bg-cover bg-center opacity-50"></div>
-        <div className="max-w-6xl mx-auto px-4 relative z-10 text-white text-center md:text-left">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl">
-            <span className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur rounded-full text-sm mb-6">Since 2024 • Chinese Heritage</span>
-            <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-6">
-              Heritage <span className="text-gold-300 block">Redefined</span>
-            </h1>
-            <p className="text-lg md:text-xl mb-8 max-w-lg leading-relaxed">Timeless jewelry from ancient markets to modern lifestyles.</p>
-            <Link to="/products" className="btn-primary px-8 py-4 text-lg inline-flex items-center">
-              Explore Collections <ArrowRight className="w-5 h-5 ml-2" />
-            </Link>
-          </motion.div>
-        </div>
-      </section>
+    <section className="relative h-[45vh] md:h-[55vh] flex items-center bg-gradient-to-br from-luxury-900 to-gold-500/20 overflow-hidden">
+  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&w=1920&fit=crop')] bg-cover bg-center opacity-40"></div>
+
+  <div className="max-w-5xl mx-auto px-4 relative z-10 text-white text-center md:text-left">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      className="max-w-xl"
+    >
+      <span className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur rounded-full text-xs mb-4">
+        Since 2024 • Korean Heritage
+      </span>
+
+      <h1 className="font-serif text-3xl md:text-5xl lg:text-7xl font-bold leading-tight mb-4">
+  <span className="whitespace-nowrap">
+    Heritage <span className="text-gold-300">Redefined</span>
+  </span>
+</h1>
+
+      <p className="text-base md:text-lg mb-6 max-w-md leading-relaxed">
+        Timeless jewelry from ancient markets to modern lifestyles.
+      </p>
+
+      <Link 
+        to="/products" 
+        className="btn-primary px-6 py-3 text-base inline-flex items-center"
+      >
+        Explore <ArrowRight className="w-4 h-4 ml-2" />
+      </Link>
+    </motion.div>
+  </div>
+</section>
 
       {/* Journey & Team Carousel */}
       <section className="py-20 bg-white">

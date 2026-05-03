@@ -4,6 +4,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
 import { toast } from 'react-toastify';
 import { getDirectImageUrl } from '../utils/imageUtils';
+import SEOHelmet from '../utils/seoHelmet';
 
 const WishlistPage = () => {
   const { wishlistItems, removeFromWishlist } = useWishlist();
@@ -54,6 +55,12 @@ const WishlistPage = () => {
 
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
+      <SEOHelmet 
+        title="My Wishlist | Panstellia"
+        description="Your saved favorite jewelry pieces from Panstellia. Add to cart and checkout securely."
+        keywords="wishlist, saved items, jewelry favorites"
+        canonical="https://panstellia.com/wishlist"
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="font-serif text-3xl font-bold text-luxury-900 mb-8">
           My Wishlist ({wishlistItems.length})

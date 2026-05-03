@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { getDirectImageUrl } from '../utils/imageUtils';
+import SEOHelmet from '../utils/seoHelmet';
 
 const CartPage = () => {
   const { user } = useAuth();
@@ -56,6 +57,12 @@ const CartPage = () => {
 
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
+      <SEOHelmet 
+        title="Shopping Cart | Panstellia"
+        description="View and manage your shopping cart at Panstellia. Secure checkout with multiple payment options."
+        keywords="shopping cart, jewelry cart, checkout"
+        canonical="https://panstellia.com/cart"
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="font-serif text-3xl font-bold text-luxury-900 mb-8">Shopping Cart</h1>
 

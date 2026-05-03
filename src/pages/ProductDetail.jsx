@@ -6,6 +6,8 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { toast } from 'react-toastify';
 import { getDirectImageUrl } from '../utils/imageUtils';
+import SEOHelmet from '../utils/seoHelmet';
+import { getProductSchema } from '../utils/structuredData';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -79,6 +81,23 @@ const wishlisted = isInWishlist(product.id);
 
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
+      <SEOHelmet 
+        title={`${product.name} | Buy at Panstellia`}
+        description={product.description || `Shop ${product.name} - Premium ${product.category} jewelry from Panstellia. ${product.inStock ? 'In stock' : 'Out of stock'}.`}
+        keywords={`${product.name}, ${product.category} necklace, jewelry`}
+        canonical={`https://panstellia.com/product/${product.id}`}
+        ogImage={getDirectImageUrl(product.image)}
+        structuredData={getProductSchema({
+          name: product.name,
+          description: product.description,
+          image: getDirectImageUrl(product.image),
+          price: product.price,
+          inStock: product.inStock,
+          rating: product.rating || 4.5,
+          reviewCount: product.reviewCount || 0,
+          sku: product.id
+        })}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-luxury-500 mb-8">

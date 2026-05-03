@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Star, Truck, Shield, RefreshCw } from 'lucide-react';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/UI/ProductCard';
+import SEOHelmet from '../utils/seoHelmet';
+import { getOrganizationSchema } from '../utils/structuredData';
 
 const HomePage = () => {
   const { getFeaturedProducts, products, loading } = useProducts();
@@ -19,9 +21,9 @@ const HomePage = () => {
       count: products.filter(p => p.category === 'Silver').length
     },
     {
-      name: 'Bridal',
+      name: 'Lux Wear',
       image: 'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=400',
-      count: products.filter(p => p.category === 'Bridal').length
+      count: products.filter(p => p.category === 'Lux Wear').length
     },
     {
       name: 'Party Wear',
@@ -44,7 +46,7 @@ const HomePage = () => {
     {
       icon: RefreshCw,
       title: 'Easy Returns',
-      description: '10-day return policy'
+      description: '5-day return policy'
     },
     {
       icon: Star,
@@ -57,6 +59,13 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen">
+      <SEOHelmet 
+        title="Panstellia | Luxury Necklace Jewelry Collections"
+        description="Discover exquisite necklace jewelry collections from Panstellia. Premium gold, silver, and handcrafted pieces for weddings, parties, and everyday elegance."
+        keywords="luxury necklaces, gold necklaces, silver necklaces, Lux Wear jewelry, handcrafted necklaces, jewelry store"
+        canonical="https://panstellia.com"
+        structuredData={getOrganizationSchema()}
+      />
       {/* Hero Section */}
       <section className="relative h-[90vh] flex items-center bg-gradient-to-r from-luxury-100 via-luxury-50 to-gold-50 overflow-hidden">
         {/* Background Pattern */}
@@ -75,10 +84,10 @@ const HomePage = () => {
               </div>
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold text-luxury-900 leading-tight">
                 Elegance in
-                <span className="text-gradient block">Every Necklace</span>
+                <span className="text-gradient block">Every Jewellery</span>
               </h1>
               <p className="mt-6 text-lg text-luxury-600 max-w-lg">
-                Discover our exquisite collection of necklaces - from bridal elegance to party glamour. 
+                Discover our exquisite collection of necklaces - from Lux Wear elegance to party glamour.
                 Each piece crafted to make you shine.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4">
@@ -86,8 +95,8 @@ const HomePage = () => {
                   Shop Now
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>
-                <Link to="/products?category=Bridal" className="btn-secondary inline-flex items-center justify-center">
-                  Bridal Collection
+                <Link to="/products?category=Lux Wear" className="btn-secondary inline-flex items-center justify-center">
+                  Lux Wear Collection
                 </Link>
               </div>
             </motion.div>
@@ -228,23 +237,23 @@ const HomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div className="text-white">
               <h2 className="font-serif text-3xl md:text-4xl font-bold">
-                Wedding Season Special
+                Trending Collections
               </h2>
               <p className="mt-4 text-white/90 text-lg">
-                Get upto 25% off on our bridal collection. Make your special day even more memorable with our exquisite designs.
+                Get upto 25% off on our Premium collection. Make your special day even more memorable with our exquisite designs.
               </p>
               <Link 
-                to="/products?category=Bridal" 
+                to="/products?category=lux wear" 
                 className="mt-6 inline-flex items-center px-6 py-3 bg-white text-gold-600 rounded-lg font-medium hover:bg-luxury-50 transition-colors"
               >
-                Shop Bridal
+                View Collection
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
             </div>
             <div className="hidden md:block">
               <img 
                 src="https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=600" 
-                alt="Bridal Collection"
+                alt="Lux Wear Collection"
                 className="rounded-xl shadow-2xl"
               />
             </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import SEOHelmet from '../utils/seoHelmet';
 
 const TermsConditionsPage = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -15,6 +16,13 @@ const TermsConditionsPage = () => {
   }
 
   return (
+    <>
+      <SEOHelmet 
+        title="Terms & Conditions | Panstellia"
+        description="Terms and conditions for using Panstellia website and services. Please read carefully before making purchases."
+        keywords="terms and conditions, terms of service, legal terms"
+        canonical="https://panstellia.com/terms"
+      />
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -124,6 +132,7 @@ const TermsConditionsPage = () => {
         </div>
       </motion.div>
     </motion.div>
+    </>
   );
 };
 

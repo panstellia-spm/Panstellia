@@ -83,8 +83,8 @@ const Navbar = () => {
             <Link to="/products?category=Silver" className="text-luxury-700 hover:text-gold-600 transition-colors">
               Silver
             </Link>
-            <Link to="/products?category=Bridal" className="text-luxury-700 hover:text-gold-600 transition-colors">
-              Bridal
+            <Link to="/products?category=Lux Wear" className="text-luxury-700 hover:text-gold-600 transition-colors">
+              Lux Wear
             </Link>
           </div>
 
@@ -218,8 +218,8 @@ const Navbar = () => {
             <Link to="/products?category=Silver" className="block text-luxury-700 hover:text-gold-600" onClick={() => setIsOpen(false)}>
               Silver
             </Link>
-            <Link to="/products?category=Bridal" className="block text-luxury-700 hover:text-gold-600" onClick={() => setIsOpen(false)}>
-              Bridal
+            <Link to="/products?category=Lux Wear" className="block text-luxury-700 hover:text-gold-600" onClick={() => setIsOpen(false)}>
+              Lux Wear
             </Link>
           </div>
         </div>

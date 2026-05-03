@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { createRazorpayOrder, verifyPayment, openCheckout } from '../services/payment';
 import { getDirectImageUrl } from '../utils/imageUtils';
+import SEOHelmet from '../utils/seoHelmet';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -159,6 +160,12 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
+      <SEOHelmet 
+        title="Secure Checkout | Panstellia"
+        description="Complete your jewelry purchase securely. Fast checkout with Razorpay payment gateway."
+        keywords="checkout, payment, secure payment, jewelry purchase"
+        canonical="https://panstellia.com/checkout"
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link to="/cart" className="inline-flex items-center text-luxury-600 hover:text-gold-600 mb-6">
           <ChevronLeft className="w-5 h-5" />

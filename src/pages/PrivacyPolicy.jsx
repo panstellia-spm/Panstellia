@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import SEOHelmet from '../utils/seoHelmet';
 
 const PrivacyPolicyPage = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -15,6 +16,13 @@ const PrivacyPolicyPage = () => {
   }
 
   return (
+    <>
+      <SEOHelmet 
+        title="Privacy Policy | Panstellia"
+        description="Privacy policy for Panstellia. Learn how we collect, use, and protect your personal data."
+        keywords="privacy policy, data protection, privacy"
+        canonical="https://panstellia.com/privacy"
+      />
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -131,6 +139,7 @@ const PrivacyPolicyPage = () => {
         </div>
       </motion.div>
     </motion.div>
+    </>
   );
 };
 

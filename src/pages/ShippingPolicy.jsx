@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, X, Truck, Clock, PackageCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import SEOHelmet from '../utils/seoHelmet';
 
 const ShippingPolicyPage = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -15,6 +16,13 @@ const ShippingPolicyPage = () => {
   }
 
   return (
+    <>
+      <SEOHelmet 
+        title="Shipping Policy | Panstellia"
+        description="Learn about Panstellia's shipping policy, delivery times, and shipping costs. Free shipping on orders above ₹1000."
+        keywords="shipping policy, delivery, shipping costs, free shipping"
+        canonical="https://panstellia.com/shipping"
+      />
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -149,6 +157,7 @@ const ShippingPolicyPage = () => {
         </div>
       </motion.div>
     </motion.div>
+    </>
   );
 };
 
