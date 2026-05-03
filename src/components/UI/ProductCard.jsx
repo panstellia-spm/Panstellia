@@ -57,7 +57,7 @@ const discount = product.originalPrice
     <Link to={`/product/${product.id}`} className="group block">
       <div className="card">
         {/* Image Container */}
-        <div className="relative overflow-hidden aspect-[3/4]">
+        <div className="relative overflow-hidden aspect-[4/5]">
           <img
             src={imageUrl}
             alt={product.name}

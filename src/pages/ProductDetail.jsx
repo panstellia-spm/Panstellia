@@ -114,7 +114,7 @@ const wishlisted = isInWishlist(product.id);
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div className="space-y-4">
-            <div className="relative overflow-hidden rounded-xl aspect-square bg-white">
+            <div className="relative overflow-hidden rounded-xl aspect-[4/5] bg-white">
               <img
                 src={imageUrl}
                 alt={product.name}
@@ -264,7 +264,7 @@ const wishlisted = isInWishlist(product.id);
               {relatedProducts.map(p => (
                 <Link key={p.id} to={`/product/${p.id}`} className="group">
                   <div className="card">
-                    <div className="relative overflow-hidden aspect-[3/4]">
+                    <div className="relative overflow-hidden aspect-[4/3]">
                       <img
                         src={getDirectImageUrl(p.image)}
                         alt={p.name}
