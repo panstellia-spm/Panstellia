@@ -78,13 +78,22 @@ export const handler = async (event) => {
 
       const payment = await razorpay.payments.fetch(razorpay_payment_id);
 
-      // Check if payment is authorized
-      if (payment.status !== 'authorized') {
-        console.error('Payment not authorized:', payment.status);
+      // Check if payment is in a successful/confirmed state.
+      // Razorpay can return different statuses depending on the flow/payment method.
+      // Signature verification is the primary check; status is a best-effort guard.
+      const allowedStatuses = new Set([
+        'authorized',
+        'captured',
+        'paid',
+        'settled'
+      ]);
+
+      if (payment.status && !allowedStatuses.has(payment.status)) {
+        console.error('Payment not in an allowed successful state:', payment.status);
         return {
           statusCode: 400,
           body: JSON.stringify({
-            error: 'Payment not authorized'
+            error: `Payment not authorized or completed. status=${payment.status}`
           })
         };
       }

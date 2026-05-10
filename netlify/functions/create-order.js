@@ -7,11 +7,29 @@
 
 import Razorpay from 'razorpay';
 
-// Initialize Razorpay client
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+const getRazorpayClient = () => {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    // Avoid throwing during module load; handler will return JSON error instead.
+    return null;
+  }
+
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret
+  });
+};
+
+
+const getMissingRazorpayEnv = () => {
+  const missing = [];
+  if (!process.env.RAZORPAY_KEY_ID) missing.push('RAZORPAY_KEY_ID');
+  if (!process.env.RAZORPAY_KEY_SECRET) missing.push('RAZORPAY_KEY_SECRET');
+  return missing;
+};
+
 
 export const handler = async (event) => {
   // Only allow POST requests
@@ -23,9 +41,54 @@ export const handler = async (event) => {
   }
 
   try {
+    const missing = getMissingRazorpayEnv();
+    if (missing.length) {
+      console.error('Missing Razorpay env vars:', missing);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: `Razorpay configuration error: missing ${missing.join(', ')}`
+        })
+      };
+    }
+
     // Parse request body
-    const body = JSON.parse(event.body);
+    let body;
+    try {
+      body = JSON.parse(event.body);
+    } catch {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid JSON body' })
+      };
+    }
+
     const { amount, currency = 'INR', receipt, notes = {} } = body;
+
+    // Extra validation to prevent Razorpay/client crashes
+    if (!currency || typeof currency !== 'string') {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid currency' })
+      };
+    }
+
+    if (receipt && typeof receipt !== 'string') {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid receipt' })
+      };
+    }
+
+    if (notes && typeof notes !== 'object') {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid notes' })
+      };
+    }
+
+
+
 
     // Validate amount (minimum 100 paise = ₹1)
     if (!amount || amount < 100) {
@@ -37,8 +100,18 @@ export const handler = async (event) => {
       };
     }
 
+    const razorpay = getRazorpayClient();
+    if (!razorpay) {
+      // Safety net: env vars were checked above, but avoid crashing if something changes.
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Razorpay client not configured' })
+      };
+    }
+
     // Create order on Razorpay
     const order = await razorpay.orders.create({
+
       amount,
       currency,
       receipt,

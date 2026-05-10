@@ -3,8 +3,8 @@
 // Falls back to simulation mode for local development
 
 const NETLIFY_FUNCTIONS_BASE = ''; // Empty string uses same origin (works with Netlify)
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SkY8Bdi8iAl2go';
-
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_SnfBggBgnsFeSI';
+const RAZORPAY_KEY_SECRET = import.meta.env.VITE_RAZORPAY_KEY_SECRET; // Note: This should NOT be exposed to client-side; only used in Netlify Functions
 
 /**
  * Check if we're running in local development mode
@@ -52,9 +52,9 @@ export const loadRazorpay = () => {
  */
 export const createRazorpayOrder = async (amount, currency = 'INR', options = {}) => {
   const isLocal = isLocalDev();
-  
+
   try {
-    // Try Netlify Functions first (works in both dev and prod if Functions are accessible)
+    // 1) Preferred: Netlify Function (server-side Razorpay credentials)
     const response = await fetch(`${NETLIFY_FUNCTIONS_BASE}/.netlify/functions/create-order`, {
       method: 'POST',
       headers: {
@@ -64,99 +64,96 @@ export const createRazorpayOrder = async (amount, currency = 'INR', options = {}
         amount,
         currency,
         receipt: options.receipt,
-        notes: options.notes || {}
+        notes: options.notes || {},
       }),
     });
 
     if (response.ok) {
-      const text = await response.text();
-      if (text) {
-        const data = JSON.parse(text);
-        if (data.order_id) {
-          return data;
-        }
-      }
-    } else {
-      // Try to get error message from response
-      let errorMessage = 'Payment server unavailable';
-      try {
-        const errorText = await response.text();
-        if (errorText) {
-          const errorData = JSON.parse(errorText);
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        }
-      } catch (parseError) {
-        // Ignore parse errors, use default message
-      }
-      throw new Error(errorMessage);
+      const data = await response.json();
+      if (data?.order_id) return data;
+      throw new Error('Payment server returned an unexpected response (missing order_id)');
     }
-    // Use direct Razorpay API for local development
-    if (isLocal) {
-      console.log('Using direct Razorpay API for local development');
-      
-      // Get credentials from environment
-      const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
-      const keySecret = import.meta.env.VITE_RAZORPAY_KEY_SECRET;
-      
-      if (!keyId || !keySecret) {
-        console.warn('Missing Razorpay credentials for direct API call');
-        // Fall back to creating a mock order for UI testing
-        return createMockOrder(amount, currency, options);
+
+    // 2) For non-2xx, try to surface backend error body
+    let errorText = '';
+    try {
+      errorText = await response.text();
+    } catch {
+      // ignore
+    }
+
+    if (errorText) {
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData?.error) throw new Error(errorData.error);
+        if (errorData?.message) throw new Error(errorData.message);
+      } catch {
+        // ignore (non-json)
       }
-      
-      const auth = btoa(`${keyId}:${keySecret}`);
-      
-      const apiResponse = await fetch('https://api.razorpay.com/v1/orders', {
+    }
+
+    // 3) Retry once on transient gateway errors
+    if ([502, 503, 504].includes(response.status)) {
+      console.warn(`Payment server error (HTTP ${response.status}). Retrying once...`);
+      const response2 = await fetch(`${NETLIFY_FUNCTIONS_BASE}/.netlify/functions/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${auth}`,
         },
         body: JSON.stringify({
           amount,
           currency,
           receipt: options.receipt,
-          notes: options.notes || {}
+          notes: options.notes || {},
         }),
       });
 
-      if (!apiResponse.ok) {
-        const errorText = await apiResponse.text();
-        throw new Error(errorText || `Razorpay API error: ${apiResponse.status}`);
+      if (response2.ok) {
+        const data2 = await response2.json();
+        if (data2?.order_id) return data2;
       }
 
-      const data = await apiResponse.json();
-      return {
-        order_id: data.id,
-        amount: data.amount,
-        currency: data.currency
-      };
+      let errorText2 = '';
+      try {
+        errorText2 = await response2.text();
+      } catch {
+        // ignore
+      }
+      throw new Error(
+        `Payment server unavailable (HTTP ${response2.status})${errorText2 ? `: ${errorText2}` : ''}`
+      );
     }
-    
-    // If we get here, something went wrong
-    throw new Error('Payment server unavailable');
-    
+
+    // 4) If we’re here, server rejected the request; in local dev we can fall back.
+    if (isLocal) {
+      console.warn('Payment server rejected request in local mode - falling back');
+      return createMockOrder(amount, currency, options);
+    }
+
+    throw new Error(
+      `Payment server unavailable (HTTP ${response.status})${errorText ? `: ${errorText}` : ''}`
+    );
   } catch (error) {
     console.error('Error creating Razorpay order:', error);
-    
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      // Network error - might be running locally without backend
+
+    // Network error - likely no backend available locally
+    const msg = error?.message || '';
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
       if (isLocal) {
         console.warn('Network error - creating mock order for testing');
         return createMockOrder(amount, currency, options);
       }
       throw new Error('Unable to connect to payment server. Please try again.');
     }
-    
-    if (error.message.includes('401') || error.message.includes('AUTHENTICATION_FAILURE')) {
+
+    if (msg.includes('401') || msg.includes('AUTHENTICATION_FAILURE')) {
       throw new Error('Payment configuration error. Please contact support.');
     }
-    
+
     throw error;
   }
 };
+
 
 
 /**

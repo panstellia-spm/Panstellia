@@ -1,8 +1,8 @@
-# TODO: Fix product images to 4:3 ratio
+# TODO
 
-- [x] Step 1: Update src/components/UI/ProductCard.jsx (change aspect-[3/4] to aspect-[4/3])
-- [x] Step 2: Update src/pages/ProductDetail.jsx (main image aspect-square to aspect-[4/3]; related products aspect-[3/4] to aspect-[4/3])
-- [x] Step 3: Update src/pages/Home.jsx (category images aspect-[3/4] to aspect-[4/3])
-- [x] Step 4: Verify changes across pages (Products.jsx uses ProductCard automatically)
-- [x] Step 5: Complete task
+- [x] Fix Razorpay order creation control flow in `src/services/payment.js` (reached correct return path; cleaned unreachable code).
+- [x] Relax/adjust payment status strictness in `netlify/functions/verify-payment.js` to avoid rejecting legitimate payments when `payment.status` isn’t exactly `authorized`.
+- [ ] Sanity-check build/lint and verify checkout + verification response.
+
+
 
