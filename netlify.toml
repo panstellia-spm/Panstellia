@@ -3,6 +3,10 @@
   publish = "dist"
   functions = "netlify/functions"
 
+  [build.environment]
+    # Razorpay key_id is used in client checkout; whitelist it from Netlify secrets scanning.
+    SECRETS_SCAN_OMIT_KEYS = "VITE_RAZORPAY_KEY_ID"
+
 [functions]
   directory = "netlify/functions"
 
@@ -11,7 +15,11 @@
   publish = "dist"
   functions = "netlify/functions"
 
+  [context.production.environment]
+    SECRETS_SCAN_OMIT_KEYS = "VITE_RAZORPAY_KEY_ID"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+

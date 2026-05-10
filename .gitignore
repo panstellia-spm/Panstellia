@@ -5,3 +5,7 @@ node_modules
 
 # Local Netlify folder
 .netlify
+
+# Build output (generated)
+dist/
+
