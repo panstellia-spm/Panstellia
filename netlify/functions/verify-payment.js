@@ -1,14 +1,14 @@
 /**
  * Netlify Function: Verify Razorpay Payment
  * Endpoint: POST /.netlify/functions/verify-payment
- * 
+ *
  * Verifies the payment signature to ensure the payment is authentic
  */
 
-const crypto = require('crypto');
-const Razorpay = require('razorpay');
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -20,25 +20,25 @@ exports.handler = async (event) => {
   try {
     // Parse request body
     const body = JSON.parse(event.body);
-    const { 
-      razorpay_payment_id, 
-      razorpay_order_id, 
-      razorpay_signature 
+    const {
+      razorpay_payment_id,
+      razorpay_order_id,
+      razorpay_signature
     } = body;
 
     // Validate required fields
     if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ 
-          error: 'Missing required fields: razorpay_payment_id, razorpay_order_id, razorpay_signature' 
+        body: JSON.stringify({
+          error: 'Missing required fields: razorpay_payment_id, razorpay_order_id, razorpay_signature'
         })
       };
     }
 
     // Get key_secret from environment
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    
+
     if (!keySecret) {
       console.error('RAZORPAY_KEY_SECRET not configured');
       return {
@@ -62,8 +62,8 @@ exports.handler = async (event) => {
       console.error('Payment signature verification failed');
       return {
         statusCode: 400,
-        body: JSON.stringify({ 
-          error: 'Payment verification failed. Signature mismatch.' 
+        body: JSON.stringify({
+          error: 'Payment verification failed. Signature mismatch.'
         })
       };
     }
@@ -77,14 +77,14 @@ exports.handler = async (event) => {
       });
 
       const payment = await razorpay.payments.fetch(razorpay_payment_id);
-      
+
       // Check if payment is authorized
       if (payment.status !== 'authorized') {
         console.error('Payment not authorized:', payment.status);
         return {
           statusCode: 400,
-          body: JSON.stringify({ 
-            error: 'Payment not authorized' 
+          body: JSON.stringify({
+            error: 'Payment not authorized'
           })
         };
       }

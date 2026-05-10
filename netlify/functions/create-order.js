@@ -1,11 +1,11 @@
 /**
  * Netlify Function: Create Razorpay Order
  * Endpoint: POST /.netlify/functions/create-order
- * 
+ *
  * Creates an order on Razorpay and returns the order_id
  */
 
-const Razorpay = require('razorpay');
+import Razorpay from 'razorpay';
 
 // Initialize Razorpay client
 const razorpay = new Razorpay({
@@ -13,7 +13,7 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -31,8 +31,8 @@ exports.handler = async (event) => {
     if (!amount || amount < 100) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ 
-          error: 'Invalid amount. Minimum amount is 100 paise (₹1)' 
+        body: JSON.stringify({
+          error: 'Invalid amount. Minimum amount is 100 paise (₹1)'
         })
       };
     }
@@ -79,8 +79,8 @@ exports.handler = async (event) => {
     if (error.statusCode) {
       return {
         statusCode: error.statusCode,
-        body: JSON.stringify({ 
-          error: error.error?.description || 'Failed to create order' 
+        body: JSON.stringify({
+          error: error.error?.description || 'Failed to create order'
         })
       };
     }

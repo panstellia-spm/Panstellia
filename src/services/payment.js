@@ -76,9 +76,22 @@ export const createRazorpayOrder = async (amount, currency = 'INR', options = {}
           return data;
         }
       }
+    } else {
+      // Try to get error message from response
+      let errorMessage = 'Payment server unavailable';
+      try {
+        const errorText = await response.text();
+        if (errorText) {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        }
+      } catch (parseError) {
+        // Ignore parse errors, use default message
+      }
+      throw new Error(errorMessage);
     }
-    
-    // If Netlify Functions failed, check for local development
     // Use direct Razorpay API for local development
     if (isLocal) {
       console.log('Using direct Razorpay API for local development');
@@ -186,9 +199,22 @@ export const verifyPayment = async (paymentId, orderId, signature) => {
     if (response.ok) {
       const data = await response.json();
       return data;
+    } else {
+      // Try to get error message from response
+      let errorMessage = 'Payment verification failed';
+      try {
+        const errorText = await response.text();
+        if (errorText) {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        }
+      } catch (parseError) {
+        // Ignore parse errors, use default message
+      }
+      throw new Error(errorMessage);
     }
-    
-    // If Netlify Functions failed and we're in local dev mode
     if (isLocal) {
       console.log('Skipping server verification in local dev mode');
       return {
