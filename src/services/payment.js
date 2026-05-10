@@ -3,7 +3,7 @@
 // Falls back to simulation mode for local development
 
 const NETLIFY_FUNCTIONS_BASE = ''; // Empty string uses same origin (works with Netlify)
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_SnfBggBgnsFeSI';
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = import.meta.env.VITE_RAZORPAY_KEY_SECRET; // Note: This should NOT be exposed to client-side; only used in Netlify Functions
 
 /**
@@ -247,6 +247,10 @@ export const verifyPayment = async (paymentId, orderId, signature) => {
  * @returns {Promise} - Payment response
  */
 export const openCheckout = async (options) => {
+  if (!RAZORPAY_KEY_ID) {
+    throw new Error('Razorpay configuration error: missing VITE_RAZORPAY_KEY_ID');
+  }
+
   const razorpay = await loadRazorpay();
   
   const defaultOptions = {
