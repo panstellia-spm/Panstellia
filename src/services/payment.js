@@ -1,10 +1,10 @@
 // Razorpay Payment Service
-// Uses Netlify Functions for server-side order creation and payment verification
+// Uses standalone server for server-side order creation and payment verification
 // Falls back to simulation mode for local development
 
-const NETLIFY_FUNCTIONS_BASE = ''; // Empty string uses same origin (works with Netlify)
+const PAYMENT_BACKEND_BASE = import.meta.env.VITE_PAYMENT_BACKEND_URL || '';
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
-const RAZORPAY_KEY_SECRET = import.meta.env.VITE_RAZORPAY_KEY_SECRET; // Note: This should NOT be exposed to client-side; only used in Netlify Functions
+
 
 /**
  * Check if we're running in local development mode
@@ -54,8 +54,9 @@ export const createRazorpayOrder = async (amount, currency = 'INR', options = {}
   const isLocal = isLocalDev();
 
   try {
-    // 1) Preferred: Netlify Function (server-side Razorpay credentials)
-    const response = await fetch(`${NETLIFY_FUNCTIONS_BASE}/.netlify/functions/create-order`, {
+    // 1) Preferred: Standalone backend (server-side Razorpay credentials)
+    const response = await fetch(`${PAYMENT_BACKEND_BASE}/create-order`, {
+
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -95,7 +96,8 @@ export const createRazorpayOrder = async (amount, currency = 'INR', options = {}
     // 3) Retry once on transient gateway errors
     if ([502, 503, 504].includes(response.status)) {
       console.warn(`Payment server error (HTTP ${response.status}). Retrying once...`);
-      const response2 = await fetch(`${NETLIFY_FUNCTIONS_BASE}/.netlify/functions/create-order`, {
+      const response2 = await fetch(`${PAYMENT_BACKEND_BASE}/create-order`, {
+
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -173,15 +175,16 @@ const createMockOrder = (amount, currency, options) => {
 
 /**
  * Verify payment signature
- * - Production: Uses Netlify Functions
+ * - Production: Uses standalone backend
  * - Local Dev: Skips server verification (for testing)
  */
 export const verifyPayment = async (paymentId, orderId, signature) => {
   const isLocal = isLocalDev();
   
   try {
-    // Try Netlify Functions first
-    const response = await fetch(`${NETLIFY_FUNCTIONS_BASE}/.netlify/functions/verify-payment`, {
+    // Try standalone backend first
+    const response = await fetch(`${PAYMENT_BACKEND_BASE}/verify-payment`, {
+
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
