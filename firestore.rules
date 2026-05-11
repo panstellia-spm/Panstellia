@@ -50,6 +50,18 @@ service cloud.firestore {
       allow update: if isAdmin() || isAdminEmail();
     }
 
+    // Razorpay payments persisted by Firebase Functions.
+    // Users generally should not write to this collection.
+    match /payments/{paymentId} {
+      allow read: if request.auth != null &&
+        // Allow admins to read.
+        (isAdmin() || isAdminEmail());
+
+      // Writes are server-only. Enforce by denying all client writes.
+      allow create, update, delete: if false;
+    }
+
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,291 +1,185 @@
-// Razorpay Payment Service
-// Uses standalone server for server-side order creation and payment verification
-// Falls back to simulation mode for local development
+// Razorpay Payment Service (Frontend)
+// Calls Firebase Functions REST endpoints securely.
 
-const PAYMENT_BACKEND_BASE = import.meta.env.VITE_PAYMENT_BACKEND_URL || '';
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
+// These are REST endpoint URLs (NO secrets).
+const CREATE_ORDER_URL = import.meta.env.VITE_FIREBASE_CREATE_ORDER_URL;
+const VERIFY_PAYMENT_URL = import.meta.env.VITE_FIREBASE_VERIFY_PAYMENT_URL;
+
+// Backward-compatible aliases (some env setups may provide a subset).
+// These allow older deployments to work without changing code.
+const CREATE_ORDER_URL_ALT = import.meta.env.VITE_FIREBASE_CREATE_ORDER_URL_OLD;
+const VERIFY_PAYMENT_URL_ALT = import.meta.env.VITE_FIREBASE_VERIFY_PAYMENT_URL_OLD;
+
 
 /**
- * Check if we're running in local development mode
- */
-const isLocalDev = () => {
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-};
-
-
-/**
- * Load Razorpay checkout script
- * @returns {Promise} - Resolves with Razorpay object
+ * Load Razorpay checkout script.
+ * @returns {Promise<any>} Resolves with window.Razorpay constructor.
  */
 export const loadRazorpay = () => {
   return new Promise((resolve, reject) => {
-    // Check if Razorpay script is already loaded
     if (window.Razorpay) {
       resolve(window.Razorpay);
       return;
     }
 
-    // Load Razorpay script
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/razorpay.js';
     script.async = true;
     script.onload = () => {
-      if (window.Razorpay) {
-        resolve(window.Razorpay);
-      } else {
-        reject(new Error('Failed to load Razorpay'));
-      }
+      if (window.Razorpay) resolve(window.Razorpay);
+      else reject(new Error('Failed to load Razorpay'));
     };
-    script.onerror = () => {
-      reject(new Error('Failed to load Razorpay script'));
-    };
+    script.onerror = () => reject(new Error('Failed to load Razorpay script'));
+
     document.body.appendChild(script);
   });
 };
 
+async function parseErrorResponse(response) {
+  let text = '';
+  try {
+    text = await response.text();
+  } catch {
+    // ignore
+  }
 
-/**
- * Create a Razorpay order
- * - Production: Uses Netlify Functions to call Razorpay API
- * - Local Dev: Uses Netlify Functions (deployed) or direct Razorpay API
- */
-export const createRazorpayOrder = async (amount, currency = 'INR', options = {}) => {
-  const isLocal = isLocalDev();
+  if (!text) return null;
 
   try {
-    // 1) Preferred: Standalone backend (server-side Razorpay credentials)
-    const response = await fetch(`${PAYMENT_BACKEND_BASE}/create-order`, {
-
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        amount,
-        currency,
-        receipt: options.receipt,
-        notes: options.notes || {},
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data?.order_id) return data;
-      throw new Error('Payment server returned an unexpected response (missing order_id)');
-    }
-
-    // 2) For non-2xx, try to surface backend error body
-    let errorText = '';
-    try {
-      errorText = await response.text();
-    } catch {
-      // ignore
-    }
-
-    if (errorText) {
-      try {
-        const errorData = JSON.parse(errorText);
-        if (errorData?.error) throw new Error(errorData.error);
-        if (errorData?.message) throw new Error(errorData.message);
-      } catch {
-        // ignore (non-json)
-      }
-    }
-
-    // 3) Retry once on transient gateway errors
-    if ([502, 503, 504].includes(response.status)) {
-      console.warn(`Payment server error (HTTP ${response.status}). Retrying once...`);
-      const response2 = await fetch(`${PAYMENT_BACKEND_BASE}/create-order`, {
-
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount,
-          currency,
-          receipt: options.receipt,
-          notes: options.notes || {},
-        }),
-      });
-
-      if (response2.ok) {
-        const data2 = await response2.json();
-        if (data2?.order_id) return data2;
-      }
-
-      let errorText2 = '';
-      try {
-        errorText2 = await response2.text();
-      } catch {
-        // ignore
-      }
-      throw new Error(
-        `Payment server unavailable (HTTP ${response2.status})${errorText2 ? `: ${errorText2}` : ''}`
-      );
-    }
-
-    // 4) If we’re here, server rejected the request; in local dev we can fall back.
-    if (isLocal) {
-      console.warn('Payment server rejected request in local mode - falling back');
-      return createMockOrder(amount, currency, options);
-    }
-
-    throw new Error(
-      `Payment server unavailable (HTTP ${response.status})${errorText ? `: ${errorText}` : ''}`
-    );
-  } catch (error) {
-    console.error('Error creating Razorpay order:', error);
-
-    // Network error - likely no backend available locally
-    const msg = error?.message || '';
-    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-      if (isLocal) {
-        console.warn('Network error - creating mock order for testing');
-        return createMockOrder(amount, currency, options);
-      }
-      throw new Error('Unable to connect to payment server. Please try again.');
-    }
-
-    if (msg.includes('401') || msg.includes('AUTHENTICATION_FAILURE')) {
-      throw new Error('Payment configuration error. Please contact support.');
-    }
-
-    throw error;
+    const data = JSON.parse(text);
+    return data?.error || data?.message || null;
+  } catch {
+    return text;
   }
-};
-
-
+}
 
 /**
- * Create a mock order for local testing when no backend is available
+ * Create a Razorpay order via Firebase Functions.
+ * @param {number} amountPaise Amount in paise (smallest currency unit)
+ * @param {string} currency
+ * @param {object} options receipt/notes
+ * @returns {Promise<{order_id: string, amount: number, currency: string}>}
  */
-const createMockOrder = (amount, currency, options) => {
-  const mockOrderId = 'order_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  console.log('Created mock order:', mockOrderId, 'for amount:', amount);
-  
-  return {
-    order_id: mockOrderId,
-    amount,
-    currency
-  };
+export const createRazorpayOrder = async (amountPaise, currency = 'INR', options = {}) => {
+  const createOrderUrl = CREATE_ORDER_URL || CREATE_ORDER_URL_ALT;
+
+  const missing = [];
+  if (!createOrderUrl) missing.push('VITE_FIREBASE_CREATE_ORDER_URL');
+  if (!RAZORPAY_KEY_ID) missing.push('VITE_RAZORPAY_KEY_ID');
+
+  // If an old env var name is used, mention it in the error message too.
+  if (missing.length && CREATE_ORDER_URL_ALT && !CREATE_ORDER_URL) {
+    // No-op: alias exists, so we won't fail on CREATE_ORDER_URL.
+  }
+
+  if (missing.length) {
+    throw new Error(
+      `Razorpay/Payments configuration error: missing ${missing.join(', ')}. ` +
+        `Set these in your Vite/hosting environment (see FIREBASE_RAZORPAY_SETUP.md).`
+    );
+  }
+
+  // Use primary URL if present, otherwise fall back to alias.
+  const effectiveCreateOrderUrl = createOrderUrl;
+
+  if (!effectiveCreateOrderUrl) {
+    throw new Error(
+      'Razorpay/Payments configuration error: missing VITE_FIREBASE_CREATE_ORDER_URL. ' +
+        'Set these in your Vite/hosting environment (see FIREBASE_RAZORPAY_SETUP.md).'
+    );
+  }
+
+  const response = await fetch(effectiveCreateOrderUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: amountPaise,
+      currency,
+      receipt: options.receipt,
+      notes: options.notes || {},
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await parseErrorResponse(response);
+    throw new Error(err || 'Failed to create payment order');
+  }
+
+  const data = await response.json();
+  if (!data?.order_id) throw new Error('Invalid order response');
+
+  return data;
 };
 
-
 /**
- * Verify payment signature
- * - Production: Uses standalone backend
- * - Local Dev: Skips server verification (for testing)
+ * Verify Razorpay payment signature via Firebase Functions.
+ * Signature verification happens server-side using RAZORPAY_KEY_SECRET.
  */
 export const verifyPayment = async (paymentId, orderId, signature) => {
-  const isLocal = isLocalDev();
-  
-  try {
-    // Try standalone backend first
-    const response = await fetch(`${PAYMENT_BACKEND_BASE}/verify-payment`, {
+  if (!VERIFY_PAYMENT_URL) throw new Error('Missing VITE_FIREBASE_VERIFY_PAYMENT_URL');
 
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        razorpay_payment_id: paymentId,
-        razorpay_order_id: orderId,
-        razorpay_signature: signature,
-      }),
-    });
+  const response = await fetch(VERIFY_PAYMENT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      razorpay_payment_id: paymentId,
+      razorpay_order_id: orderId,
+      razorpay_signature: signature,
+    }),
+  });
 
-    if (response.ok) {
-      const data = await response.json();
-      return data;
-    } else {
-      // Try to get error message from response
-      let errorMessage = 'Payment verification failed';
-      try {
-        const errorText = await response.text();
-        if (errorText) {
-          const errorData = JSON.parse(errorText);
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        }
-      } catch (parseError) {
-        // Ignore parse errors, use default message
-      }
-      throw new Error(errorMessage);
-    }
-    if (isLocal) {
-      console.log('Skipping server verification in local dev mode');
-      return {
-        verified: true,
-        payment_id: paymentId,
-        order_id: orderId
-      };
-    }
-    
-    throw new Error('Payment verification failed');
-    
-  } catch (error) {
-    console.error('Error verifying payment:', error);
-    
-    // In local dev mode, allow mock verification
-    if (isLocal) {
-      console.warn('Verification error in local mode - allowing for testing');
-      return {
-        verified: true,
-        payment_id: paymentId,
-        order_id: orderId
-      };
-    }
-    
-    throw error;
+  if (!response.ok) {
+    const err = await parseErrorResponse(response);
+    throw new Error(err || 'Payment verification failed');
   }
+
+  const data = await response.json();
+  if (data?.verified !== true) throw new Error('Payment not verified');
+  return data;
 };
 
-
 /**
- * Open Razorpay checkout modal
- * @param {object} options - Razorpay checkout options
- * @returns {Promise} - Payment response
+ * Open Razorpay checkout modal.
+ * @param {object} options Razorpay checkout options plus:
+ *  - onSuccess(response)
+ *  - onDismiss()
  */
 export const openCheckout = async (options) => {
   if (!RAZORPAY_KEY_ID) {
     throw new Error('Razorpay configuration error: missing VITE_RAZORPAY_KEY_ID');
   }
+  if (!options) throw new Error('Missing checkout options');
 
   const razorpay = await loadRazorpay();
-  
-  const defaultOptions = {
-    key: RAZORPAY_KEY_ID,
-    handler: (response) => {
-      if (options.onSuccess) {
-        options.onSuccess(response);
-      }
-    },
-    modal: {
-      ondismiss: () => {
-        if (options.onDismiss) {
-          options.onDismiss();
-        }
-      }
-    }
-  };
 
   const rzp = new razorpay({
-    ...defaultOptions,
-    ...options
+    key: RAZORPAY_KEY_ID,
+    ...options,
+    handler: (response) => {
+      if (typeof options.onSuccess === 'function') options.onSuccess(response);
+    },
+    modal: {
+      ...(options.modal || {}),
+      ondismiss: () => {
+        if (typeof options.onDismiss === 'function') options.onDismiss();
+      },
+    },
   });
 
   rzp.open();
-
   return rzp;
 };
-
 
 export default {
   loadRazorpay,
   createRazorpayOrder,
   verifyPayment,
-  openCheckout
+  openCheckout,
 };
+
