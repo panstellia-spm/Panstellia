@@ -29,47 +29,60 @@ const corsMiddleware = cors({
       return callback(null, true);
     }
 
-    return callback(new Error("Not allowed by CORS"));
+    return callback(null, false);
   },
 
   methods: ["POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 
-  // Required for credentialed requests (frontend should use credentials only if needed)
-  credentials: true,
+  // Keep false so browsers don't require credentials/withCredentials.
+  credentials: false,
 });
 
+function setExplicitCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  if (!allowedOrigins.includes(origin)) return;
+
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+}
+
 /**
- * Wraps an onRequest handler with CORS and ensures preflight OPTIONS returns 204.
+ * Wraps an onRequest handler with CORS.
+ * Important: handle OPTIONS preflight without invoking the main handler.
  */
 function withCors(handler) {
   return onRequest(async (req, res) => {
-    const origin = req.headers.origin;
-
     // Log minimal request info for debugging CORS/preflight
     console.log("[functions] incoming request", {
       method: req.method,
       path: req.path,
-      origin,
+      origin: req.headers.origin,
       host: req.headers.host,
     });
 
-    // Always run CORS middleware first
-    corsMiddleware(req, res, async (err) => {
+    // Ensure we always set the CORS headers before responding.
+    setExplicitCorsHeaders(req, res);
+
+    // Run CORS middleware to apply its headers as well.
+    corsMiddleware(req, res, (err) => {
+      // If origin isn't allowed, respond with 403 but still avoid missing headers.
       if (err) {
         console.error("[functions] CORS error:", err?.message || err);
-        // If origin not allowed, do not leak details.
+        // If origin not allowed, browsers will treat as blocked anyway.
         return res.status(403).json({ error: "CORS blocked" });
       }
 
-      // Preflight: respond immediately
+      // Preflight: respond immediately.
       if (req.method === "OPTIONS") {
         console.log("[functions] OPTIONS preflight ok -> 204");
-        // No body for 204
         return res.status(204).send("");
       }
 
-      // Only allow POST after CORS
+      // Only allow POST after preflight
       if (req.method !== "POST") {
         return res.status(405).json({ error: "Method Not Allowed" });
       }
@@ -78,6 +91,7 @@ function withCors(handler) {
     });
   });
 }
+
 
 function getRazorpayClient() {
   const keyId = process.env.RAZORPAY_KEY_ID;
