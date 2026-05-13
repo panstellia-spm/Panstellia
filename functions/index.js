@@ -16,7 +16,7 @@ try {
 const allowedOrigins = [
   "http://localhost:5173",
   "https://panstellia.vercel.app",
-  "https://panstellia-6ursnuep7-panstellia-spms-projects.vercel.app",
+  "https://panstellia.com",
 ];
 
 const corsMiddleware = cors({
