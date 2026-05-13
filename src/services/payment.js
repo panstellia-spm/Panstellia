@@ -7,10 +7,6 @@ const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 const CREATE_ORDER_URL = import.meta.env.VITE_FIREBASE_CREATE_ORDER_URL;
 const VERIFY_PAYMENT_URL = import.meta.env.VITE_FIREBASE_VERIFY_PAYMENT_URL;
 
-// Backward-compatible aliases (some env setups may provide a subset).
-// These allow older deployments to work without changing code.
-const CREATE_ORDER_URL_ALT = import.meta.env.VITE_FIREBASE_CREATE_ORDER_URL_OLD;
-const VERIFY_PAYMENT_URL_ALT = import.meta.env.VITE_FIREBASE_VERIFY_PAYMENT_URL_OLD;
 
 
 /**
@@ -63,35 +59,18 @@ async function parseErrorResponse(response) {
  * @returns {Promise<{order_id: string, amount: number, currency: string}>}
  */
 export const createRazorpayOrder = async (amountPaise, currency = 'INR', options = {}) => {
-  const createOrderUrl = CREATE_ORDER_URL || CREATE_ORDER_URL_ALT;
-
   const missing = [];
-  if (!createOrderUrl) missing.push('VITE_FIREBASE_CREATE_ORDER_URL');
+  if (!CREATE_ORDER_URL) missing.push('VITE_FIREBASE_CREATE_ORDER_URL');
   if (!RAZORPAY_KEY_ID) missing.push('VITE_RAZORPAY_KEY_ID');
-
-  // If an old env var name is used, mention it in the error message too.
-  if (missing.length && CREATE_ORDER_URL_ALT && !CREATE_ORDER_URL) {
-    // No-op: alias exists, so we won't fail on CREATE_ORDER_URL.
-  }
 
   if (missing.length) {
     throw new Error(
       `Razorpay/Payments configuration error: missing ${missing.join(', ')}. ` +
-        `Set these in your Vite/hosting environment (see FIREBASE_RAZORPAY_SETUP.md).`
+        `Set these in your Vite/hosting environment.`
     );
   }
 
-  // Use primary URL if present, otherwise fall back to alias.
-  const effectiveCreateOrderUrl = createOrderUrl;
-
-  if (!effectiveCreateOrderUrl) {
-    throw new Error(
-      'Razorpay/Payments configuration error: missing VITE_FIREBASE_CREATE_ORDER_URL. ' +
-        'Set these in your Vite/hosting environment (see FIREBASE_RAZORPAY_SETUP.md).'
-    );
-  }
-
-  const response = await fetch(effectiveCreateOrderUrl, {
+  const response = await fetch(CREATE_ORDER_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -114,6 +93,7 @@ export const createRazorpayOrder = async (amountPaise, currency = 'INR', options
 
   return data;
 };
+
 
 /**
  * Verify Razorpay payment signature via Firebase Functions.
@@ -143,6 +123,7 @@ export const verifyPayment = async (paymentId, orderId, signature) => {
   if (data?.verified !== true) throw new Error('Payment not verified');
   return data;
 };
+
 
 /**
  * Open Razorpay checkout modal.

@@ -4,7 +4,8 @@ This repo uses **Firebase Functions v2 as the standalone backend** for Razorpay:
 - `create-order` (POST)
 - `verify-payment` (POST)
 
-Frontend (Vite + React) is hosted separately (Netlify). It calls Functions via full REST URLs.
+Frontend (Vite + React) is hosted separately (e.g., Vercel). It calls Functions via full REST URLs.
+
 
 ## 1) Prerequisites
 - Firebase CLI installed
@@ -41,7 +42,8 @@ Set Razorpay keys in Functions runtime. Never put these in frontend.
 firebase functions:config:set \
   razorpay.key_id="<YOUR_RAZORPAY_KEY_ID>" \
   razorpay.key_secret="<YOUR_RAZORPAY_KEY_SECRET>" \
-  cors.origin="https://<YOUR_NETLIFY_SITE>.netlify.app"
+  cors.origin="https://<YOUR_VERCEL_SITE>.vercel.app"
+
 ```
 
 Then update code to read `functions.config()` OR use `firebase functions:secrets:set` (preferred).
@@ -100,6 +102,7 @@ VITE_FIREBASE_VERIFY_PAYMENT_URL=https://<region>-<project>.cloudfunctions.net/v
 - `RAZORPAY_KEY_SECRET` exists **only** in Functions runtime.
 - Frontend only uses `VITE_RAZORPAY_KEY_ID`.
 - `verify-payment` signature comparison uses constant-time equality.
-- CORS is restricted to your Netlify origin.
+- CORS is restricted to your Vercel origin.
+
 - Errors return generic messages and do not leak internal stack traces.
 
