@@ -23,22 +23,25 @@ admin.initializeApp();
 
 // Configure CORS.
 // Recommended: set CORS_ORIGIN to your Netlify frontend origin, e.g. https://your-site.netlify.app
-const corsOrigin = process.env.CORS_ORIGIN || '';
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://panstellia.vercel.app',
+  'https://panstellia-e5n1pd34r-panstellia-spms-projects.vercel.app',
+];
+
 const corsMiddleware = cors({
   origin: (origin, cb) => {
-    // If you need support for requests without Origin header, allow them.
-    // But keep in mind: CORS is a browser protection; verification is enforced server-side.
+    // Allow server-to-server or requests without origin
     if (!origin) return cb(null, true);
 
-    // If CORS_ORIGIN is not set, default to rejecting cross-origin requests.
-    if (!corsOrigin) return cb(null, false);
+    // Allow configured frontend origins
+    if (allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
 
-    // Allow exact match.
-    if (origin === corsOrigin) return cb(null, true);
-
-    // Reject everything else.
     return cb(new Error('Not allowed by CORS'));
   },
+
   methods: ['POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 });
