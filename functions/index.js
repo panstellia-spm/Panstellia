@@ -246,6 +246,16 @@ async function verifyPaymentHandler(req, res) {
   }
 }
 
+// ---------------- Firestore billing persistence (optional) ----------------
+// Note: your firestore.rules currently allow creating /orders/{orderId} only when
+// request.auth != null AND request.resource.data.userId == request.auth.uid.
+// Since you selected option B (no auth token), client writes cannot satisfy
+// those rules. Therefore, we do NOT write into /orders or /payments here to
+// avoid breaking production.
+//
+// If you switch to option A later, we can persist using request.auth.uid safely.
+
 exports.createOrder = withCors(createOrderHandler);
 exports.verifyPayment = withCors(verifyPaymentHandler);
+
 
