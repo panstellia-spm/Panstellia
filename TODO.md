@@ -1,9 +1,8 @@
 # TODO
+- [x] Inspect ProductCard quick add click path and identify click-blocking CSS/handlers
+- [x] Fix Quick Add overlay/button interaction so click fires and adds to cart
+- [x] Ensure click does not propagate to any underlying Link/card handlers
+- [ ] Verify cart updates immediately and persists after refresh
+- [ ] Run build/lint (npm run build / npm run lint) and ensure no console errors
 
-- [x] Fix CORS preflight failing for Firebase Functions endpoints (createOrder/verifyPayment)
-  - [x] Update `functions/index.js` to correctly handle OPTIONS and always return `Access-Control-Allow-Origin` for allowed origins
-  - [x] Ensure preflight responses return required headers (Allow-Methods/Allow-Headers) and status 204
-  - [x] Ensure POST responses also include the CORS headers
-
-- [ ] Run quick local/CI check (lint/tests) if available
 
