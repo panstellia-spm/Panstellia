@@ -36,7 +36,12 @@ class ErrorBoundary extends React.Component {
               </details>
             )}
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => {
+                // Keep it simple: use history API without a full reload.
+                if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+                // Trigger popstate-driven navigation in SPA.
+                if (typeof window !== 'undefined') window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
               className="mt-6 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Go Home
@@ -51,3 +56,4 @@ class ErrorBoundary extends React.Component {
 }
 
 export default ErrorBoundary;
+

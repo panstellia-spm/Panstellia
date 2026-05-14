@@ -10,6 +10,8 @@ import { ProductProvider } from './context/ProductContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import Layout from './components/Layout/Layout';
+import ScrollToTopOnNavigation from './components/ScrollToTopOnNavigation';
+
 
 // Pages
 import HomePage from './pages/Home';
@@ -76,7 +78,9 @@ function App() {
     <ErrorBoundary>
       <HelmetProvider>
         <BrowserRouter>
+          <ScrollToTopOnNavigation />
           <AuthProvider>
+
             <ProductProvider>
               <CartProvider>
                 <WishlistProvider>
