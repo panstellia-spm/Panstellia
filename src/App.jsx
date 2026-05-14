@@ -24,6 +24,8 @@ import CheckoutPage from './pages/Checkout';
 import WishlistPage from './pages/Wishlist';
 import OrdersPage from './pages/Orders';
 import OrderSuccessPage from './pages/OrderSuccess';
+import OrderDetailsPage from './pages/OrderDetails';
+
 import ForgotPasswordPage from './pages/ForgotPassword';
 import AdminPage from './pages/Admin';
 import AboutUsPage from './pages/AboutUs';
@@ -120,13 +122,22 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="order-success" 
+                    path="order/:id"
+                    element={
+                      <ProtectedRoute>
+                        <OrderDetailsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route 
+                    path="order-success"
                     element={
                       <ProtectedRoute>
                         <OrderSuccessPage />
                       </ProtectedRoute>
-                    } 
+                    }
                   />
+
                   
                   {/* Admin Routes */}
                   <Route 
