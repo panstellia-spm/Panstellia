@@ -1,8 +1,6 @@
-- [x] Update Admin product form to include Product Specifications inputs
-- [x] Add “Add Products Specifications” section/toggle inside Admin form
-- [x] Persist specification fields to Firestore when saving product
-- [x] Pre-fill specification fields when editing a product
-- [x] Verify ProductDetail renders the specs correctly after save
-
+- [x] Update ReportsAdmin page to add Export to Excel button.
+- [x] Implement export handler that downloads filtered report data as an Excel-compatible .xls/TSV/CSV Blob.
+- [x] Ensure exported columns match the table and formatting (date/money) is consistent.
+- [ ] Verify export respects all filters.
 
 
