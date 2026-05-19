@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Star, Users, Award, Crown, Leaf, Clock, Heart, ArrowRight, ChevronLeft, ChevronRight, Quote, Play } from 'lucide-react';
+import { Sparkles, Star, Award, Crown, ArrowRight } from 'lucide-react';
 import SEOHelmet from '../utils/seoHelmet';
 
 const AboutUsPage = () => {
@@ -28,133 +28,160 @@ const AboutUsPage = () => {
     { text: 'Exceeded expectations completely.', author: 'Anita S.', rating: 5 }
   ];
 
-  const [currentSlide, setCurrentSlide] = React.useState(0);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-luxury-50">
+    <div className="min-h-screen bg-gradient-to-br from-white to-luxury-50 text-luxury-900">
       <SEOHelmet 
         title="About Panstellia | Luxury Jewelry Heritage Since 2024"
         description="Learn about Panstellia's journey in luxury jewelry. Traditional craftsmanship meets modern design. Explore our heritage, team, and commitment to quality."
         keywords="about jewelry, luxury brand, jewelry craftsmanship, heirloom jewelry, handmade necklaces"
         canonical="https://panstellia.com/about-us"
       />
-      {/* Compact Hero */}
-    <section className="relative h-[45vh] md:h-[55vh] flex items-center bg-gradient-to-br from-luxury-900 to-gold-500/20 overflow-hidden">
-  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&w=1920&fit=crop')] bg-cover bg-center opacity-40"></div>
 
-  <div className="max-w-5xl mx-auto px-4 relative z-10 text-white text-center md:text-left">
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      className="max-w-xl"
-    >
-      <span className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur rounded-full text-xs mb-4">
-        Since 2024 • Korean Heritage
-      </span>
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&w=1920&fit=crop')] bg-cover bg-center opacity-30"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-luxury-950/80 via-luxury-900/30 to-transparent"></div>
 
-      <h1 className="font-serif text-3xl md:text-5xl lg:text-7xl font-bold leading-tight mb-4">
-  <span className="whitespace-nowrap">
-    Heritage <span className="text-gold-300">Redefined</span>
-  </span>
-</h1>
+        <div className="relative max-w-6xl mx-auto px-4 py-20 md:py-24 flex flex-col justify-center min-h-[62vh]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl">
+            <span className="inline-flex items-center px-3 py-1 bg-white/15 backdrop-blur rounded-full text-xs tracking-[0.2em] uppercase text-white/90">
+              Since 2024 • Korean Heritage
+            </span>
+            <h1 className="mt-6 font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-white">
+              Jewelry with <span className="text-gold-300">heritage</span> and modern soul.
+            </h1>
+            <p className="mt-6 max-w-2xl text-base sm:text-lg leading-8 text-white/85">
+              Panstellia blends traditional craftsmanship with contemporary luxury, creating pieces that feel timeless today and treasured for generations.
+            </p>
+            <div className="mt-10 flex flex-col sm:flex-row items-center gap-4">
+              <Link 
+                to="/products" 
+                className="btn-primary px-6 py-3 text-base inline-flex items-center justify-center"
+              >
+                Explore Collection <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+              <Link
+                to="/" 
+                className="btn-secondary px-6 py-3 text-base inline-flex items-center justify-center"
+              >
+                Discover More
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
-      <p className="text-base md:text-lg mb-6 max-w-md leading-relaxed">
-        Timeless jewelry from ancient markets to modern lifestyles.
-      </p>
+      <section className="py-16">
+        <div className="max-w-6xl mx-auto px-4 grid gap-12 lg:grid-cols-[1.05fr_0.95fr] items-center">
+          <div className="space-y-6">
+            <span className="inline-flex items-center px-3 py-1 bg-gold-100 text-gold-700 rounded-full text-xs uppercase tracking-[0.2em]">
+              Our journey of craft
+            </span>
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-luxury-900">
+              A heritage brand born from tradition and thoughtful design.
+            </h2>
+            <p className="text-luxury-600 leading-relaxed max-w-2xl">
+              From an artisan family in Tamil Nadu to a globally loved label, Panstellia creates jewelry with soul, attention to detail, and a commitment to ethical sourcing.
+            </p>
+          </div>
 
-      <Link 
-        to="/products" 
-        className="btn-primary px-6 py-3 text-base inline-flex items-center"
-      >
-        Explore <ArrowRight className="w-4 h-4 ml-2" />
-      </Link>
-    </motion.div>
-  </div>
-</section>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {journeyItems.map((item, idx) => (
+              <div key={idx} className="rounded-3xl bg-white shadow-xl border border-luxury-100 overflow-hidden">
+                <img src={item.img} alt={item.title} loading="lazy" className="w-full h-52 object-cover" />
+                <div className="p-6">
+                  <div className="text-gold-600 font-semibold text-lg">{item.year}</div>
+                  <h3 className="mt-2 font-serif text-2xl font-bold text-luxury-900">{item.title}</h3>
+                  <p className="mt-3 text-luxury-600 leading-relaxed">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      {/* Journey & Team Carousel */}
-      <section className="py-20 bg-white">
+      <section className="py-16 bg-luxury-50">
         <div className="max-w-6xl mx-auto px-4">
-          <motion.h2 initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className="text-center font-serif text-4xl md:text-5xl font-bold text-luxury-900 mb-16">Our Story & Masters</motion.h2>
-          <div className="relative overflow-hidden rounded-3xl bg-luxury-50/50 backdrop-blur p-8 md:p-12">
-            <div className="flex transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
-              {journeyItems.map((item, idx) => (
-                <div key={idx} className="w-full md:w-1/3 flex-shrink-0 px-4">
-                  <div className="bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all p-8 text-center h-[500px] flex flex-col">
-                    <img src={item.img} alt={item.title} loading="lazy" className="w-full h-64 object-cover rounded-xl mb-6" />
-                    <div className="font-bold text-2xl text-gold-600 mb-2">{item.year}</div>
-                    <h4 className="font-serif text-2xl font-bold mb-3">{item.title}</h4>
-                    <p className="text-luxury-600 mb-6 flex-1">{item.desc}</p>
+          <div className="text-center max-w-3xl mx-auto">
+            <span className="inline-flex items-center px-3 py-1 bg-gold-100 text-gold-700 rounded-full text-xs uppercase tracking-[0.2em]">
+              Crafted to last
+            </span>
+            <h2 className="mt-6 text-4xl md:text-5xl font-serif font-bold text-luxury-900">
+              Our craftsmanship promise.
+            </h2>
+            <p className="mt-5 text-luxury-600 leading-relaxed">
+              Every piece is carefully designed, sourced, and finished by skilled artisans to ensure a luxurious look, lasting beauty, and fine detail in every shine.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+            {craftSteps.map((step, idx) => (
+              <div key={idx} className="rounded-3xl bg-white p-8 shadow-xl hover:shadow-2xl transition-shadow">
+                <div className="w-16 h-16 bg-gradient-to-r from-gold-500 to-gold-600 rounded-3xl flex items-center justify-center mb-6">
+                  <step.icon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-luxury-900 mb-3">{step.title}</h3>
+                <p className="text-luxury-600 leading-relaxed">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16">
+        <div className="max-w-6xl mx-auto px-4 grid gap-12 lg:grid-cols-[0.95fr_1.05fr] items-center">
+          <div className="space-y-6">
+            <span className="inline-flex items-center px-3 py-1 bg-gold-100 text-gold-700 rounded-full text-xs uppercase tracking-[0.2em]">
+              Meet the founder
+            </span>
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-luxury-900">
+              Built by a family, shaped by artisans.
+            </h2>
+            <p className="text-luxury-600 leading-relaxed max-w-xl">
+              Cimoen Moses leads Panstellia with a passion for authentic beauty, delivering heirloom-quality jewelry that honors heritage while feeling distinctly modern.
+            </p>
+          </div>
+
+          <div className="grid gap-6">
+            <div className="rounded-3xl overflow-hidden shadow-xl border border-luxury-100">
+              <img src={teamMembers[0].img} alt={teamMembers[0].name} loading="lazy" className="w-full h-72 object-cover" />
+              <div className="p-8 bg-white">
+                <h3 className="text-2xl font-bold text-luxury-900">{teamMembers[0].name}</h3>
+                <p className="mt-2 text-gold-600 font-medium">{teamMembers[0].role}</p>
+                <p className="mt-4 text-luxury-600 leading-relaxed">{teamMembers[0].specialty}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              {testimonials.map((testimonial, idx) => (
+                <div key={idx} className="rounded-3xl bg-white p-6 shadow-xl border border-luxury-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="w-5 h-5 text-gold-500 fill-current" />
+                    ))}
                   </div>
+                  <p className="text-luxury-700 italic leading-relaxed">“{testimonial.text}”</p>
+                  <p className="mt-5 font-semibold text-luxury-900">— {testimonial.author}</p>
                 </div>
               ))}
             </div>
-            <button onClick={() => setCurrentSlide((prev) => (prev > 0 ? prev - 1 : journeyItems.length - 1))} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full shadow-lg hover:bg-white">
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button onClick={() => setCurrentSlide((prev) => (prev + 1) % journeyItems.length)} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full shadow-lg hover:bg-white">
-              <ChevronRight className="w-6 h-6" />
-            </button>
-          </div>
-          {/* Team below carousel */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-            {teamMembers.map((member, idx) => (
-              <motion.div key={idx} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }} className="group">
-                <img src={member.img} alt={member.name} loading="lazy" className="w-full h-64 object-cover rounded-2xl group-hover:scale-105 transition-transform" />
-                <h4 className="font-serif text-xl font-bold mt-4">{member.name}</h4>
-                <p className="text-gold-600 font-medium">{member.role}</p>
-                <p className="text-luxury-600">{member.specialty}</p>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
 
-      {/* Craft Steps */}
-      <section className="py-20 bg-luxury-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <motion.h2 initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className="text-center font-serif text-4xl md:text-5xl font-bold text-luxury-900 mb-16">Craftsmanship Promise</motion.h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {craftSteps.map((step, idx) => (
-              <motion.div key={idx} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.1 }} className="text-center p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all">
-                <div className="w-20 h-20 bg-gradient-to-r from-gold-500 to-gold-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <step.icon className="w-10 h-10 text-white" />
-                </div>
-                <h4 className="font-bold text-xl mb-4">{step.title}</h4>
-                <p className="text-luxury-600">{step.desc}</p>
-              </motion.div>
-            ))}
+      <section className="py-16 bg-gradient-to-r from-gold-600 to-gold-700 text-white">
+        <div className="max-w-6xl mx-auto px-4 rounded-3xl p-10 sm:p-12 grid gap-6 sm:grid-cols-[1fr_auto] items-center">
+          <div>
+            <p className="text-sm uppercase tracking-[0.3em] text-white/80 mb-3">Limited edition elegance</p>
+            <h2 className="text-3xl md:text-4xl font-bold">Find your signature piece today.</h2>
+            <p className="mt-4 max-w-2xl leading-relaxed text-white/90">
+              Discover handcrafted jewelry made for celebrations, milestones, and everyday luxury.
+            </p>
           </div>
-        </div>
-      </section>
-
-      {/* Testimonials + CTA */}
-      <section className="py-20 bg-gradient-to-b from-white to-luxury-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className="text-center mb-16">
-            <div className="flex justify-center mb-6">
-              {[...Array(5)].map((_, i) => <Star key={i} className="w-8 h-8 text-gold-500 fill-current mx-1" />)}
-            </div>
-            <h2 className="font-serif text-4xl md:text-5xl font-bold text-luxury-900 mb-4">Loved Worldwide</h2>
-          </motion.div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-            {testimonials.map((testimonial, idx) => (
-              <motion.div key={idx} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl text-center border">
-                <div className="flex justify-center mb-6">
-                  {[...Array(testimonial.rating)].map((_, i) => <Star key={i} className="w-6 h-6 text-gold-500 fill-current" />)}
-                </div>
-                <blockquote className="text-xl italic font-serif mb-6">"{testimonial.text}"</blockquote>
-                <cite className="font-bold text-luxury-700">— {testimonial.author}</cite>
-              </motion.div>
-            ))}
-          </div>
-          {/* CTA */}
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className="text-center bg-gradient-to-r from-gold-600 to-gold-700 text-white p-12 rounded-3xl">
-            <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">Wear Timeless Elegance</h2>
-            <Link to="/products" className="btn-primary px-12 py-6 text-xl inline-flex items-center mx-auto shadow-2xl">
-              Shop Now <Crown className="w-6 h-6 ml-2" />
-            </Link>
-          </motion.div>
+          <Link to="/products" className="btn-primary px-8 py-4 text-base inline-flex items-center justify-center shadow-2xl">
+            Shop Now <Crown className="w-5 h-5 ml-2" />
+          </Link>
         </div>
       </section>
     </div>

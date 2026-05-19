@@ -24,7 +24,7 @@ const ProductsPage = () => {
     sortBy: 'newest'
   });
 
-  const categories = ['All', 'Gold', 'Silver', 'Lux Wear', 'Party Wear'];
+  const categories = ['All', 'Gold', 'Silver', 'Lux Wear', 'Party Wear', 'Elegant Spark'];
   const sortOptions = [
     { value: 'newest', label: 'Newest' },
     { value: 'price-low', label: 'Price: Low to High' },

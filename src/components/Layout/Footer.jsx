@@ -53,6 +53,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/category/elegant-spark" className="text-luxury-300 hover:text-gold-400 transition-colors">
+                  {getCategoryLabel('Elegant Spark')} Collection
+                </Link>
+              </li>
+              <li>
                 <Link to="/about-us" className="text-luxury-300 hover:text-gold-400 transition-colors">
                   About Us
                 </Link>

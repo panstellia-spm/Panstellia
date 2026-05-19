@@ -103,7 +103,7 @@ const discount = product.originalPrice
         
         {/* Quick Add Button */}
         <div
-          className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent translate-y-1 group-hover:translate-y-0 transition-transform duration-300 will-change-transform pointer-events-none opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto"
+          className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent translate-y-1 group-hover:translate-y-0 transition-transform duration-300 will-change-transform pointer-events-none opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto z-20"
         >
           <button
             onClick={(e) => {

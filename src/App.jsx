@@ -32,6 +32,7 @@ import AboutUsPage from './pages/AboutUs';
 import PrivacyPolicyPage from './pages/PrivacyPolicy';
 import TermsConditionsPage from './pages/TermsConditions';
 import ShippingPolicyPage from './pages/ShippingPolicy';
+import ElegantSparkPage from './pages/ElegantSpark';
 
 
 
@@ -91,6 +92,7 @@ function App() {
                 <Route path="/" element={<Layout />}>
                   <Route index element={<HomePage />} />
                   <Route path="products" element={<ProductsPage />} />
+                  <Route path="category/elegant-spark" element={<ElegantSparkPage />} />
                   <Route path="product/:id" element={<ProductDetailPage />} />
                   <Route path="login" element={<LoginPage />} />
                   <Route path="signup" element={<SignupPage />} />

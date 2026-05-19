@@ -245,7 +245,7 @@ const AdminPage = () => {
     }
   };
 
-  const categories = ['Gold', 'Silver', 'Lux Wear', 'Party Wear'];
+  const categories = ['Gold', 'Silver', 'Lux Wear', 'Party Wear', 'Elegant Spark'];
 
   const STATUS_OPTIONS = [
     'picked',

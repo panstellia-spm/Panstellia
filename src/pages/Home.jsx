@@ -13,23 +13,29 @@ const HomePage = () => {
   const categories = [
     {
       name: 'Gold',
-      image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400',
+      image: 'https://i.ibb.co/4gRy3WYW/Use-AI-Image-May-19-2026-13-21-30.png',
       count: products.filter(p => p.category === 'Gold').length
     },
     {
       name: 'Silver',
-      image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400',
+      image: 'https://i.ibb.co/p6W1S5xB/1000092270-ezremove.png',
       count: products.filter(p => p.category === 'Silver').length
     },
     {
       name: 'Lux Wear',
-      image: 'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=400',
+      image: 'https://i.ibb.co/VcdqqHdc/1000092272-ezremove.png',
       count: products.filter(p => p.category === 'Lux Wear').length
     },
     {
       name: 'Party Wear',
-      image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400',
+      image: 'https://i.ibb.co/xtcV8FKd/1000092275-ezremove.png',
       count: products.filter(p => p.category === 'Party Wear').length
+    }
+    ,
+    {
+      name: 'Elegant Spark',
+      image: 'https://i.ibb.co/DD38dQ8Q/file-000000008b207207972a2996aa7d3be3.png',
+      count: products.filter(p => p.category === 'Elegant Spark').length
     }
   ];
 
