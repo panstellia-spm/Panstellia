@@ -7,7 +7,11 @@ import SEOHelmet from '../utils/seoHelmet';
 
 const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { products, filterProducts, loading } = useProducts();
+  const { products, loading } = useProducts();
+
+  const visibleProducts = products.filter((p) => (p.productStatus || 'available') === 'available');
+
+
   
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -33,19 +37,83 @@ const ProductsPage = () => {
     const category = searchParams.get('category');
     
     let result;
-    if (search) {
-      result = products.filter(p => 
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.category.toLowerCase().includes(search.toLowerCase())
-      );
-    } else if (category) {
-      result = filterProducts({ ...filters, category });
-    } else {
-      result = filterProducts(filters);
-    }
+      const base = visibleProducts;
+      if (search) {
+        result = base.filter(
+          (p) =>
+            (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (p.category || '').toLowerCase().includes(search.toLowerCase())
+        );
+      } else if (category) {
+        result = base;
+        if (category && category !== 'All') {
+          result = result.filter((p) => p.category === category);
+        }
+
+        result = result.filter((p) => {
+          if (filters.minPrice) return p.price >= Number(filters.minPrice);
+          return true;
+        });
+
+        result = result.filter((p) => {
+          if (filters.maxPrice) return p.price <= Number(filters.maxPrice);
+          return true;
+        });
+
+        // Sort
+        const sorted = [...result];
+        switch (filters.sortBy) {
+          case 'price-low':
+            sorted.sort((a, b) => a.price - b.price);
+            break;
+          case 'price-high':
+            sorted.sort((a, b) => b.price - a.price);
+            break;
+          case 'rating':
+            sorted.sort((a, b) => (b.ratings || 0) - (a.ratings || 0));
+            break;
+          case 'newest':
+            sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            break;
+          default:
+            break;
+        }
+
+        result = sorted;
+      } else {
+        // Keep existing filterProducts behavior but scoped to visibleProducts
+        result = base;
+        if (filters.minPrice) {
+          result = result.filter((p) => p.price >= Number(filters.minPrice));
+        }
+        if (filters.maxPrice) {
+          result = result.filter((p) => p.price <= Number(filters.maxPrice));
+        }
+
+        const sorted = [...result];
+        switch (filters.sortBy) {
+          case 'price-low':
+            sorted.sort((a, b) => a.price - b.price);
+            break;
+          case 'price-high':
+            sorted.sort((a, b) => b.price - a.price);
+            break;
+          case 'rating':
+            sorted.sort((a, b) => (b.ratings || 0) - (a.ratings || 0));
+            break;
+          case 'newest':
+            sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            break;
+          default:
+            break;
+        }
+        result = sorted;
+      }
+
     
     setFilteredProducts(result);
-  }, [products, filters, searchParams]);
+  }, [products, visibleProducts, filters, searchParams]);
+
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value };

@@ -30,13 +30,20 @@ export const ProductProvider = ({ children }) => {
       const productsRef = collection(db, 'products');
       const q = query(productsRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      
+
       if (!querySnapshot.empty) {
-        const productsData = querySnapshot.docs.map(doc => ({
+        const productsData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         }));
-        setProducts(productsData);
+
+        // Backward compatible default for existing docs.
+        const normalized = productsData.map((p) => ({
+          productStatus: p.productStatus ?? (p.inStock === false ? 'unavailable' : 'available'),
+          ...p,
+        }));
+
+        setProducts(normalized);
       } else {
         // Firestore is empty - show empty products array
         setProducts([]);
@@ -49,13 +56,18 @@ export const ProductProvider = ({ children }) => {
     setLoading(false);
   };
 
+
   const addProduct = async (product) => {
     try {
       const newProduct = {
+        // Default for backward compatibility.
+        productStatus: product.productStatus ?? 'available',
         ...product,
-        createdAt: getTimestamp()
+        createdAt: getTimestamp(),
       };
+
       await setDoc(doc(db, 'products', product.id), newProduct);
+
       setProducts(prev => [newProduct, ...prev]);
       return { success: true };
     } catch (err) {
@@ -70,8 +82,11 @@ export const ProductProvider = ({ children }) => {
         updatedAt: getTimestamp()
       }, { merge: true });
       
-      setProducts(prev => prev.map(p => p.id === id ? { ...p, ...productData } : p));
+      setProducts(prev =>
+        prev.map((p) => (p.id === id ? { ...p, ...productData } : p))
+      );
       return { success: true };
+
     } catch (err) {
       throw new Error(err.message);
     }

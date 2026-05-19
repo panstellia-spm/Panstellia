@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CreditCard, Lock, ChevronLeft } from 'lucide-react';
+import { CreditCard, Lock, ChevronLeft, Truck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -19,6 +19,7 @@ const CheckoutPage = () => {
   const { cartItems, subtotal, shipping, tax, total, clearCart } = useCart();
   
   const [loading, setLoading] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('razorpay');
   const [formData, setFormData] = useState({
     name: user?.displayName || '',
     email: user?.email || '',
@@ -55,27 +56,100 @@ const CheckoutPage = () => {
         throw new Error('Please fill in all required fields');
       }
 
+      // COD flow (no gateway verification)
+      if (selectedPaymentMethod === 'cod') {
+        try {
+          const paymentMethod = 'cod';
+          const shortCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+          const orderId = `COD-${shortCode}`;
+
+          const paymentItems = cartItems.map((ci) => ({
+            name: ci.name,
+            price: ci.price,
+            quantity: ci.quantity,
+            image: ci.image,
+          }));
+
+          // Persist COD as a payment record
+          await addDoc(collection(db, 'payments'), {
+            orderId: orderId,
+            customerName: formData.name,
+            phone: formData.phone,
+            amount: total * 100, // keep paise
+            paymentMethod,
+            paymentStatus: 'Pending',
+            createdAt: serverTimestamp(),
+            items: paymentItems,
+            userId: user.uid,
+            // Optional metadata for admin convenience
+            shippingAddress: formData.address,
+            shippingCity: formData.city,
+            shippingState: formData.state,
+            shippingPincode: formData.pincode,
+            // Keep original customer order id for reference
+            customerOrderId: orderId,
+          });
+
+          // Persist order so it appears in the user dashboard (/orders and /order/:id)
+          await addDoc(collection(db, 'orders'), {
+            userId: user.uid,
+            orderId,
+            customerName: formData.name,
+            phone: formData.phone,
+            total,
+            items: paymentItems,
+            status: 'processing',
+            createdAt: serverTimestamp(),
+            paymentMethod,
+            paymentStatus: 'Pending',
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            pincode: formData.pincode,
+          });
+
+          await clearCart();
+
+          toast.success('Order placed. Cash on Delivery selected!', {
+            position: 'bottom-right',
+          });
+
+          navigate('/order-success', {
+            state: {
+              orderId,
+              items: cartItems,
+              total,
+            },
+          });
+        } catch (e) {
+          console.error('Failed to store COD payment record in Firestore:', e);
+          toast.error('Failed to place COD order. Please try again.', {
+            position: 'bottom-right',
+          });
+          return;
+        }
+
+        return;
+      }
+
+      // Razorpay flow
       // Calculate amount in paise (Razorpay expects paise)
       const amountInPaise = Math.round(total * 100);
-      
+
       // Validate minimum amount (100 paise = ₹1)
       if (amountInPaise < 100) {
         throw new Error('Minimum order amount is ₹1');
       }
 
       // Step 1: Create order on our backend (which calls Razorpay API)
-      const orderData = await createRazorpayOrder(
-        amountInPaise,
-        'INR',
-        {
-          receipt: `order_${Date.now()}`,
-          notes: {
-            userId: user.uid,
-            customerEmail: formData.email,
-            customerName: formData.name
-          }
-        }
-      );
+      const orderData = await createRazorpayOrder(amountInPaise, 'INR', {
+        receipt: `order_${Date.now()}`,
+        notes: {
+          userId: user.uid,
+          customerEmail: formData.email,
+          customerName: formData.name,
+        },
+      });
 
       const { order_id } = orderData;
 
@@ -91,10 +165,10 @@ const CheckoutPage = () => {
         prefill: {
           name: formData.name,
           email: formData.email,
-          contact: formData.phone
+          contact: formData.phone,
         },
         theme: {
-          color: '#db912d'
+          color: '#db912d',
         },
         // Handle successful payment
         onSuccess: async (response) => {
@@ -107,9 +181,8 @@ const CheckoutPage = () => {
             );
 
             if (verificationResult.verified) {
-              // Payment verified successfully
               toast.success('Payment successful!', {
-                position: 'bottom-right'
+                position: 'bottom-right',
               });
 
               // Persist payment record in Firestore (Spark-plan compatible)
@@ -134,51 +207,48 @@ const CheckoutPage = () => {
                   })),
                   userId: user.uid,
                 });
-
               } catch (e) {
                 console.error('Failed to store payment in Firestore:', e);
                 toast.error('Payment succeeded, but saving payment record failed.', {
                   position: 'bottom-right',
                 });
               }
-              
+
               // Clear cart
               await clearCart();
-              
+
               // Navigate to success page
               navigate('/order-success', {
                 state: {
                   orderId: response.razorpay_payment_id,
                   items: cartItems,
-                  total
-                }
+                  total,
+                },
               });
             } else {
-
               throw new Error('Payment verification failed');
             }
           } catch (error) {
             console.error('Payment verification error:', error);
             toast.error('Payment verification failed. Please contact support.', {
-              position: 'bottom-right'
+              position: 'bottom-right',
             });
           }
         },
         // Handle modal dismiss (user cancelled)
         onDismiss: () => {
           toast.info('Payment cancelled', {
-            position: 'bottom-right'
+            position: 'bottom-right',
           });
-        }
+        },
       };
 
       // Open Razorpay checkout
       await openCheckout(razorpayOptions);
-      
     } catch (error) {
       console.error('Payment error:', error);
       toast.error(error.message || 'Payment failed', {
-        position: 'bottom-right'
+        position: 'bottom-right',
       });
     }
 
@@ -339,12 +409,38 @@ const CheckoutPage = () => {
                   </div>
                 </div>
                 
-                <div className="bg-luxury-50 rounded-lg p-4 flex items-center">
-                  <CreditCard className="w-8 h-8 text-gold-600 mr-3" />
-                  <div>
-                    <p className="font-medium text-luxury-900">Pay with Razorpay</p>
-                    <p className="text-sm text-luxury-500">All major cards accepted</p>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('razorpay')}
+                    className={`bg-luxury-50 rounded-lg p-4 flex items-center border ${selectedPaymentMethod === 'razorpay' ? 'border-gold-500' : 'border-transparent'} hover:bg-white transition`}
+                  >
+                    <CreditCard className="w-8 h-8 text-gold-600 mr-3" />
+                    <div className="text-left">
+                      <p className="font-medium text-luxury-900">Pay with Razorpay</p>
+                      <p className="text-sm text-luxury-500">All major cards accepted</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('cod')}
+                    className={`bg-luxury-50 rounded-lg p-4 flex items-center border ${selectedPaymentMethod === 'cod' ? 'border-gold-500' : 'border-transparent'} hover:bg-white transition`}
+                  >
+                    <Truck className="w-8 h-8 text-gold-600 mr-3" />
+                    <div className="text-left">
+                      <p className="font-medium text-luxury-900">Cash on Delivery</p>
+                      <p className="text-sm text-luxury-500">Pay when your order arrives</p>
+                    </div>
+                  </button>
+                </div>
+                
+                <div className="mt-4 text-xs text-luxury-500">
+                  {selectedPaymentMethod === 'cod' ? (
+                    <span>COD orders will show as <span className="font-medium text-luxury-700">Pending</span> until payment is received.</span>
+                  ) : (
+                    <span>Secure Razorpay payment. You will be redirected to Razorpay checkout.</span>
+                  )}
                 </div>
               </div>
 
@@ -357,7 +453,9 @@ const CheckoutPage = () => {
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <>
-                    Pay ₹{total.toLocaleString()}
+                    {selectedPaymentMethod === 'cod'
+                      ? `Place COD Order ₹${total.toLocaleString()}`
+                      : `Pay ₹${total.toLocaleString()}`}
                   </>
                 )}
               </button>

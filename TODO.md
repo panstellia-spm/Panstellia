@@ -1,12 +1,8 @@
-- [ ] Add Admin Revenue tab/page (Products → Orders → Payments → Revenue)
-- [ ] Implement Revenue dashboard (cards + table w/ search, sort, pagination, badges)
-- [x] Created `src/pages/RevenueAdmin.jsx`
-- [x] Updated `src/pages/Admin.jsx` to include Payments and Revenue tabs
-- [x] Persist successful payments to Firestore `payments` collection in `src/pages/Checkout.jsx`
-- [x] Updated Firestore rules in `firestore.rules` for `payments`:
-  - Admins read all payments
-  - Users can create payment records for their own `userId`
-  - Non-admin updates/deletes blocked
-- [ ] Add loading skeletons/empty states/ toasts verification (already included in UI)
-- [ ] Validate Revenue calculations against stored payment schema
+# TODO
+
+- [x] Add admin order status buttons (picked, packed, shipped, out of delivery, delivered) in src/pages/Admin.jsx
+- [x] Persist status updates to Firestore (updateDoc on orders/{orderId})
+- [x] Update Admin UI state immediately after changing status
+- [x] Verify user pages reflect updated status via Firestore (already uses order.status)
+
 

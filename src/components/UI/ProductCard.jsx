@@ -51,12 +51,30 @@ const discount = product.originalPrice
   const imageUrl = imageUrls[0] || '';
 
 
+  const productStatus = product.productStatus || 'available';
+
+  const statusBadge = (
+    <div
+      className={`absolute top-3 left-3 badge pointer-events-none ${
+        productStatus === 'available'
+          ? 'badge-success'
+          : productStatus === 'shipped'
+            ? 'badge-warning'
+            : 'badge-error'
+      }`}
+    >
+      {productStatus}
+    </div>
+  );
+
   return (
     <div className="block cursor-pointer">
       <div className="card relative overflow-hidden group transition-transform hover:-translate-y-1">
 
+
         {/* Image Container */}
         <Link to={`/product/${product.id}`} className="block relative overflow-hidden aspect-[4/5]">
+          {statusBadge}
           <img
             src={imageUrl}
             alt={product.name}
@@ -64,6 +82,7 @@ const discount = product.originalPrice
           />
           
           {/* Discount Badge */}
+
           {discount > 0 && (
             <div className="absolute top-3 left-3 badge badge-error pointer-events-none">
               -{discount}%

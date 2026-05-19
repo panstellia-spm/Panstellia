@@ -5,7 +5,15 @@ import { Package, Plus, Edit, Trash2, DollarSign, ShoppingBag, BarChart3 } from 
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
 import { db } from '../services/firebase';
-import { collection, query, getDocs, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  getDocs,
+  orderBy,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from 'firebase/firestore';
 import { getDirectImageUrl } from '../utils/imageUtils';
 import RevenueAdmin from './RevenueAdmin';
 
@@ -17,6 +25,7 @@ const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('products');
 
   const [orders, setOrders] = useState([]);
+
   const [loading, setLoading] = useState(false);
 
   const [showProductForm, setShowProductForm] = useState(false);
@@ -32,6 +41,9 @@ const AdminPage = () => {
     category: 'Gold',
     featured: false,
     inStock: true,
+
+    // Admin controlled product arrival stage / availability state.
+    productStatus: 'available',
   });
 
   useEffect(() => {
@@ -89,9 +101,9 @@ const AdminPage = () => {
       const productData = {
         ...productForm,
         images: images.length > 0 ? images : undefined,
-        price: parseInt(productForm.price),
+        price: parseInt(productForm.price, 10),
         originalPrice: productForm.originalPrice
-          ? parseInt(productForm.originalPrice)
+          ? parseInt(productForm.originalPrice, 10)
           : null,
         id: editingProduct?.id || `prod_${Date.now()}`,
       };
@@ -118,6 +130,7 @@ const AdminPage = () => {
         category: 'Gold',
         featured: false,
         inStock: true,
+        productStatus: 'available',
       });
     } catch (error) {
       console.error('Error saving product:', error);
@@ -159,6 +172,29 @@ const AdminPage = () => {
 
   const categories = ['Gold', 'Silver', 'Lux Wear', 'Party Wear'];
 
+  const STATUS_OPTIONS = [
+    'picked',
+    'packed',
+    'shipped',
+    'out of delivery',
+    'delivered',
+  ];
+
+  const handleUpdateOrderStatus = async (orderId, nextStatus) => {
+    if (!orderId || !nextStatus) return;
+
+    try {
+      const orderDocRef = doc(db, 'orders', orderId);
+      await updateDoc(orderDocRef, { status: nextStatus });
+
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+      );
+    } catch (e) {
+      console.error('Error updating order status:', e);
+    }
+  };
+
   const stats = {
     totalProducts: products.length,
     totalOrders: orders.length,
@@ -183,9 +219,7 @@ const AdminPage = () => {
                 <Package className="w-6 h-6 text-gold-600" />
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-luxury-900">
-                  {stats.totalProducts}
-                </p>
+                <p className="text-2xl font-bold text-luxury-900">{stats.totalProducts}</p>
                 <p className="text-sm text-luxury-500">Products</p>
               </div>
             </div>
@@ -197,9 +231,7 @@ const AdminPage = () => {
                 <ShoppingBag className="w-6 h-6 text-blue-600" />
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-luxury-900">
-                  {stats.totalOrders}
-                </p>
+                <p className="text-2xl font-bold text-luxury-900">{stats.totalOrders}</p>
                 <p className="text-sm text-luxury-500">Orders</p>
               </div>
             </div>
@@ -211,9 +243,7 @@ const AdminPage = () => {
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-luxury-900">
-                  ₹{(stats.totalRevenue / 1000).toFixed(1)}k
-                </p>
+                <p className="text-2xl font-bold text-luxury-900">₹{(stats.totalRevenue / 1000).toFixed(1)}k</p>
                 <p className="text-sm text-luxury-500">Revenue</p>
               </div>
             </div>
@@ -225,9 +255,7 @@ const AdminPage = () => {
                 <BarChart3 className="w-6 h-6 text-yellow-600" />
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-luxury-900">
-                  {stats.pendingOrders}
-                </p>
+                <p className="text-2xl font-bold text-luxury-900">{stats.pendingOrders}</p>
                 <p className="text-sm text-luxury-500">Pending</p>
               </div>
             </div>
@@ -285,9 +313,7 @@ const AdminPage = () => {
             {activeTab === 'products' && (
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-semibold text-luxury-900">
-                    Manage Products
-                  </h2>
+                  <h2 className="font-semibold text-luxury-900">Manage Products</h2>
                   <button
                     onClick={() => {
                       setShowProductForm(true);
@@ -302,6 +328,7 @@ const AdminPage = () => {
                         category: 'Gold',
                         featured: false,
                         inStock: true,
+                        productStatus: 'available',
                       });
                     }}
                     className="btn-primary flex items-center"
@@ -319,9 +346,7 @@ const AdminPage = () => {
                       </h3>
                       <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium mb-1">
-                            Name
-                          </label>
+                          <label className="block text-sm font-medium mb-1">Name</label>
                           <input
                             type="text"
                             name="name"
@@ -332,9 +357,7 @@ const AdminPage = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-1">
-                            Description
-                          </label>
+                          <label className="block text-sm font-medium mb-1">Description</label>
                           <textarea
                             name="description"
                             value={productForm.description}
@@ -347,9 +370,7 @@ const AdminPage = () => {
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium mb-1">
-                              Price
-                            </label>
+                            <label className="block text-sm font-medium mb-1">Price</label>
                             <input
                               type="number"
                               name="price"
@@ -360,9 +381,7 @@ const AdminPage = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1">
-                              Original Price
-                            </label>
+                            <label className="block text-sm font-medium mb-1">Original Price</label>
                             <input
                               type="number"
                               name="originalPrice"
@@ -374,9 +393,7 @@ const AdminPage = () => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium mb-1">
-                            Image URL
-                          </label>
+                          <label className="block text-sm font-medium mb-1">Image URL</label>
                           <input
                             type="url"
                             name="image"
@@ -403,9 +420,7 @@ const AdminPage = () => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium mb-1">
-                            Category
-                          </label>
+                          <label className="block text-sm font-medium mb-1">Category</label>
                           <select
                             name="category"
                             value={productForm.category}
@@ -444,11 +459,7 @@ const AdminPage = () => {
                         </div>
 
                         <div className="flex gap-4">
-                          <button
-                            type="submit"
-                            disabled={loading}
-                            className="flex-1 btn-primary"
-                          >
+                          <button type="submit" disabled={loading} className="flex-1 btn-primary">
                             {loading ? 'Saving...' : 'Save Product'}
                           </button>
                           <button
@@ -471,21 +482,11 @@ const AdminPage = () => {
                   <table className="w-full">
                     <thead className="bg-luxury-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">
-                          Image
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">
-                          Name
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">
-                          Category
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">
-                          Price
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">
-                          Actions
-                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">Image</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">Name</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">Category</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">Price</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-luxury-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-luxury-200">
@@ -497,22 +498,15 @@ const AdminPage = () => {
                               alt={product.name}
                               className="w-12 h-12 object-cover rounded"
                               onError={(e) => {
-                                e.target.src =
-                                  'https://via.placeholder.com/48?text=No+Image';
+                                e.target.src = 'https://via.placeholder.com/48?text=No+Image';
                               }}
                             />
                           </td>
-                          <td className="px-4 py-3 text-luxury-900">
-                            {product.name}
-                          </td>
+                          <td className="px-4 py-3 text-luxury-900">{product.name}</td>
                           <td className="px-4 py-3">
-                            <span className="badge badge-gold">
-                              {product.category}
-                            </span>
+                            <span className="badge badge-gold">{product.category}</span>
                           </td>
-                          <td className="px-4 py-3 text-luxury-900">
-                            ₹{product.price?.toLocaleString()}
-                          </td>
+                          <td className="px-4 py-3 text-luxury-900">₹{product.price?.toLocaleString()}</td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
@@ -539,18 +533,14 @@ const AdminPage = () => {
 
             {activeTab === 'orders' && (
               <div>
-                <h2 className="font-semibold text-luxury-900 mb-4">
-                  All Orders
-                </h2>
+                <h2 className="font-semibold text-luxury-900 mb-4">All Orders</h2>
                 <div className="space-y-4">
                   {orders.map((order) => {
                     const customerNameRaw =
                       order.customerName || order.name || order.fullName || '';
                     const customerName =
                       typeof customerNameRaw === 'object'
-                        ? customerNameRaw.fullName ||
-                          customerNameRaw.name ||
-                          ''
+                        ? customerNameRaw.fullName || customerNameRaw.name || ''
                         : customerNameRaw;
 
                     const customerPhoneRaw =
@@ -561,9 +551,7 @@ const AdminPage = () => {
                       '';
                     const customerPhone =
                       typeof customerPhoneRaw === 'object'
-                        ? customerPhoneRaw.mobile ||
-                          customerPhoneRaw.phone ||
-                          ''
+                        ? customerPhoneRaw.mobile || customerPhoneRaw.phone || ''
                         : customerPhoneRaw;
 
                     const customerAddressRaw =
@@ -591,8 +579,7 @@ const AdminPage = () => {
                         : customerPincodeRaw;
 
                     const canCancel =
-                      order.status !== 'delivered' &&
-                      order.status !== 'cancelled';
+                      order.status !== 'delivered' && order.status !== 'cancelled';
 
                     const handleCancelOrder = async () => {
                       if (!canCancel) return;
@@ -606,16 +593,9 @@ const AdminPage = () => {
 
                       try {
                         const orderDocRef = doc(db, 'orders', order.id);
-                        await updateDoc(orderDocRef, {
-                          status: 'cancelled',
-                        });
-
+                        await updateDoc(orderDocRef, { status: 'cancelled' });
                         setOrders((prev) =>
-                          prev.map((o) =>
-                            o.id === order.id
-                              ? { ...o, status: 'cancelled' }
-                              : o
-                          )
+                          prev.map((o) => (o.id === order.id ? { ...o, status: 'cancelled' } : o))
                         );
                       } catch (e) {
                         console.error('Error cancelling order:', e);
@@ -640,34 +620,51 @@ const AdminPage = () => {
                       }
                     };
 
+                    const statusBadgeClass =
+                      order.status === 'delivered'
+                        ? 'badge-success'
+                        : order.status === 'cancelled'
+                          ? 'badge-error'
+                          : 'badge-warning';
+
                     return (
-                      <div
-                        key={order.id}
-                        className="border border-luxury-200 rounded-lg p-4"
-                      >
+                      <div key={order.id} className="border border-luxury-200 rounded-lg p-4">
                         <div className="flex justify-between items-start gap-4">
                           <div>
                             <p className="font-medium text-luxury-900">
                               Order #{order.id?.slice(0, 8).toUpperCase()}
                             </p>
                             <p className="text-sm text-luxury-500">
-                              {order.items?.length} items - ₹
-                              {order.total?.toLocaleString()}
+                              {order.items?.length} items - ₹{order.total?.toLocaleString()}
                             </p>
                           </div>
 
                           <div className="flex flex-col items-end gap-2">
-                            <span
-                              className={`badge ${
-                                order.status === 'delivered'
-                                  ? 'badge-success'
-                                  : order.status === 'cancelled'
-                                    ? 'badge-error'
-                                    : 'badge-warning'
-                              }`}
-                            >
-                              {order.status}
-                            </span>
+                            <span className={`badge ${statusBadgeClass}`}>{order.status}</span>
+
+                            {/* Status update buttons */}
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {STATUS_OPTIONS.map((s) => {
+                                const isActive = order.status === s;
+                                const disabled = isActive || order.status === 'cancelled';
+
+                                return (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    disabled={disabled}
+                                    onClick={() => handleUpdateOrderStatus(order.id, s)}
+                                    className={`px-3 py-1 rounded-lg text-sm border transition ${
+                                      isActive
+                                        ? 'border-gold-500 text-gold-700 bg-luxury-50'
+                                        : 'border-luxury-200 text-luxury-700 hover:bg-luxury-50'
+                                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  >
+                                    {s}
+                                  </button>
+                                );
+                              })}
+                            </div>
 
                             <div className="flex gap-2">
                               <button
@@ -695,37 +692,27 @@ const AdminPage = () => {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-luxury-200">
-                          <h3 className="font-semibold text-luxury-900 mb-2">
-                            Customer Details
-                          </h3>
+                          <h3 className="font-semibold text-luxury-900 mb-2">Customer Details</h3>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                             <div>
                               <p className="text-luxury-600">Name</p>
-                              <p className="text-luxury-900 font-medium">
-                                {customerName || '—'}
-                              </p>
+                              <p className="text-luxury-900 font-medium">{customerName || '—'}</p>
                             </div>
 
                             <div>
                               <p className="text-luxury-600">Mob No</p>
-                              <p className="text-luxury-900 font-medium">
-                                {customerPhone || '—'}
-                              </p>
+                              <p className="text-luxury-900 font-medium">{customerPhone || '—'}</p>
                             </div>
 
                             <div className="md:col-span-2">
                               <p className="text-luxury-600">Address</p>
-                              <p className="text-luxury-900 font-medium">
-                                {customerAddress || '—'}
-                              </p>
+                              <p className="text-luxury-900 font-medium">{customerAddress || '—'}</p>
                             </div>
 
                             <div>
                               <p className="text-luxury-600">Pincode</p>
-                              <p className="text-luxury-900 font-medium">
-                                {customerPincode || '—'}
-                              </p>
+                              <p className="text-luxury-900 font-medium">{customerPincode || '—'}</p>
                             </div>
                           </div>
                         </div>
