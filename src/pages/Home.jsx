@@ -112,7 +112,7 @@ const HomePage = () => {
                 <div className="absolute -top-4 -left-4 w-72 h-72 bg-gold-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse-slow"></div>
                 <div className="absolute -bottom-4 -right-4 w-72 h-72 bg-luxury-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse-slow"></div>
                 <img 
-                  src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800" 
+                  src="https://i.ibb.co/ZzPs9fjL/file-00000000504871faa21d33d104f87fa3.png" 
                   alt="Featured Necklace" 
                   className="relative rounded-2xl shadow-2xl"
                 />
