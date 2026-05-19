@@ -7,7 +7,7 @@ import SEOHelmet from '../utils/seoHelmet';
 const AboutUsPage = () => {
   const journeyItems = [
     { year: '2024', title: 'Founded', desc: 'TamilNadu family tradition', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&fit=crop&amp;crop=entropy' },
-    { year: '2024', title: 'First Collection', desc: 'Inspired by Jaipur markets', img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&fit=crop&amp;crop=entropy' },
+    { year: '2024', title: 'First Collection', desc: 'Inspired by Korean markets', img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&fit=crop&amp;crop=entropy' },
     { year: '2025', title: 'E-commerce Launch', desc: 'Global reach with local roots', img: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&fit=crop&amp;crop=entropy' }
   ];
 

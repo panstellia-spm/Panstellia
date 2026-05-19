@@ -13,9 +13,9 @@ const HomePage = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const collectionImages = [
-    'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=600',
-    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600',
-    'https://images.unsplash.com/photo-1607979591413-07ec53e9e602?w=600'
+    'https://i.ibb.co/wFKPsvF3/file-0000000067f871faa8219b12c171e65f.png',
+    'https://i.ibb.co/v6D0LrQG/file-0000000035cc71fa963321ed9c5ee32f.png',
+    'https://i.ibb.co/HfHynYrb/file-00000000501871fabeb3ad48399d23bd.png',
   ];
 
   useEffect(() => {
