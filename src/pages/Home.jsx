@@ -14,11 +14,11 @@ const HomePage = () => {
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
 
   const heroImages = [
-    'https://i.ibb.co/9kfcZnms/Gemini-Generated-Image-2vytly2vytly2vyt.png',
-    'https://i.ibb.co/5Wcxtywf/1000096799-ezremove.png',
-    'https://i.ibb.co/v6D0LrQG/file-0000000035cc71fa963321ed9c5ee32f.png',
-    'https://i.ibb.co/HfHynYrb/file-00000000501871fabeb3ad48399d23bd.png',
-    'https://i.ibb.co/DD38dQ8Q/file-000000008b207207972a2996aa7d3be3.png',
+    'https://i.ibb.co/svsgC1qD/file-000000007ee87208b4727ab98f280ef7.png',
+    'https://i.ibb.co/FbBwVw0x/file-000000001d907208abea67f9c539d069.png',
+    'https://i.ibb.co/HTxTW4Mc/file-00000000f23871fabbbf324fd6b04d95.png',
+    'https://i.ibb.co/tM3wvGWN/file-00000000996072079f2b1c3a294c96b1.png',
+    'https://i.ibb.co/5WhvJJwq/file-00000000ca2471fa9a25e61fd0fccb26.png',
   ];
 
   const collectionImages = [

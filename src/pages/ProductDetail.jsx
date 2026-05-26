@@ -331,7 +331,7 @@ const ProductDetailPage = () => {
             <div className="mt-8 grid grid-cols-3 gap-4">
               <div className="flex items-center gap-2 text-sm text-luxury-600">
                 <Truck className="w-5 h-5 text-gold-600" />
-                <span>Free Shipping</span>
+                <span>Free Shipping Above ₹1000</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-luxury-600">
                 <Shield className="w-5 h-5 text-gold-600" />
