@@ -3,7 +3,7 @@ import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { getDirectImageUrl } from '../utils/imageUtils';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
 import { getCategoryLabel } from '../utils/categoryLabels';
 
@@ -74,7 +74,7 @@ const CartPage = () => {
               <div key={item.id} className="bg-white rounded-xl shadow-md p-4 flex gap-4">
 <Link to={`/product/${item.id}`} className="w-24 h-24 flex-shrink-0">
                   <img
-                    src={getDirectImageUrl(item.image)}
+                    src={getOptimizedImageUrl(item.image, { width: 200, quality: 70 })}
                     alt={item.name}
                     className="w-full h-full object-cover rounded-lg"
                   />

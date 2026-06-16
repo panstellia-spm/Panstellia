@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Package, CheckCircle, XCircle, Clock, ChevronLeft, Truck } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
 import { db } from '../services/firebase';
 import SEOHelmet from '../utils/seoHelmet';
-import { getDirectImageUrl } from '../utils/imageUtils';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 const OrderDetailsPage = () => {
 
@@ -25,14 +25,25 @@ const OrderDetailsPage = () => {
       setError(null);
 
       try {
-        // 1) Try fetching from `orders` collection (COD flow writes here)
+        // 1a) Try fetching directly from `orders` collection by document ID
+        const orderDocRef = doc(db, 'orders', id);
+        const orderDocSnap = await getDoc(orderDocRef);
+
+        if (orderDocSnap.exists()) {
+          const data = orderDocSnap.data();
+          if (data.userId === user.uid) {
+            setOrder({ id: orderDocSnap.id, ...data });
+            return;
+          }
+        }
+
+        // 1b) Try querying `orders` collection by `orderId` field
         const ordersRef = collection(db, 'orders');
         const qOrders = query(
           ordersRef,
           where('userId', '==', user.uid),
-          where('__name__', '==', id)
+          where('orderId', '==', id)
         );
-
         const snapOrders = await getDocs(qOrders);
 
         if (!snapOrders.empty) {
@@ -41,30 +52,49 @@ const OrderDetailsPage = () => {
           return;
         }
 
-        // 2) Fallback: Razorpay success seems to persist into `payments` collection.
-        // In Orders page we route using `order.id` from `orders` query, so for Razorpay
-        // we also try matching by `payment.orderId`.
+        // 2a) Fallback: Try fetching directly from `payments` collection by document ID
+        const paymentDocRef = doc(db, 'payments', id);
+        const paymentDocSnap = await getDoc(paymentDocRef);
+
+        if (paymentDocSnap.exists()) {
+          const data = paymentDocSnap.data();
+          if (data.userId === user.uid) {
+            setOrder({
+              id: paymentDocSnap.id,
+              status: data.paymentStatus || data.status || 'paid',
+              total: data.amount ? (Number(data.amount) / 100) : data.total,
+              items: data.items || [],
+              paymentMethod: data.paymentMethod,
+              address: data.shippingAddress,
+              city: data.shippingCity,
+              state: data.shippingState,
+              pincode: data.shippingPincode,
+              shipping: data.shipping,
+              tax: data.tax || data.gst,
+              gst: data.gst,
+              createdAt: data.createdAt,
+            });
+            return;
+          }
+        }
+
+        // 2b) Try querying `payments` collection by `orderId` field
         const paymentsRef = collection(db, 'payments');
         const qPayments = query(
           paymentsRef,
           where('userId', '==', user.uid),
           where('orderId', '==', id)
         );
-
         const snapPayments = await getDocs(qPayments);
 
         if (!snapPayments.empty) {
           const doc = snapPayments.docs[0];
           const data = doc.data();
 
-          // Normalize field names so UI can use a consistent shape.
           setOrder({
-            id,
+            id: doc.id,
             status: data.paymentStatus || data.status || 'paid',
-            total: data.amount
-              ? // amount is stored in paise for payments
-                (Number(data.amount) / 100)
-              : data.total,
+            total: data.amount ? (Number(data.amount) / 100) : data.total,
             items: data.items || [],
             paymentMethod: data.paymentMethod,
             address: data.shippingAddress,
@@ -213,7 +243,7 @@ const OrderDetailsPage = () => {
                           <div className="flex items-start gap-4">
                             {item.image ? (
                               <img
-                                src={getDirectImageUrl(item.image)}
+                                src={getOptimizedImageUrl(item.image, { width: 120, quality: 60 })}
                                 alt={item.name}
                                 className="w-16 h-16 object-cover rounded-lg"
                               />
@@ -235,7 +265,7 @@ const OrderDetailsPage = () => {
                           </div>
 
                           <p className="text-luxury-900 font-semibold">
-                            ₹{Number(item.price || 0).toLocaleString()}
+                            ₹{Number((item.price || 0) * (item.quantity || 1)).toLocaleString()}
                           </p>
                         </div>
                       ))}
@@ -262,61 +292,26 @@ const OrderDetailsPage = () => {
 
                     <div className="space-y-2 border-t border-luxury-200 pt-4">
                       {(() => {
-                        // Keep the ordering structure consistent with CartContext/Checkout totals:
-                        // subtotal = sum(item.price * qty)
-                        // shipping = subtotal > 1000 ? 0 : 99
-                        // tax (5%) = subtotal * 0.05
+                        // Calculate fallback subtotal from items
+                        const calculatedSubtotal = (order.items || []).reduce(
+                          (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1),
+                          0
+                        );
 
-                        const total = Number(order.total ?? 0) || 0;
+                        // Prefer persisted values if present, otherwise use calculated values.
+                        const subtotal = order.subtotal != null ? Number(order.subtotal) : calculatedSubtotal;
+                        
+                        const shipping = order.shipping != null 
+                          ? Number(order.shipping) 
+                          : (subtotal > 1000 ? 0 : 99);
+                        
+                        const tax = order.tax != null 
+                          ? Number(order.tax) 
+                          : (order.gst != null ? Number(order.gst) : subtotal * 0.05);
 
-                        // Prefer persisted values if present.
-                        const persistedSubtotal = order.subtotal != null ? Number(order.subtotal) : null;
-                        const persistedShipping = order.shipping != null ? Number(order.shipping) : null;
-                        const persistedTax = order.tax != null ? Number(order.tax) : (order.gst != null ? Number(order.gst) : null);
-
-                        let subtotal;
-                        let shipping;
-                        let tax;
-
-                        if (persistedSubtotal != null && !Number.isNaN(persistedSubtotal)) {
-                          subtotal = persistedSubtotal;
-                          shipping = persistedShipping != null && !Number.isNaN(persistedShipping)
-                            ? persistedShipping
-                            : (subtotal > 1000 ? 0 : 99);
-                          tax = persistedTax != null && !Number.isNaN(persistedTax)
-                            ? persistedTax
-                            : (subtotal * 0.05);
-                        } else {
-                          // Infer from total (works with current Firestore persistence where only total is guaranteed).
-                          // Since: total = subtotal + shipping + subtotal*0.05 => total = subtotal*1.05 + shipping
-                          // where shipping is 0 if subtotal > 1000 else 99.
-                          // Use best-effort inference with the same shipping rule as CartContext.
-                          const assumedTaxRate = 0.05;
-
-                          // Try shipping = 0 first.
-                          let inferredSubtotalA = (total - 0) / (1 + assumedTaxRate);
-                          let inferredShippingA = inferredSubtotalA > 1000 ? 0 : 99;
-                          let inferredTaxA = inferredSubtotalA * assumedTaxRate;
-
-                          // If that contradicts shipping rule, fall back to shipping=99 case.
-                          // (This is rare due to floating/rounding.)
-                          if (inferredShippingA !== 0) {
-                            // shipping=99 => subtotal = (total-99)/1.05
-                            let inferredSubtotalB = (total - 99) / (1 + assumedTaxRate);
-                            subtotal = inferredSubtotalB;
-                            shipping = 99;
-                            tax = inferredSubtotalB * assumedTaxRate;
-                          } else {
-                            subtotal = inferredSubtotalA;
-                            shipping = 0;
-                            tax = inferredTaxA;
-                          }
-                        }
-
-                        // Final sanitization
-                        subtotal = Number.isFinite(subtotal) ? subtotal : 0;
-                        shipping = Number.isFinite(shipping) ? shipping : 0;
-                        tax = Number.isFinite(tax) ? tax : 0;
+                        const total = order.total != null 
+                          ? Number(order.total) 
+                          : (subtotal + shipping + tax);
 
                         return (
                           <>
@@ -327,7 +322,9 @@ const OrderDetailsPage = () => {
 
                             <div className="flex items-center justify-between text-sm text-luxury-600">
                               <span>Shipping</span>
-                              <span>₹{shipping.toLocaleString()}</span>
+                              <span>
+                                {shipping === 0 ? 'Free' : `₹${shipping.toLocaleString()}`}
+                              </span>
                             </div>
 
                             <div className="flex items-center justify-between text-sm text-luxury-600">

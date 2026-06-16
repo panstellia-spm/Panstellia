@@ -3,7 +3,7 @@ import { Heart, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
 import { toast } from 'react-toastify';
-import { getDirectImageUrl } from '../utils/imageUtils';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
 import { getCategoryLabel } from '../utils/categoryLabels';
 
@@ -73,7 +73,7 @@ const WishlistPage = () => {
               <Link to={`/product/${item.id}`}>
 <div className="relative overflow-hidden aspect-[3/4]">
                   <img
-                    src={getDirectImageUrl(item.image)}
+                    src={getOptimizedImageUrl(item.image, { width: 400, quality: 75 })}
                     alt={item.name}
                     className="w-full h-full object-cover"
                   />

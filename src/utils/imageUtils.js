@@ -1,81 +1,117 @@
-/**
- * Converts Google Drive URLs to direct image URLs that can be displayed in img tags
- * @param {string} url - The original Google Drive URL or direct image URL
- * @returns {string} - The direct URL that can be used in img src
- */
-export const getDirectImageUrl = (url) => {
-  if (!url) return '';
-  
-  // Check if it's a Google Drive URL
-  if (url.includes('drive.google.com')) {
-    // Extract file ID from various Google Drive URL formats
-    let fileId = '';
-    
-    // Format 1: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-    const fileMatch1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    // Format 2: https://drive.google.com/uc?export=view&id=FILE_ID
-    const fileMatch2 = url.match(/id=([a-zA-Z0-9_-]+)/);
-    // Format 3: https://docs.google.com/uc?export=download&id=FILE_ID
-    const fileMatch3 = url.match(/id=([a-zA-Z0-9_-]+)/);
-    
-    if (fileMatch1) {
-      fileId = fileMatch1[1];
-    } else if (fileMatch2) {
-      fileId = fileMatch2[1];
-    } else if (fileMatch3) {
-      fileId = fileMatch3[1];
-    }
-    
-    if (fileId) {
-      // Convert to direct download URL
-      return `https://drive.google.com/uc?export=view&id=${fileId}`;
-    }
-  }
-  
-  // Return original URL if it's not a Google Drive URL
-  return url;
+// ─────────────────────────────────────────────
+// Extracts Google Drive file ID from any Drive URL format
+// ─────────────────────────────────────────────
+const extractDriveFileId = (url) => {
+  if (!url || !url.includes('drive.google.com')) return null;
+
+  // Format 1: /file/d/FILE_ID/view
+  const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1) return m1[1];
+
+  // Format 2: ?id=FILE_ID or &id=FILE_ID
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m2) return m2[1];
+
+  return null;
 };
 
-/**
- * Normalizes a product's image list.
- * Prefers `product.images` (array) and falls back to `product.image` (string).
- * Always returns a string array of direct image URLs.
- */
-export const getProductImageUrls = (product) => {
+// ─────────────────────────────────────────────
+// Converts Google Drive share URL → thumbnail URL
+// Google's thumbnail endpoint still works reliably
+// (unlike uc?export=view which Google blocked for hotlinking in 2023)
+// ─────────────────────────────────────────────
+const getDriveThumbnailUrl = (url, size = 800) => {
+  const fileId = extractDriveFileId(url);
+  if (!fileId) return url;
+  // sz= controls max dimension in pixels
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=s${size}`;
+};
+
+// ─────────────────────────────────────────────
+// Legacy name kept for backward compatibility.
+// Now resolves Drive URLs to the working thumbnail endpoint
+// and wraps everything in wsrv.nl for CDN + WebP + resize.
+// ─────────────────────────────────────────────
+export const getDirectImageUrl = (url, { width = 800, quality = 82 } = {}) => {
+  if (!url) return '';
+
+  // Already a wsrv.nl URL — don't double-proxy
+  if (url.includes('wsrv.nl')) return url;
+
+  // For Google Drive URLs, use thumbnail endpoint
+  // (works reliably unlike uc?export=view which is blocked)
+  const resolved = url.includes('drive.google.com')
+    ? getDriveThumbnailUrl(url, width)
+    : url;
+
+  // Wrap in wsrv.nl for CDN caching + WebP + resize
+  // &il = progressive/interlaced (blurry preview appears instantly)
+  // &n=-1 = no hotlink referer check
+  return (
+    `https://wsrv.nl/?url=${encodeURIComponent(resolved)}` +
+    `&w=${width}&q=${quality}&output=webp&il&n=-1`
+  );
+};
+
+// ─────────────────────────────────────────────
+// Primary export used by all components.
+// Accepts {width, quality} for context-appropriate sizing.
+// ─────────────────────────────────────────────
+export const getOptimizedImageUrl = (url, { width = 800, quality = 82 } = {}) => {
+  return getDirectImageUrl(url, { width, quality });
+};
+
+// ─────────────────────────────────────────────
+// Returns array of optimized image URLs for a product.
+// Prefers product.images array, falls back to product.image.
+// ─────────────────────────────────────────────
+export const getProductImageUrls = (product, { width = 600, quality = 82 } = {}) => {
   const rawImages = Array.isArray(product?.images) ? product.images : [];
   const fallback = product?.image ? [product.image] : [];
   const images = rawImages.length > 0 ? rawImages : fallback;
 
   return images
     .filter(Boolean)
-    .map((img) => getDirectImageUrl(img));
+    .map((img) => getOptimizedImageUrl(img, { width, quality }));
 };
 
-/**
- * Validates if a URL is a valid image URL (either direct or gdrive)
- * @param {string} url - The URL to validate
- * @returns {boolean} - True if valid
- */
+// ─────────────────────────────────────────────
+// Tiny blur placeholder for progressive reveal
+// ─────────────────────────────────────────────
+export const getBlurPlaceholderUrl = (url) => {
+  if (!url) return '';
+
+  const resolved = url.includes('drive.google.com')
+    ? getDriveThumbnailUrl(url, 40)
+    : url;
+
+  return (
+    `https://wsrv.nl/?url=${encodeURIComponent(resolved)}` +
+    `&w=40&q=10&output=webp&blur=3&n=-1`
+  );
+};
+
+// ─────────────────────────────────────────────
+// Validates if a URL is a valid image URL
+// ─────────────────────────────────────────────
 export const isValidImageUrl = (url) => {
   if (!url) return false;
-  
-  // Check for common image extensions
+
   const imageExtensions = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i;
   if (imageExtensions.test(url)) return true;
-  
-  // Check for Google Drive URLs
+
   if (url.includes('drive.google.com')) return true;
-  
-  // Check for other known image hosting services
+  if (url.includes('wsrv.nl')) return true;
+
   const imageHosts = [
+    'ibb.co',
+    'i.ibb.co',
     'imgur.com',
     'cloudinary.com',
     'unsplash.com',
-    'pexels.com',
-    'pixabay.com',
     'images.unsplash.com',
-    'lh3.googleusercontent.com'
+    'lh3.googleusercontent.com',
   ];
-  
-  return imageHosts.some(host => url.includes(host));
+
+  return imageHosts.some((host) => url.includes(host));
 };

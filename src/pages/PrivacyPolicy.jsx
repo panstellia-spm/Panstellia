@@ -47,9 +47,9 @@ const PrivacyPolicyPage = () => {
               <X className="w-6 h-6 text-luxury-600" />
             </button>
             <div className="flex items-center gap-3">
-              <Link to="/" className="flex items-center gap-2 text-luxury-600 hover:text-gold-600 text-sm font-medium transition-colors">
+              <Link to="/products" className="flex items-center gap-2 text-luxury-600 hover:text-gold-600 text-sm font-medium transition-colors">
                 <ArrowLeft className="w-4 h-4" />
-                Back to Home
+                Back to Shop
               </Link>
             </div>
           </div>
@@ -130,7 +130,7 @@ const PrivacyPolicyPage = () => {
           <section className="border-t border-luxury-200 pt-8">
             <p className="text-sm text-luxury-500 mb-4">Questions? Contact us at <a href="mailto:support@panstellia.com" className="text-gold-600 hover:underline">support@panstellia.com</a></p>
             <Link 
-              to="/" 
+              to="/products" 
               className="inline-flex items-center gap-2 bg-gold-500 text-white px-8 py-3 rounded-xl font-medium hover:bg-gold-600 transition-all shadow-lg"
             >
               Back to Shopping

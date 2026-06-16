@@ -4,7 +4,7 @@ import { Package, ChevronRight, Clock, CheckCircle, XCircle } from 'lucide-react
 import { useAuth } from '../context/AuthContext';
 import { db } from '../services/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { getDirectImageUrl } from '../utils/imageUtils';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
 
 function safeToDate(value) {
@@ -318,7 +318,7 @@ const OrdersPage = () => {
                       {order.items?.map((item, index) => (
                         <div key={index} className="flex gap-4">
                           <img
-                            src={getDirectImageUrl(item.image)}
+                            src={getOptimizedImageUrl(item.image, { width: 200, quality: 70 })}
                             alt={item.name}
                             className="w-20 h-20 object-cover rounded-lg"
                           />

@@ -14,7 +14,7 @@ import {
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
-import { getDirectImageUrl } from '../utils/imageUtils';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getCategoryLabel } from '../utils/categoryLabels';
 import RevenueAdmin from './RevenueAdmin';
 import ReportsAdmin from './ReportsAdmin';
@@ -986,7 +986,7 @@ const AdminPage = () => {
                         <tr key={product.id}>
                           <td className="px-4 py-3">
                             <img
-                              src={getDirectImageUrl(product.image)}
+                              src={getOptimizedImageUrl(product.image, { width: 100, quality: 60 })}
                               alt={product.name}
                               className="w-12 h-12 object-cover rounded"
                               onError={(e) => {
