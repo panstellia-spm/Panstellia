@@ -44,7 +44,7 @@ const Footer = () => {
               <a href="https://www.instagram.com/panstellia" target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Instagram">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="https://www.facebook.com/panstellia" target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Facebook">
+              <a href="https://www.facebook.com/people/Panstellia-PS/61581753914404/" target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Facebook">
                 <Facebook className="w-5 h-5" />
               </a>
               {/* Pinterest SVG Icon */}
