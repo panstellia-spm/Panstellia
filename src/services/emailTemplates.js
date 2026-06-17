@@ -37,8 +37,6 @@ export const generateAdminOrderHTML = (orderData) => {
     customerName,
     customerEmail,
     customerPhone,
-    productName,
-    quantity,
     totalAmount,
     shippingAddress,
     shippingCity,
@@ -255,8 +253,6 @@ export const generateAdminOrderHTML = (orderData) => {
 export const generateCustomerOrderHTML = (orderData) => {
   const {
     customerName,
-    productName,
-    quantity,
     totalAmount,
     shippingAddress,
     shippingCity,
