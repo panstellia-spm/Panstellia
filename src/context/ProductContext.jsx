@@ -37,12 +37,42 @@ export const ProductProvider = ({ children }) => {
           ...doc.data(),
         }));
 
-        // Backward compatible default for existing docs.
-        const normalized = productsData.map((p) => ({
-          productStatus: p.productStatus ?? (p.inStock === false ? 'unavailable' : 'available'),
-          ...p,
-        }));
+        // Helper to normalize product data with default inventory fields
+        const normalizeProduct = (p) => {
+          const stockQuantity = Number(p.stockQuantity ?? 0);
+          const reservedQuantity = Number(p.reservedQuantity ?? 0);
+          const availableQuantity = stockQuantity - reservedQuantity;
+          const reorderThreshold = Number(p.reorderThreshold ?? 5);
+          const price = Number(p.price ?? 0);
+          
+          let inventoryStatus = 'in_stock';
+          if (stockQuantity <= 0) {
+            inventoryStatus = 'out_of_stock';
+          } else if (stockQuantity <= reorderThreshold) {
+            inventoryStatus = 'low_stock';
+          }
 
+          return {
+            ...p,
+            productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
+            stockQuantity,
+            reservedQuantity,
+            availableQuantity,
+            reorderThreshold,
+            reorderQuantity: Number(p.reorderQuantity ?? 10),
+            inventoryStatus,
+            inventoryValue: price * stockQuantity,
+            skuCode: p.skuCode || '',
+            serialNumber: p.serialNumber || '',
+            metalType: p.metalType || p.category || '',
+            stoneType: p.stoneType || p.primaryStone || '',
+            weight: p.weight || '',
+            certificationNumber: p.certificationNumber || '',
+            collectionName: p.collectionName || '',
+          };
+        };
+
+        const normalized = productsData.map(normalizeProduct);
         setProducts(normalized);
       } else {
         // Firestore is empty - show empty products array
@@ -66,9 +96,45 @@ export const ProductProvider = ({ children }) => {
         createdAt: getTimestamp(),
       };
 
-      await setDoc(doc(db, 'products', product.id), newProduct);
+      // Normalize helper
+      const normalizeProduct = (p) => {
+        const stockQuantity = Number(p.stockQuantity ?? 0);
+        const reservedQuantity = Number(p.reservedQuantity ?? 0);
+        const availableQuantity = stockQuantity - reservedQuantity;
+        const reorderThreshold = Number(p.reorderThreshold ?? 5);
+        const price = Number(p.price ?? 0);
+        
+        let inventoryStatus = 'in_stock';
+        if (stockQuantity <= 0) {
+          inventoryStatus = 'out_of_stock';
+        } else if (stockQuantity <= reorderThreshold) {
+          inventoryStatus = 'low_stock';
+        }
 
-      setProducts(prev => [newProduct, ...prev]);
+        return {
+          ...p,
+          productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
+          stockQuantity,
+          reservedQuantity,
+          availableQuantity,
+          reorderThreshold,
+          reorderQuantity: Number(p.reorderQuantity ?? 10),
+          inventoryStatus,
+          inventoryValue: price * stockQuantity,
+          skuCode: p.skuCode || '',
+          serialNumber: p.serialNumber || '',
+          metalType: p.metalType || p.category || '',
+          stoneType: p.stoneType || p.primaryStone || '',
+          weight: p.weight || '',
+          certificationNumber: p.certificationNumber || '',
+          collectionName: p.collectionName || '',
+        };
+      };
+
+      const normalized = normalizeProduct(newProduct);
+      await setDoc(doc(db, 'products', product.id), normalized);
+
+      setProducts(prev => [normalized, ...prev]);
       return { success: true };
     } catch (err) {
       throw new Error(err.message);
@@ -77,13 +143,51 @@ export const ProductProvider = ({ children }) => {
 
   const updateProduct = async (id, productData) => {
     try {
-      await setDoc(doc(db, 'products', id), {
+      const normalizeProduct = (p) => {
+        const stockQuantity = Number(p.stockQuantity ?? 0);
+        const reservedQuantity = Number(p.reservedQuantity ?? 0);
+        const availableQuantity = stockQuantity - reservedQuantity;
+        const reorderThreshold = Number(p.reorderThreshold ?? 5);
+        const price = Number(p.price ?? 0);
+        
+        let inventoryStatus = 'in_stock';
+        if (stockQuantity <= 0) {
+          inventoryStatus = 'out_of_stock';
+        } else if (stockQuantity <= reorderThreshold) {
+          inventoryStatus = 'low_stock';
+        }
+
+        return {
+          ...p,
+          productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
+          stockQuantity,
+          reservedQuantity,
+          availableQuantity,
+          reorderThreshold,
+          reorderQuantity: Number(p.reorderQuantity ?? 10),
+          inventoryStatus,
+          inventoryValue: price * stockQuantity,
+          skuCode: p.skuCode || '',
+          serialNumber: p.serialNumber || '',
+          metalType: p.metalType || p.category || '',
+          stoneType: p.stoneType || p.primaryStone || '',
+          weight: p.weight || '',
+          certificationNumber: p.certificationNumber || '',
+          collectionName: p.collectionName || '',
+        };
+      };
+
+      const existingProduct = products.find(p => p.id === id) || {};
+      const updatedData = {
         ...productData,
         updatedAt: getTimestamp()
-      }, { merge: true });
+      };
+      
+      const normalizedMerged = normalizeProduct({ ...existingProduct, ...updatedData });
+      await setDoc(doc(db, 'products', id), normalizedMerged, { merge: true });
       
       setProducts(prev =>
-        prev.map((p) => (p.id === id ? { ...p, ...productData } : p))
+        prev.map((p) => (p.id === id ? normalizedMerged : p))
       );
       return { success: true };
 

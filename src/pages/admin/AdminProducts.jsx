@@ -36,6 +36,8 @@ const EMPTY_FORM = {
   baseMaterial: '', primaryStone: '', stoneType: '', stoneColor: '',
   platingType: '', platingThickness: '', finishType: '',
   nickelFree: false, hypoallergenic: false, tarnishResistant: false,
+  stockQuantity: '', reorderThreshold: '5', reorderQuantity: '10',
+  serialNumber: '', metalType: '', weight: '', certificationNumber: '',
 };
 
 function StockBadge({ inStock, productStatus }) {
@@ -181,11 +183,22 @@ export default function AdminProducts() {
     try {
       const images = form.imagesText.split(',').map(s => s.trim()).filter(Boolean);
       const { imageFile, imagesFiles, ...rest } = form;
+      
+      const stockQuantity = parseInt(rest.stockQuantity || 0, 10);
+      const reorderThreshold = parseInt(rest.reorderThreshold || 5, 10);
+      const reorderQuantity = parseInt(rest.reorderQuantity || 10, 10);
+      
       const productData = {
         ...rest,
         price: parseInt(rest.price, 10),
         originalPrice: rest.originalPrice ? parseInt(rest.originalPrice, 10) : null,
+        stockQuantity,
+        reorderThreshold,
+        reorderQuantity,
+        availableQuantity: stockQuantity - Number(rest.reservedQuantity || 0),
         id: editingProduct?.id || `prod_${Date.now()}`,
+        inStock: stockQuantity > 0,
+        productStatus: stockQuantity > 0 ? (rest.productStatus === 'unavailable' ? 'available' : rest.productStatus) : 'unavailable',
         ...(images.length > 0 ? { images } : {}),
       };
       if (!productData.images?.length) productData.image = rest.image;
@@ -454,6 +467,39 @@ export default function AdminProducts() {
                 </FormField>
                 {uploadStatus && <p className="text-sm text-green-600 font-medium">{uploadStatus}</p>}
                 {uploadError && <p className="text-sm text-red-500">{uploadError}</p>}
+              </FormSection>
+
+              {/* Inventory & Luxury Jewelry details */}
+              <FormSection title="Inventory & Luxury Jewelry Details">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField label="Stock Quantity" required>
+                    <input name="stockQuantity" type="number" value={form.stockQuantity ?? ''} onChange={handleInputChange} required className={inputCls} placeholder="e.g. 50" />
+                  </FormField>
+                  <FormField label="Reorder Threshold">
+                    <input name="reorderThreshold" type="number" value={form.reorderThreshold ?? 5} onChange={handleInputChange} className={inputCls} placeholder="e.g. 5" />
+                  </FormField>
+                  <FormField label="Recommended Reorder Quantity">
+                    <input name="reorderQuantity" type="number" value={form.reorderQuantity ?? 10} onChange={handleInputChange} className={inputCls} placeholder="e.g. 10" />
+                  </FormField>
+                  <FormField label="SKU Code">
+                    <input name="skuCode" value={form.skuCode || ''} onChange={handleInputChange} className={inputCls} placeholder="e.g. GLD-NKL-001" />
+                  </FormField>
+                  <FormField label="Unique Serial Number">
+                    <input name="serialNumber" value={form.serialNumber || ''} onChange={handleInputChange} className={inputCls} placeholder="e.g. SN-872619" />
+                  </FormField>
+                  <FormField label="Metal Type">
+                    <input name="metalType" value={form.metalType || ''} onChange={handleInputChange} className={inputCls} placeholder="e.g. Gold (22K) / Platinum" />
+                  </FormField>
+                  <FormField label="Stone Type">
+                    <input name="stoneType" value={form.stoneType || ''} onChange={handleInputChange} className={inputCls} placeholder="e.g. VVS Diamond / Emerald" />
+                  </FormField>
+                  <FormField label="Weight">
+                    <input name="weight" value={form.weight || ''} onChange={handleInputChange} className={inputCls} placeholder="e.g. 14.50 grams" />
+                  </FormField>
+                  <FormField label="Certification Number">
+                    <input name="certificationNumber" value={form.certificationNumber || ''} onChange={handleInputChange} className={inputCls} placeholder="e.g. GIA-9281726" />
+                  </FormField>
+                </div>
               </FormSection>
 
               {/* Specifications */}

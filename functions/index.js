@@ -306,6 +306,23 @@ async function createOrderHandler(req, res) {
 
     const orderNumber = buildOrderNumber();
 
+    const db = admin.firestore();
+
+    // Verify stock availability before calling Razorpay API
+    for (const item of orderItems) {
+      const pSnap = await db.collection("products").doc(item.id).get();
+      if (!pSnap.exists) {
+        return res.status(404).json({ error: `Product "${item.name}" not found.` });
+      }
+      const pData = pSnap.data();
+      const stockQuantity = Number(pData.stockQuantity ?? 0);
+      const reservedQuantity = Number(pData.reservedQuantity ?? 0);
+      const available = stockQuantity - reservedQuantity;
+      if (available < item.quantity) {
+        return res.status(400).json({ error: `Insufficient stock for "${item.name}". Only ${available} available.` });
+      }
+    }
+
     console.log("[functions] Creating Razorpay order", {
       amount: amountNum,
       currency,
@@ -326,43 +343,100 @@ async function createOrderHandler(req, res) {
       },
     });
 
-    const db = admin.firestore();
-    const commonOrderData = {
-      userId: authUser.uid,
-      orderId: orderNumber,
-      razorpayOrderId: order.id,
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      phone: customerInfo.phone,
-      items: orderItems,
-      subtotal: toNumber(totals.subtotal),
-      shipping: toNumber(totals.shipping),
-      tax: toNumber(totals.tax),
-      total: amountNum / 100,
-      amount: amountNum,
-      currency,
-      paymentMethod: "razorpay",
-      paymentStatus: "Pending",
-      status: "pending_payment",
-      address: addressInfo.address,
-      city: addressInfo.city,
-      state: addressInfo.state,
-      pincode: addressInfo.pincode,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    // Run transaction to reserve stock and save order/payment
+    const transactionResult = await db.runTransaction(async (transaction) => {
+      const productDocs = [];
+      for (const item of orderItems) {
+        const productRef = db.collection("products").doc(item.id);
+        const productSnap = await transaction.get(productRef);
+        if (!productSnap.exists) {
+          throw new Error(`Product ${item.name} not found`);
+        }
+        productDocs.push({ ref: productRef, snap: productSnap, item });
+      }
 
-    const orderRef = await db.collection("orders").add(commonOrderData);
-    const paymentRef = await db.collection("payments").add({
-      ...commonOrderData,
-      orderDocId: orderRef.id,
+      const productUpdates = [];
+      for (const { ref, snap, item } of productDocs) {
+        const data = snap.data();
+        const stockQuantity = Number(data.stockQuantity ?? 0);
+        const reservedQuantity = Number(data.reservedQuantity ?? 0);
+        const availableQuantity = stockQuantity - reservedQuantity;
+
+        if (availableQuantity < item.quantity) {
+          throw new Error(`Insufficient stock for "${item.name}". Only ${availableQuantity} available.`);
+        }
+
+        const newReserved = reservedQuantity + item.quantity;
+        const newAvailable = stockQuantity - newReserved;
+
+        let inventoryStatus = 'in_stock';
+        if (stockQuantity <= 0) {
+          inventoryStatus = 'out_of_stock';
+        } else if (stockQuantity <= Number(data.reorderThreshold ?? 5)) {
+          inventoryStatus = 'low_stock';
+        }
+
+        productUpdates.push({
+          ref,
+          data: {
+            reservedQuantity: newReserved,
+            availableQuantity: newAvailable,
+            inventoryStatus,
+            lastStockUpdate: new Date().toISOString(),
+            stockUpdatedBy: `System (Reservation #${orderNumber})`,
+          }
+        });
+      }
+
+      for (const update of productUpdates) {
+        transaction.update(update.ref, update.data);
+      }
+
+      const orderRef = db.collection("orders").doc();
+      const paymentRef = db.collection("payments").doc();
+
+      const commonOrderData = {
+        userId: authUser.uid,
+        orderId: orderNumber,
+        razorpayOrderId: order.id,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        phone: customerInfo.phone,
+        items: orderItems,
+        subtotal: toNumber(totals.subtotal),
+        shipping: toNumber(totals.shipping),
+        tax: toNumber(totals.tax),
+        total: amountNum / 100,
+        amount: amountNum,
+        currency,
+        paymentMethod: "razorpay",
+        paymentStatus: "Pending",
+        status: "pending_payment",
+        address: addressInfo.address,
+        city: addressInfo.city,
+        state: addressInfo.state,
+        pincode: addressInfo.pincode,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      transaction.set(orderRef, commonOrderData);
+      transaction.set(paymentRef, {
+        ...commonOrderData,
+        orderDocId: orderRef.id,
+      });
+
+      return {
+        orderDocId: orderRef.id,
+        paymentDocId: paymentRef.id,
+      };
     });
 
     return res.status(200).json({
       order_id: order.id,
       key_id: readEnvOrSecret(razorpayKeyId, "RAZORPAY_KEY_ID"),
-      local_order_id: orderRef.id,
-      payment_record_id: paymentRef.id,
+      local_order_id: transactionResult.orderDocId,
+      payment_record_id: transactionResult.paymentDocId,
       order_number: orderNumber,
       amount: order.amount,
       currency: order.currency,
@@ -437,7 +511,6 @@ async function verifyPaymentHandler(req, res) {
     }
 
     // Optional extra guard: verify payment status against Razorpay API
-    // (Do NOT fail hard if Razorpay API fetch fails; signature is the main guard)
     try {
       if (keyId) {
         const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
@@ -473,28 +546,99 @@ async function verifyPaymentHandler(req, res) {
       return res.status(404).json({ error: "Pending payment order not found" });
     }
 
-    const paymentData = pendingPayment.data();
-    const paidUpdate = {
-      paymentStatus: "Paid",
-      status: "processing",
-      razorpayPaymentId: razorpay_payment_id,
-      razorpaySignature: razorpay_signature,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    const db = admin.firestore();
+    const verificationResult = await db.runTransaction(async (transaction) => {
+      const paymentDocRef = db.collection("payments").doc(pendingPayment.id);
+      const paymentDocSnap = await transaction.get(paymentDocRef);
+      if (!paymentDocSnap.exists) {
+        throw new Error("Payment record not found");
+      }
+      const pData = paymentDocSnap.data();
 
-    await pendingPayment.ref.update(paidUpdate);
+      // Avoid double processing
+      if (pData.status !== "pending_payment") {
+        return {
+          alreadyProcessed: true,
+          order_number: pData.orderId,
+          local_order_id: pData.orderDocId,
+        };
+      }
 
-    if (paymentData?.orderDocId) {
-      await admin.firestore().collection("orders").doc(paymentData.orderDocId).update(paidUpdate);
-    }
+      // Deduct stock for each item
+      for (const item of pData.items) {
+        const productRef = db.collection("products").doc(item.id);
+        const productSnap = await transaction.get(productRef);
+        if (productSnap.exists) {
+          const prodData = productSnap.data();
+          const oldStock = Number(prodData.stockQuantity ?? 0);
+          const oldReserved = Number(prodData.reservedQuantity ?? 0);
+
+          const newStock = Math.max(0, oldStock - item.quantity);
+          const newReserved = Math.max(0, oldReserved - item.quantity);
+          const newAvailable = newStock - newReserved;
+
+          let inventoryStatus = 'in_stock';
+          if (newStock <= 0) {
+            inventoryStatus = 'out_of_stock';
+          } else if (newStock <= Number(prodData.reorderThreshold ?? 5)) {
+            inventoryStatus = 'low_stock';
+          }
+
+          transaction.update(productRef, {
+            stockQuantity: newStock,
+            reservedQuantity: newReserved,
+            availableQuantity: newAvailable,
+            inventoryStatus,
+            lastStockUpdate: new Date().toISOString(),
+            stockUpdatedBy: 'System (Purchase)',
+            inventoryValue: newStock * Number(prodData.price ?? 0),
+          });
+
+          // Log stock change in inventory_logs
+          const logRef = db.collection("inventory_logs").doc();
+          transaction.set(logRef, {
+            productId: item.id,
+            productName: item.name,
+            skuCode: prodData.skuCode || '',
+            action: 'Stock Decrease',
+            change: -item.quantity,
+            previousValue: oldStock,
+            newValue: newStock,
+            adminId: authUser.uid,
+            adminName: authUser.name || authUser.email || 'System (Purchase)',
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            reason: `Razorpay Order #${pData.orderId} Completed`,
+          });
+        }
+      }
+
+      const paidUpdate = {
+        paymentStatus: "Paid",
+        status: "processing",
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      transaction.update(paymentDocRef, paidUpdate);
+      if (pData.orderDocId) {
+        transaction.update(db.collection("orders").doc(pData.orderDocId), paidUpdate);
+      }
+
+      return {
+        alreadyProcessed: false,
+        order_number: pData.orderId,
+        local_order_id: pData.orderDocId,
+      };
+    });
 
     return res.status(200).json({
       verified: true,
       payment_id: razorpay_payment_id,
       order_id: razorpay_order_id,
-      local_order_id: paymentData?.orderDocId || null,
-      order_number: paymentData?.orderId || razorpay_order_id,
+      local_order_id: verificationResult.local_order_id || null,
+      order_number: verificationResult.order_number || razorpay_order_id,
     });
   } catch (error) {
     console.error("[functions] Error verifying payment:", error);
@@ -516,26 +660,62 @@ async function markPaymentFailedHandler(req, res) {
       return res.status(404).json({ error: "Pending payment order not found" });
     }
 
-    const failedUpdate = {
-      paymentStatus: "Failed",
-      status: "payment_failed",
-      razorpayPaymentId: razorpay_payment_id || null,
-      failureReason: String(reason).slice(0, 300),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    const db = admin.firestore();
+    const failResult = await db.runTransaction(async (transaction) => {
+      const paymentDocRef = db.collection("payments").doc(pendingPayment.id);
+      const paymentDocSnap = await transaction.get(paymentDocRef);
+      if (!paymentDocSnap.exists) {
+        throw new Error("Payment record not found");
+      }
+      const pData = paymentDocSnap.data();
 
-    await pendingPayment.ref.update(failedUpdate);
+      // Only release if it was still in pending_payment status
+      if (pData.status === "pending_payment") {
+        for (const item of pData.items) {
+          const productRef = db.collection("products").doc(item.id);
+          const productSnap = await transaction.get(productRef);
+          if (productSnap.exists) {
+            const prodData = productSnap.data();
+            const oldStock = Number(prodData.stockQuantity ?? 0);
+            const oldReserved = Number(prodData.reservedQuantity ?? 0);
 
-    const orderDocId = pendingPayment.data()?.orderDocId;
-    if (orderDocId) {
-      await admin.firestore().collection("orders").doc(orderDocId).update(failedUpdate);
-    }
+            const newReserved = Math.max(0, oldReserved - item.quantity);
+            const newAvailable = oldStock - newReserved;
+
+            transaction.update(productRef, {
+              reservedQuantity: newReserved,
+              availableQuantity: newAvailable,
+              lastStockUpdate: new Date().toISOString(),
+              stockUpdatedBy: 'System (Failed Payment Release)',
+            });
+          }
+        }
+
+        const failedUpdate = {
+          paymentStatus: "Failed",
+          status: "payment_failed",
+          razorpayPaymentId: razorpay_payment_id || null,
+          failureReason: String(reason).slice(0, 300),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        transaction.update(paymentDocRef, failedUpdate);
+        if (pData.orderDocId) {
+          transaction.update(db.collection("orders").doc(pData.orderDocId), failedUpdate);
+        }
+      }
+
+      return {
+        orderDocId: pData.orderDocId || null,
+        orderId: pData.orderId || razorpay_order_id,
+      };
+    });
 
     return res.status(200).json({
       ok: true,
       paymentStatus: "Failed",
-      local_order_id: orderDocId || null,
-      order_number: pendingPayment.data()?.orderId || razorpay_order_id,
+      local_order_id: failResult.orderDocId || null,
+      order_number: failResult.orderId,
     });
   } catch (error) {
     console.error("[functions] Error marking payment failed:", error);

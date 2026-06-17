@@ -46,6 +46,18 @@ service cloud.firestore {
       allow read: if true;
       // Only admins can create, update, delete products
       allow write: if isAdminUser();
+      
+      // Customers can update stock fields during checkout
+      allow update: if request.auth != null &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'stockQuantity', 'reservedQuantity', 'availableQuantity', 
+          'inventoryStatus', 'lastStockUpdate', 'stockUpdatedBy', 'inventoryValue'
+        ]) &&
+        request.resource.data.price == resource.data.price &&
+        request.resource.data.name == resource.data.name &&
+        request.resource.data.stockQuantity <= resource.data.stockQuantity &&
+        request.resource.data.reservedQuantity >= 0 &&
+        request.resource.data.availableQuantity == request.resource.data.stockQuantity - request.resource.data.reservedQuantity;
     }
 
     // ─── Orders Collection ──────────────────────────────────────────────────
@@ -96,6 +108,17 @@ service cloud.firestore {
       allow create: if isAdminUser() &&
         request.resource.data.keys().hasAll(['timestamp', 'module', 'action', 'description', 'status']);
       // Logs are immutable — no updates or deletes
+      allow update, delete: if false;
+    }
+
+    // ─── Inventory Logs Collection ───────────────────────────────────────────
+    match /inventory_logs/{logId} {
+      // Only admins can read inventory logs
+      allow read: if isAdminUser();
+      // Admins and authenticated checkouts can create logs
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasAll(['productId', 'productName', 'action', 'change', 'previousValue', 'newValue', 'adminId', 'timestamp']);
+      // Logs are immutable
       allow update, delete: if false;
     }
 

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../services/firebase';
 import {
-  collection, getDocs, orderBy, query, doc, updateDoc, deleteDoc,
+  collection, getDocs, orderBy, query, doc, updateDoc, deleteDoc, runTransaction,
 } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -253,14 +253,92 @@ export default function AdminOrders() {
 
   const handleCancel = async (orderId) => {
     if (!window.confirm('Cancel this order?')) return;
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
     setUpdatingOrder(orderId);
     try {
-      await updateDoc(doc(db, 'orders', orderId), { status: 'cancelled' });
+      await runTransaction(db, async (transaction) => {
+        const orderRef = doc(db, 'orders', orderId);
+        const orderSnap = await transaction.get(orderRef);
+        if (!orderSnap.exists()) {
+          throw new Error('Order not found');
+        }
+        const oData = orderSnap.data();
+        const oStatus = (oData.status || 'processing').toLowerCase();
+
+        if (oStatus === 'cancelled') {
+          throw new Error('Order is already cancelled');
+        }
+
+        // Restore stock or release reservation for each item
+        for (const item of oData.items || []) {
+          const productRef = doc(db, 'products', item.id);
+          const productSnap = await transaction.get(productRef);
+          if (productSnap.exists()) {
+            const prodData = productSnap.data();
+            const oldStock = Number(prodData.stockQuantity ?? 0);
+            const oldReserved = Number(prodData.reservedQuantity ?? 0);
+
+            let newStock = oldStock;
+            let newReserved = oldReserved;
+
+            if (oStatus === 'pending_payment') {
+              newReserved = Math.max(0, oldReserved - item.quantity);
+            } else {
+              newStock = oldStock + item.quantity;
+            }
+            const newAvailable = newStock - newReserved;
+
+            let inventoryStatus = 'in_stock';
+            if (newStock <= 0) {
+              inventoryStatus = 'out_of_stock';
+            } else if (newStock <= Number(prodData.reorderThreshold ?? 5)) {
+              inventoryStatus = 'low_stock';
+            }
+
+            transaction.update(productRef, {
+              stockQuantity: newStock,
+              reservedQuantity: newReserved,
+              availableQuantity: newAvailable,
+              inventoryStatus,
+              lastStockUpdate: new Date().toISOString(),
+              stockUpdatedBy: `Admin Cancel Order #${orderId.slice(-8).toUpperCase()}`,
+              inventoryValue: newStock * Number(prodData.price ?? 0),
+            });
+
+            // Log stock restoration in inventory_logs
+            if (oStatus !== 'pending_payment') {
+              const logRef = doc(collection(db, 'inventory_logs'));
+              transaction.set(logRef, {
+                productId: item.id,
+                productName: item.name,
+                skuCode: prodData.skuCode || '',
+                action: 'Stock Increase',
+                change: item.quantity,
+                previousValue: oldStock,
+                newValue: newStock,
+                adminId: user.uid,
+                adminName: user.displayName || user.email || 'Admin',
+                timestamp: new Date().toISOString(),
+                reason: `Cancelled Order #${orderId.slice(-8).toUpperCase()}`,
+              });
+            }
+          }
+        }
+
+        // Update status in orders collection
+        transaction.update(orderRef, {
+          status: 'cancelled',
+          updatedAt: new Date().toISOString(),
+        });
+      });
+
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
-      toast.success('Order cancelled');
-      logActivity({ module: LOG_MODULES.ORDERS, action: LOG_ACTIONS.ORDER_CANCELLED, targetId: orderId, targetType: 'order', description: `Order #${orderId.slice(-8).toUpperCase()} was cancelled`, newValue: 'cancelled', status: LOG_STATUS.SUCCESS, adminInfo: buildAdminInfo(user) });
-    } catch {
-      toast.error('Failed to cancel order');
+      toast.success('Order cancelled & stock adjusted');
+      logActivity({ module: LOG_MODULES.ORDERS, action: LOG_ACTIONS.ORDER_CANCELLED, targetId: orderId, targetType: 'order', description: `Order #${orderId.slice(-8).toUpperCase()} was cancelled and stock was adjusted`, newValue: 'cancelled', status: LOG_STATUS.SUCCESS, adminInfo: buildAdminInfo(user) });
+    } catch (err) {
+      toast.error(err.message || 'Failed to cancel order');
     } finally {
       setUpdatingOrder(null);
     }
@@ -268,13 +346,82 @@ export default function AdminOrders() {
 
   const handleDelete = async (orderId) => {
     if (!window.confirm('Delete this order permanently?')) return;
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
     try {
-      await deleteDoc(doc(db, 'orders', orderId));
+      await runTransaction(db, async (transaction) => {
+        const orderRef = doc(db, 'orders', orderId);
+        const orderSnap = await transaction.get(orderRef);
+        if (!orderSnap.exists()) return;
+        const oData = orderSnap.data();
+        const oStatus = (oData.status || 'processing').toLowerCase();
+
+        // If order was not cancelled, restore stock before deleting document
+        if (oStatus !== 'cancelled') {
+          for (const item of oData.items || []) {
+            const productRef = doc(db, 'products', item.id);
+            const productSnap = await transaction.get(productRef);
+            if (productSnap.exists()) {
+              const prodData = productSnap.data();
+              const oldStock = Number(prodData.stockQuantity ?? 0);
+              const oldReserved = Number(prodData.reservedQuantity ?? 0);
+
+              let newStock = oldStock;
+              let newReserved = oldReserved;
+
+              if (oStatus === 'pending_payment') {
+                newReserved = Math.max(0, oldReserved - item.quantity);
+              } else {
+                newStock = oldStock + item.quantity;
+              }
+              const newAvailable = newStock - newReserved;
+
+              let inventoryStatus = 'in_stock';
+              if (newStock <= 0) {
+                inventoryStatus = 'out_of_stock';
+              } else if (newStock <= Number(prodData.reorderThreshold ?? 5)) {
+                inventoryStatus = 'low_stock';
+              }
+
+              transaction.update(productRef, {
+                stockQuantity: newStock,
+                reservedQuantity: newReserved,
+                availableQuantity: newAvailable,
+                inventoryStatus,
+                lastStockUpdate: new Date().toISOString(),
+                stockUpdatedBy: `Admin Delete Order #${orderId.slice(-8).toUpperCase()}`,
+                inventoryValue: newStock * Number(prodData.price ?? 0),
+              });
+
+              if (oStatus !== 'pending_payment') {
+                const logRef = doc(collection(db, 'inventory_logs'));
+                transaction.set(logRef, {
+                  productId: item.id,
+                  productName: item.name,
+                  skuCode: prodData.skuCode || '',
+                  action: 'Stock Increase',
+                  change: item.quantity,
+                  previousValue: oldStock,
+                  newValue: newStock,
+                  adminId: user.uid,
+                  adminName: user.displayName || user.email || 'Admin',
+                  timestamp: new Date().toISOString(),
+                  reason: `Deleted Order #${orderId.slice(-8).toUpperCase()}`,
+                });
+              }
+            }
+          }
+        }
+
+        transaction.delete(orderRef);
+      });
+
       setOrders(prev => prev.filter(o => o.id !== orderId));
-      toast.success('Order deleted');
+      toast.success('Order deleted & stock adjusted');
       logActivity({ module: LOG_MODULES.ORDERS, action: LOG_ACTIONS.ORDER_DELETED, targetId: orderId, targetType: 'order', description: `Order #${orderId.slice(-8).toUpperCase()} permanently deleted`, status: LOG_STATUS.SUCCESS, adminInfo: buildAdminInfo(user) });
-    } catch {
-      toast.error('Failed to delete order');
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete order');
     }
   };
 
