@@ -37,16 +37,17 @@ const LoginPage = () => {
       const result = await login(formData.email, formData.password);
       
       if (result.success) {
-        toast.success('Welcome back!', {
-          position: 'bottom-right'
-        });
-        navigate('/');
+        if (result.isAdmin) {
+          toast.success('Welcome back, Admin!', { position: 'bottom-right' });
+          navigate('/admin');
+        } else {
+          toast.success('Welcome back!', { position: 'bottom-right' });
+          navigate('/');
+        }
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
-      toast.error(err.message || 'Login failed', {
-        position: 'bottom-right'
-      });
+      toast.error(err.message || 'Login failed', { position: 'bottom-right' });
     }
     
     setLoading(false);
@@ -60,16 +61,17 @@ const LoginPage = () => {
       const result = await signInWithGoogle();
       
       if (result.success) {
-        toast.success('Welcome back!', {
-          position: 'bottom-right'
-        });
-        navigate('/');
+        if (result.isAdmin) {
+          toast.success('Welcome back, Admin!', { position: 'bottom-right' });
+          navigate('/admin');
+        } else {
+          toast.success('Welcome back!', { position: 'bottom-right' });
+          navigate('/');
+        }
       }
     } catch (err) {
       setError(err.message || 'Google sign-in failed. Please try again.');
-      toast.error(err.message || 'Google sign-in failed', {
-        position: 'bottom-right'
-      });
+      toast.error(err.message || 'Google sign-in failed', { position: 'bottom-right' });
     }
     
     setGoogleLoading(false);
