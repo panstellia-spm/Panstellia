@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Instagram, Facebook, Mail, Phone, MapPin, Plus, Minus } from 'lucide-react';
+import { Instagram, Facebook, Mail, Phone, MapPin, Plus, Minus, ChevronDown } from 'lucide-react';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,15 +9,96 @@ const Footer = () => {
   const [openSection, setOpenSection] = useState({
     quickLinks: false,
     customerService: false,
-    contact: false
+    contact: false,
+    faq: false
   });
+  const [expandedFAQ, setExpandedFAQ] = useState(null);
   const [email, setEmail] = useState('');
+
+  const faqs = [
+    {
+      id: 1,
+      category: 'Product',
+      question: 'What materials are used in Panstellia necklaces?',
+      answer: 'Our necklaces are crafted from premium materials including 925 sterling silver, brass with 18k gold plating, and other high-quality alloys. Each piece is designed to last and maintain its elegance over time with proper care.'
+    },
+    {
+      id: 2,
+      category: 'Product',
+      question: 'Are the necklaces hypoallergenic?',
+      answer: 'Many of our pieces are hypoallergenic, especially those made from 925 sterling silver. However, we recommend checking the product description for specific material composition. If you have sensitive skin, please contact us for guidance.'
+    },
+    {
+      id: 3,
+      category: 'Delivery',
+      question: 'What is the average delivery time?',
+      answer: 'Standard delivery typically takes 5-7 business days within India. Express delivery options are available for faster shipping. Delivery times may vary based on your location and current order volume.'
+    },
+    {
+      id: 4,
+      category: 'Delivery',
+      question: 'Do you provide tracking information?',
+      answer: 'Yes! Once your order ships, you will receive a tracking number via email. You can use this to monitor your package status in real-time through our courier partner\'s website.'
+    },
+    {
+      id: 5,
+      category: 'Delivery',
+      question: 'What is the shipping cost?',
+      answer: 'Free shipping is available on orders above ₹500. Orders below this amount have a flat shipping charge of ₹50. We offer nationwide delivery within India.'
+    },
+    {
+      id: 6,
+      category: 'Return',
+      question: 'What is your return policy?',
+      answer: 'We offer a 30-day return policy from the date of purchase. Items must be unused, in original packaging, and in perfect condition. Please initiate returns through our website or contact our support team.'
+    },
+    {
+      id: 7,
+      category: 'Return',
+      question: 'How do I process a return?',
+      answer: 'To process a return, go to "My Orders," select the item, and click "Return Item." Follow the instructions to get a prepaid return label. Once we receive and verify the item, a refund will be issued within 5-7 business days.'
+    },
+    {
+      id: 8,
+      category: 'Return',
+      question: 'Can I exchange items?',
+      answer: 'Yes, we offer exchanges for items within 30 days of purchase. You can select a different item of equal or higher value. If the new item costs more, you\'ll only pay the difference.'
+    },
+    {
+      id: 9,
+      category: 'General',
+      question: 'How can I care for my necklace?',
+      answer: 'Store your necklace in a cool, dry place away from humidity. Avoid direct sunlight and harsh chemicals. Clean gently with a soft cloth. For detailed care instructions, check the care card included with your order.'
+    },
+    {
+      id: 10,
+      category: 'General',
+      question: 'Do you offer gift wrapping?',
+      answer: 'Absolutely! Premium gift wrapping is available at checkout for a small fee. Your necklace will arrive beautifully packaged, perfect for gifting to your loved ones.'
+    },
+    {
+      id: 11,
+      category: 'General',
+      question: 'What payment methods do you accept?',
+      answer: 'We accept all major payment methods including Credit/Debit Cards (Visa, Mastercard), UPI, Net Banking, Wallets, and Cash on Delivery (COD) for eligible orders.'
+    },
+    {
+      id: 12,
+      category: 'General',
+      question: 'Is my personal information secure?',
+      answer: 'Yes, we use industry-standard SSL encryption to protect your personal and payment information. Your data is securely stored and never shared with third parties without your consent.'
+    }
+  ];
 
   const toggleSection = (section) => {
     setOpenSection(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
+  };
+
+  const toggleFAQ = (id) => {
+    setExpandedFAQ(expandedFAQ === id ? null : id);
   };
 
   const handleSubscribe = (e) => {
@@ -149,6 +230,14 @@ const Footer = () => {
                     Login / Signup
                   </Link>
                 </li>
+                <li>
+                  <button
+                    onClick={() => toggleSection('faq')}
+                    className="text-luxury-300 hover:text-gold-400 transition-colors text-left"
+                  >
+                    FAQ
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
@@ -219,6 +308,89 @@ const Footer = () => {
             </div>
           </div>
         </div>
+
+        {/* FAQ Section - Expandable Modal */}
+        <AnimatePresence>
+          {openSection.faq && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="border-t border-luxury-800 mt-8 pt-8 overflow-hidden"
+            >
+              <div className="mb-6">
+                <h3 className="font-serif text-2xl font-bold text-white mb-6 text-center">
+                  Frequently Asked Questions
+                </h3>
+                
+                {/* FAQ List */}
+                <div className="space-y-4">
+                  {faqs.map((faq) => (
+                    <motion.div
+                      key={faq.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="bg-luxury-800 rounded-lg border border-luxury-700 overflow-hidden hover:border-gold-500/30 transition-colors"
+                    >
+                      <button
+                        onClick={() => toggleFAQ(faq.id)}
+                        className="w-full p-4 flex justify-between items-center text-left hover:bg-luxury-750 transition-colors"
+                      >
+                        <div className="flex-1 pr-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-semibold text-gold-400 uppercase tracking-wider">
+                              {faq.category}
+                            </span>
+                          </div>
+                          <p className="text-white font-medium text-sm">
+                            {faq.question}
+                          </p>
+                        </div>
+                        <motion.div
+                          animate={{ rotate: expandedFAQ === faq.id ? 180 : 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="flex-shrink-0 text-gold-500"
+                        >
+                          <ChevronDown className="w-5 h-5" />
+                        </motion.div>
+                      </button>
+
+                      <AnimatePresence>
+                        {expandedFAQ === faq.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="border-t border-luxury-700 bg-luxury-850"
+                          >
+                            <p className="p-4 text-luxury-200 text-sm leading-relaxed">
+                              {faq.answer}
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className="mt-6 p-4 bg-gold-500/10 border border-gold-500/30 rounded-lg text-center">
+                  <p className="text-luxury-300 text-sm">
+                    Didn't find your answer? 
+                    <a
+                      href="mailto:support@panstellia.com"
+                      className="text-gold-400 hover:text-gold-300 transition-colors ml-1 font-semibold"
+                    >
+                      Contact us
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bottom Section */}
         <div className="border-t border-luxury-800 mt-10 pt-8 flex flex-col items-center">

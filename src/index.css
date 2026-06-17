@@ -247,6 +247,27 @@
   .badge-error {
     @apply bg-red-100 text-red-700;
   }
+
+  /* Admin panel specific */
+  .admin-card {
+    @apply bg-white rounded-2xl shadow-sm border border-luxury-100 hover:shadow-md transition-shadow;
+  }
+
+  .admin-page-header {
+    @apply text-2xl font-bold text-luxury-900;
+  }
+
+  .admin-section-title {
+    @apply text-base font-bold text-luxury-900;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-700;
+  }
+
+  .badge-purple {
+    @apply bg-purple-100 text-purple-700;
+  }
 }
 
 @layer utilities {

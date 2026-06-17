@@ -2,13 +2,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─── Helper Functions ───────────────────────────────────────────────────
+
+    // Check if user is admin via Firestore user document
     function isAdmin() {
       return request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid))
         .data.get('isAdmin', false) == true;
     }
 
-    // Check if user email is in admin list (for free tier)
+    // Check if user email is in the admin whitelist (for Spark-tier compat)
     function isAdminEmail() {
       return request.auth != null && request.auth.token.email in [
         'support@panstellia.com',
@@ -16,56 +19,87 @@ service cloud.firestore {
       ];
     }
 
+    // Combined admin check
+    function isAdminUser() {
+      return isAdmin() || isAdminEmail();
+    }
+
+    // Check if requesting user owns the resource
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // ─── Users Collection ───────────────────────────────────────────────────
     match /users/{userId} {
-      allow read, update, delete: if isOwner(userId);
+      // Users can read/update their own doc; admins can read all
+      allow read: if isOwner(userId) || isAdminUser();
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId) || isAdminUser();
+      // Create only if authenticated and owns the document
       allow create: if isOwner(userId) &&
         request.resource.data.keys().hasAll(['email', 'createdAt']);
     }
 
+    // ─── Products Collection ────────────────────────────────────────────────
     match /products/{productId} {
+      // Anyone (including unauthenticated) can read products
       allow read: if true;
-      // Allow write if user is admin in document OR has admin email (free tier)
-      allow write: if isAdmin() || isAdminEmail();
+      // Only admins can create, update, delete products
+      allow write: if isAdminUser();
     }
 
+    // ─── Orders Collection ──────────────────────────────────────────────────
+    match /orders/{orderId} {
+      // Users can create their own orders
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Users can read their own orders; admins can read all
+      allow read: if request.auth != null &&
+        (resource.data.userId == request.auth.uid || isAdminUser());
+
+      // Only admins can update (status changes) or delete orders
+      allow update: if isAdminUser();
+      allow delete: if isAdminUser();
+    }
+
+    // ─── Payments Collection ────────────────────────────────────────────────
+    match /payments/{paymentId} {
+      // Only admins can read all payments
+      allow read: if isAdminUser();
+
+      // Users can create their own payment records (client-side after Razorpay)
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+
+      // No one can update or delete payment records for integrity
+      allow update, delete: if false;
+    }
+
+    // ─── Carts Collection ───────────────────────────────────────────────────
     match /carts/{userId} {
-      allow read, write: if isOwner(userId);
+      // Users own their cart; admins can read carts for analytics
+      allow read: if isOwner(userId) || isAdminUser();
+      allow write: if isOwner(userId);
     }
 
+    // ─── Wishlist Collection ─────────────────────────────────────────────────
     match /wishlist/{userId} {
       allow read, write: if isOwner(userId);
     }
 
-    match /orders/{orderId} {
-      allow create: if request.auth != null &&
-        request.resource.data.userId == request.auth.uid;
-
-      allow read: if request.auth != null &&
-        (resource.data.userId == request.auth.uid || isAdmin() || isAdminEmail());
-
-      allow update: if isAdmin() || isAdminEmail();
-    }
-
-    // Razorpay payments persisted by Firebase Functions.
-    // Users generally should not write to this collection.
-    match /payments/{paymentId} {
-      // Admins can read all payments.
-      allow read: if request.auth != null && (isAdmin() || isAdminEmail());
-
-      // Users can create their own payment record.
-      // (Writes are client-side but limited to the authenticated user's own userId.)
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-
-      // Block non-admin updates/deletes.
+    // ─── Activity Logs Collection ─────────────────────────────────────────────
+    match /activity_logs/{logId} {
+      // Only admins can read logs
+      allow read: if isAdminUser();
+      // Admins can create log entries (client-side logging)
+      allow create: if isAdminUser() &&
+        request.resource.data.keys().hasAll(['timestamp', 'module', 'action', 'description', 'status']);
+      // Logs are immutable — no updates or deletes
       allow update, delete: if false;
     }
 
-
-
+    // ─── Default: Deny Everything Else ──────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }
