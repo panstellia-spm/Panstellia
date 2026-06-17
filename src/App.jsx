@@ -27,7 +27,7 @@ const OrdersPage = lazy(() => import('./pages/Orders'));
 const OrderSuccessPage = lazy(() => import('./pages/OrderSuccess'));
 const OrderDetailsPage = lazy(() => import('./pages/OrderDetails'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
-const AdminPage = lazy(() => import('./pages/Admin'));
+const AdminRouter = lazy(() => import('./pages/admin/index'));
 const AboutUsPage = lazy(() => import('./pages/AboutUs'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsConditionsPage = lazy(() => import('./pages/TermsConditions'));
@@ -150,10 +150,10 @@ function App() {
                     
                     {/* Admin Routes */}
                     <Route 
-                      path="admin" 
+                      path="admin/*" 
                       element={
                         <AdminRoute>
-                          <AdminPage />
+                          <AdminRouter />
                         </AdminRoute>
                       } 
                     />
