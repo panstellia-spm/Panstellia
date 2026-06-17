@@ -33,6 +33,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsConditionsPage = lazy(() => import('./pages/TermsConditions'));
 const ShippingPolicyPage = lazy(() => import('./pages/ShippingPolicy'));
 const ElegantSparkPage = lazy(() => import('./pages/ElegantSpark'));
+const NotFoundPage = lazy(() => import('./pages/NotFound'));
 
 
 
@@ -159,8 +160,8 @@ function App() {
                     />
                   </Route>
                   
-                  {/* Catch all - redirect to home */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  {/* Catch all - 404 page */}
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </Suspense>
             </WishlistProvider>
