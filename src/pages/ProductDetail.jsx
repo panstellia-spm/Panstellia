@@ -87,6 +87,21 @@ const ProductDetailPage = () => {
     .filter(p => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
 
+  // Compute stock status for visual indicator (fallback to product.inStock)
+  const stockCount = typeof product.stock === 'number' ? product.stock : (product.stockCount ?? null);
+  let stockStatus = { label: product.inStock ? 'In Stock' : 'Out of Stock', color: 'green' };
+  if (stockCount !== null) {
+    if (stockCount === 0) {
+      stockStatus = { label: 'Out of Stock', color: 'red' };
+    } else if (stockCount <= 10) {
+      stockStatus = { label: 'Low Stock', color: 'orange' };
+    } else {
+      stockStatus = { label: 'In Stock', color: 'green' };
+    }
+  } else {
+    stockStatus = product.inStock ? { label: 'In Stock', color: 'green' } : { label: 'Out of Stock', color: 'red' };
+  }
+
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
@@ -176,17 +191,18 @@ const ProductDetailPage = () => {
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all p-0.5 ${
-                      isActive 
-                        ? 'border-gold-500 shadow-md bg-white' 
-                        : 'border-transparent bg-luxury-100 hover:border-gold-300'
-                    }`}
+                    aria-pressed={isActive}
                     aria-label={`Select image ${index + 1}`}
+                    className={`w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 transition-all p-0.5 focus:outline-none ${
+                      isActive
+                        ? 'ring-2 ring-gold-500 bg-white shadow-md'
+                        : 'border border-transparent bg-luxury-100 hover:border-gold-300'
+                    }`}
                   >
                     <OptimizedImage
                       src={thumb}
                       alt={`${product.name} thumbnail ${index + 1}`}
-                      className="w-full h-full rounded-md"
+                      className={`w-full h-full rounded-sm object-cover transition-transform duration-300 ${isActive ? 'scale-105' : ''}`}
                     />
                   </button>
                 );
@@ -222,17 +238,21 @@ const ProductDetailPage = () => {
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={imageUrl}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                    initial={{ opacity: 0, scale: 0.995 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
                     className="w-full h-full"
                   >
                     <OptimizedImage
                       src={imageUrl}
                       alt={product.name}
                       priority={true}
-                      className="w-full h-full"
+                      className={`w-full h-full object-cover transition-transform duration-300`}
+                      style={{
+                        transform: isZooming ? 'scale(1.2)' : 'scale(1)',
+                        transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`
+                      }}
                     />
                   </motion.div>
                 </AnimatePresence>
@@ -339,14 +359,24 @@ const ProductDetailPage = () => {
             </div>
 
             {/* Stock Status */}
-            <div className="mt-3 flex items-center gap-2">
-              {product.inStock ? (
+            <div className="mt-3 flex items-center gap-2" aria-live="polite">
+              {stockStatus.label === 'In Stock' && (
                 <>
-                  <Check className="w-4 h-4 text-green-500" />
-                  <span className="text-green-600 text-xs font-bold uppercase tracking-wider">In Stock</span>
+                  <span className="w-3 h-3 rounded-full" style={{backgroundColor: '#16a34a'}} aria-hidden="true" />
+                  <span className="text-green-600 text-xs font-bold uppercase tracking-wider">{stockStatus.label}</span>
                 </>
-              ) : (
-                <span className="text-red-650 text-xs font-bold uppercase tracking-wider">Out of Stock</span>
+              )}
+              {stockStatus.label === 'Low Stock' && (
+                <>
+                  <span className="w-3 h-3 rounded-full" style={{backgroundColor: '#f97316'}} aria-hidden="true" />
+                  <span className="text-orange-600 text-xs font-bold uppercase tracking-wider">{stockStatus.label}</span>
+                </>
+              )}
+              {stockStatus.label === 'Out of Stock' && (
+                <>
+                  <span className="w-3 h-3 rounded-full" style={{backgroundColor: '#ef4444'}} aria-hidden="true" />
+                  <span className="text-red-600 text-xs font-bold uppercase tracking-wider">{stockStatus.label}</span>
+                </>
               )}
             </div>
 
@@ -354,6 +384,71 @@ const ProductDetailPage = () => {
             <p className="mt-5 text-sm text-luxury-600 leading-relaxed">
               {product.description}
             </p>
+
+            {/* Why You'll Love It */}
+            <div className="mt-6 p-4 bg-white border border-luxury-100 rounded-lg shadow-sm">
+              <h3 className="font-semibold text-lg text-luxury-900 mb-3">Why You'll Love It</h3>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-luxury-600">
+                {(product.highlights || [
+                  'Timeless design crafted to last',
+                  'Hypoallergenic materials for comfort',
+                  'Perfect for gifting and everyday wear',
+                  'Expertly finished with premium plating'
+                ]).slice(0,4).map((h, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-gold-500 mt-1" />
+                    <span>{h}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Product Information Card */}
+            <div className="mt-6 bg-white border border-luxury-100 rounded-lg shadow-sm p-4" role="region" aria-labelledby="product-info-heading">
+              <h3 id="product-info-heading" className="font-semibold text-lg text-luxury-900 mb-3">Product Information</h3>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-luxury-700">
+                <div>
+                  <dt className="text-luxury-400 font-medium">Material</dt>
+                  <dd className="font-semibold mt-0.5">{product.material || product.baseMaterial || 'Gold plated brass'}</dd>
+                </div>
+                <div>
+                  <dt className="text-luxury-400 font-medium">Color</dt>
+                  <dd className="font-semibold mt-0.5">{product.color || product.stoneColor || 'Gold'}</dd>
+                </div>
+                <div>
+                  <dt className="text-luxury-400 font-medium">Weight</dt>
+                  <dd className="font-semibold mt-0.5">{product.weight || product.weightGrams ? `${product.weight || product.weightGrams} g` : '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-luxury-400 font-medium">Dimensions</dt>
+                  <dd className="font-semibold mt-0.5">{product.dimensions || product.size || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-luxury-400 font-medium">Collection</dt>
+                  <dd className="font-semibold mt-0.5">{product.collection || product.collectionName || 'Panstellia'}</dd>
+                </div>
+                <div>
+                  <dt className="text-luxury-400 font-medium">SKU</dt>
+                  <dd className="font-semibold mt-0.5">{product.sku || product.skuCode || product.id}</dd>
+                </div>
+                <div>
+                  <dt className="text-luxury-400 font-medium">Availability Status</dt>
+                  <dd className="font-semibold mt-0.5">{stockStatus.label}</dd>
+                </div>
+                <div>
+                  <dt className="text-luxury-400 font-medium">Shipping Information</dt>
+                  <dd className="font-semibold mt-0.5">Free Shipping above ₹999 • 3-7 business days</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-luxury-400 font-medium">Return Policy</dt>
+                  <dd className="font-semibold mt-0.5">Hassle-free 5-day return on unused items. See full policy for exceptions.</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-luxury-400 font-medium">Care Instructions</dt>
+                  <dd className="font-semibold mt-0.5">Keep dry, avoid chemicals, store separately, wipe with microfiber cloth.</dd>
+                </div>
+              </dl>
+            </div>
 
             {/* Quantity Selector & Buy Buttons */}
             <div className="mt-6 space-y-4">
@@ -413,35 +508,33 @@ const ProductDetailPage = () => {
             <div className="mt-8 border-t border-luxury-200">
               {[
                 {
-                  title: 'Product Details',
+                  title: 'Product Information',
                   content: (
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
+                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
                       {[
-                        ['Base Material', product.baseMaterial],
-                        ['Stone Color', product.stoneColor],
-                        ['Plating Type', product.platingType],
-                        ['Finish Type', product.finishType],
-                        ['Occasion', product.occasion],
-                        ['SKU Code', product.skuCode],
-                        ['Country of Origin', product.countryOfOrigin || 'India']
-                      ]
-                        .filter(([, v]) => v != null && String(v).trim() !== '')
-                        .map(([label, value]) => (
-                          <div key={label}>
-                            <dt className="text-luxury-400 font-medium">{label}</dt>
-                            <dd className="text-luxury-800 font-semibold mt-0.5">{String(value)}</dd>
-                          </div>
-                        ))}
+                        ['Material', product.material || product.baseMaterial || '—'],
+                        ['Color', product.color || product.stoneColor || '—'],
+                        ['Weight', product.weight || product.weightGrams ? `${product.weight || product.weightGrams} g` : '—'],
+                        ['Dimensions', product.dimensions || product.size || '—'],
+                        ['Collection', product.collection || product.collectionName || '—'],
+                        ['SKU', product.sku || product.skuCode || product.id || '—'],
+                        ['Availability Status', stockStatus.label]
+                      ].map(([label, value]) => (
+                        <div key={label}>
+                          <dt className="text-luxury-400 font-medium">{label}</dt>
+                          <dd className="text-luxury-800 font-semibold mt-0.5">{String(value)}</dd>
+                        </div>
+                      ))}
                     </dl>
                   )
                 },
                 {
-                  title: 'Shipping Info',
+                  title: 'Shipping & Returns',
                   content: (
                     <div className="text-xs text-luxury-600 space-y-1.5">
                       <p>✨ Free Shipping on all orders above ₹999 across India.</p>
                       <p>📦 Standard delivery takes 3-7 business days.</p>
-                      <p>🔄 Hassle-free 5-day return policy on unused items.</p>
+                      <p>🔄 Hassle-free 5-day return policy on unused items. Some exclusions apply — see full policy for details.</p>
                     </div>
                   )
                 },
@@ -462,6 +555,7 @@ const ProductDetailPage = () => {
                     <button
                       onClick={() => toggleAccordion(idx)}
                       type="button"
+                      aria-expanded={isOpen}
                       className="w-full flex items-center justify-between text-left font-serif text-sm font-bold text-luxury-900 py-1"
                     >
                       <span>{accordion.title}</span>

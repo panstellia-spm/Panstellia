@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, Grid, List } from 'lucide-react';
@@ -29,32 +29,75 @@ const ProductsPage = () => {
   const maxPriceQuery = searchParams.get('maxPrice') || '';
   const sortByQuery = searchParams.get('sortBy') || 'newest';
   
+  // Filters state: category is an array (multi-select). Empty array means all categories
   const [filters, setFilters] = useState({
-    category: categoryQuery || 'All',
-    minPrice: minPriceQuery,
-    maxPrice: maxPriceQuery,
-    sortBy: sortByQuery
+    category: categoryQuery ? categoryQuery.split(',') : [],
+    minPrice: minPriceQuery || '',
+    maxPrice: maxPriceQuery || '',
+    sortBy: sortByQuery || 'newest',
+    availability: {
+      inStock: false,
+      outOfStock: false,
+      discounted: false
+    },
+    discountMin: '' // numeric threshold for discount filter (e.g., 10, 20)
   });
 
-  const categories = ['All', 'Gold', 'Silver', 'Lux Wear', 'Party Wear', 'Elegant Spark'];
+  // Derive categories dynamically from available products so counts can be shown
+  const categories = useMemo(() => {
+    const map = {};
+    visibleProducts.forEach((p) => {
+      const key = p.category || 'Uncategorized';
+      map[key] = (map[key] || 0) + 1;
+    });
+    const list = Object.keys(map).sort();
+    return ['All', ...list];
+  }, [visibleProducts]);
+
+  // Sort options expanded
   const sortOptions = [
     { value: 'newest', label: 'Newest' },
     { value: 'price-low', label: 'Price: Low to High' },
     { value: 'price-high', label: 'Price: High to Low' },
-    { value: 'rating', label: 'Rating' }
+    { value: 'rating', label: 'Highest Rated' },
+    { value: 'best-selling', label: 'Best Selling' },
+    { value: 'biggest-discount', label: 'Biggest Discount' },
+    { value: 'trending', label: 'Trending' }
   ];
 
+  // Category counts map for showing counts beside labels
+  const categoryCounts = useMemo(() => {
+    const map = {};
+    visibleProducts.forEach((p) => {
+      const key = p.category || 'Uncategorized';
+      map[key] = (map[key] || 0) + 1;
+    });
+    return map;
+  }, [visibleProducts]);
+
+  // Price bounds for slider
+  const priceBounds = useMemo(() => {
+    const prices = visibleProducts.map(p => Number(p.price) || 0);
+    const min = prices.length ? Math.min(...prices) : 0;
+    const max = prices.length ? Math.max(...prices) : 1000;
+    return { min, max };
+  }, [visibleProducts]);
+
+  // Sync URL query params into filters state
   useEffect(() => {
     setFilters((current) => {
+      const nextCategory = categoryQuery ? categoryQuery.split(',') : [];
       const next = {
-        category: categoryQuery || 'All',
-        minPrice: minPriceQuery,
-        maxPrice: maxPriceQuery,
-        sortBy: sortByQuery
+        ...current,
+        category: nextCategory,
+        minPrice: minPriceQuery || '',
+        maxPrice: maxPriceQuery || '',
+        sortBy: sortByQuery || 'newest'
       };
 
+      // Simple shallow comparison
       if (
-        current.category === next.category &&
+        JSON.stringify(current.category) === JSON.stringify(next.category) &&
         current.minPrice === next.minPrice &&
         current.maxPrice === next.maxPrice &&
         current.sortBy === next.sortBy
@@ -68,27 +111,51 @@ const ProductsPage = () => {
 
   useEffect(() => {
     const search = searchQuery;
-    const category = categoryQuery;
 
     let result = visibleProducts;
+
+    // Search by name or category
     if (search) {
       result = result.filter(
         (p) =>
           (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
           (p.category || '').toLowerCase().includes(search.toLowerCase())
       );
-    } else if (category) {
-      const canonicalCategory = getCanonicalCategoryKeyFromQuery(category);
-      if (canonicalCategory && canonicalCategory !== 'All') {
-        result = result.filter((p) => p.category === canonicalCategory);
-      }
     }
 
+    // Category multi-select
+    if (filters.category && filters.category.length > 0) {
+      result = result.filter((p) => filters.category.includes(p.category));
+    }
+
+    // Price range
     if (filters.minPrice) {
       result = result.filter((p) => p.price >= Number(filters.minPrice));
     }
     if (filters.maxPrice) {
       result = result.filter((p) => p.price <= Number(filters.maxPrice));
+    }
+
+    // Availability filters (OR between selected availability types)
+    const { availability } = filters;
+    if (availability && (availability.inStock || availability.outOfStock || availability.discounted)) {
+      result = result.filter((p) => {
+        let ok = false;
+        if (availability.inStock && p.inStock) ok = true;
+        if (availability.outOfStock && !p.inStock) ok = true;
+        if (availability.discounted && p.originalPrice && p.originalPrice > p.price) ok = true;
+        return ok;
+      });
+    }
+
+    // Discount threshold (single selection)
+    if (filters.discountMin) {
+      const minDisc = Number(filters.discountMin);
+      result = result.filter((p) => {
+        if (!p.originalPrice || p.originalPrice <= p.price) return false;
+        const disc = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+        return disc >= minDisc;
+      });
     }
 
     // Sort
@@ -103,44 +170,72 @@ const ProductsPage = () => {
       case 'rating':
         sorted.sort((a, b) => (b.ratings || 0) - (a.ratings || 0));
         break;
+      case 'best-selling':
+        sorted.sort((a, b) => (b.sales || 0) - (a.sales || 0));
+        break;
+      case 'biggest-discount':
+        sorted.sort((a, b) => {
+          const da = a.originalPrice && a.originalPrice > a.price ? ((a.originalPrice - a.price) / a.originalPrice) : 0;
+          const db = b.originalPrice && b.originalPrice > b.price ? ((b.originalPrice - b.price) / b.originalPrice) : 0;
+          return db - da;
+        });
+        break;
+      case 'trending':
+        sorted.sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0));
+        break;
       case 'newest':
+      default:
         sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         break;
-      default:
-        break;
     }
-    result = sorted;
 
-    setFilteredProducts(result);
-  }, [products, filters, searchQuery, categoryQuery]);
+    setFilteredProducts(sorted);
+  }, [products, filters, searchQuery, visibleProducts]);
 
   const handleFilterChange = (key, value) => {
-    const newFilters = { ...filters, [key]: value };
+    // Support nested updates for availability and arrays for category
+    let newFilters = { ...filters };
+    if (key === 'availability') {
+      newFilters = { ...filters, availability: { ...filters.availability, ...value } };
+    } else if (key === 'category') {
+      // value expected to be the new category array
+      newFilters = { ...filters, category: Array.isArray(value) ? value : [] };
+    } else {
+      newFilters = { ...filters, [key]: value };
+    }
+
     setFilters(newFilters);
-    
+
+    // Sync important filters to URL (category, price, sortBy, discount)
     const params = {};
-    if (newFilters.category !== 'All') params.category = newFilters.category;
-    if (newFilters.minPrice) params.minPrice = newFilters.minPrice;
-    if (newFilters.maxPrice) params.maxPrice = newFilters.maxPrice;
-    if (newFilters.sortBy !== 'newest') params.sortBy = newFilters.sortBy;
+    if (newFilters.category && newFilters.category.length > 0) params.category = newFilters.category.join(',');
+    if (newFilters.minPrice) params.minPrice = String(newFilters.minPrice);
+    if (newFilters.maxPrice) params.maxPrice = String(newFilters.maxPrice);
+    if (newFilters.sortBy && newFilters.sortBy !== 'newest') params.sortBy = newFilters.sortBy;
+    if (newFilters.discountMin) params.discountMin = String(newFilters.discountMin);
     if (searchQuery) params.search = searchQuery;
+
     setSearchParams(params);
   };
 
   const clearFilters = () => {
     setFilters({
-      category: 'All',
+      category: [],
       minPrice: '',
       maxPrice: '',
-      sortBy: 'newest'
+      sortBy: 'newest',
+      availability: { inStock: false, outOfStock: false, discounted: false },
+      discountMin: ''
     });
     setSearchParams(searchQuery ? { search: searchQuery } : {});
   };
 
   const activeFiltersCount = [
-    filters.category !== 'All',
-    filters.minPrice !== '',
-    filters.maxPrice !== ''
+    filters.category && filters.category.length > 0,
+    filters.minPrice !== '' && filters.minPrice !== null,
+    filters.maxPrice !== '' && filters.maxPrice !== null,
+    filters.discountMin !== '' && filters.discountMin !== null,
+    filters.availability && (filters.availability.inStock || filters.availability.outOfStock || filters.availability.discounted)
   ].filter(Boolean).length;
 
   // Stagger grid variants
@@ -188,49 +283,161 @@ const ProductsPage = () => {
         </div>
       </div>
 
-      {/* Category (Pills format) */}
+      {/* Quick Filters */}
+      <div className="mb-5">
+        <h4 className="text-xs font-semibold text-luxury-800 uppercase tracking-wider mb-2">Quick Filters</h4>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'trending', label: 'Trending' },
+            { key: 'new-arrivals', label: 'New Arrivals' },
+            { key: 'best-sellers', label: 'Best Sellers' },
+            { key: 'premium', label: 'Premium Collection' },
+            { key: 'under-200', label: 'Under ₹200' }
+          ].map((q) => (
+            <button
+              key={q.key}
+              type="button"
+              onClick={() => {
+                if (q.key === 'under-200') {
+                  handleFilterChange('minPrice', '');
+                  handleFilterChange('maxPrice', '200');
+                } else if (q.key === 'premium') {
+                  // map premium to a collection filter
+                  handleFilterChange('category', ['Premium Collection']);
+                } else if (q.key === 'trending') {
+                  handleFilterChange('sortBy', 'trending');
+                } else if (q.key === 'best-sellers') {
+                  handleFilterChange('sortBy', 'best-selling');
+                } else if (q.key === 'new-arrivals') {
+                  handleFilterChange('sortBy', 'newest');
+                }
+              }}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all bg-white text-luxury-700 border-luxury-200 hover:border-gold-400 hover:text-gold-600"
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Category Multi-select with counts */}
       <div className="mb-6">
         <h3 className="text-xs font-bold text-luxury-800 uppercase tracking-wider mb-3">Category</h3>
-        <div className="flex flex-wrap gap-2">
-          {categories.map(category => {
-            const active = filters.category === category;
+        <div className="grid grid-cols-1 gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!filters.category || filters.category.length === 0}
+              onChange={(e) => handleFilterChange('category', e.target.checked ? [] : [])}
+              aria-label="Select all categories"
+            />
+            <span className="text-luxury-700 font-semibold">All</span>
+          </label>
+
+          {categories.filter(c => c !== 'All').map((category) => {
+            const isActive = filters.category && filters.category.includes(category);
             return (
-              <button 
-                key={category}
-                type="button"
-                onClick={() => handleFilterChange('category', category)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                  active 
-                    ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                    : 'bg-white text-luxury-700 border-luxury-200 hover:border-gold-400 hover:text-gold-600'
-                }`}
-              >
-                {getCategoryLabel(category)}
-              </button>
+              <label key={category} className="flex items-center justify-between gap-2 text-sm px-3 py-2 rounded-lg border border-luxury-100 bg-white hover:shadow-sm transition-all">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => {
+                      const next = new Set(filters.category || []);
+                      if (e.target.checked) next.add(category); else next.delete(category);
+                      handleFilterChange('category', Array.from(next));
+                    }}
+                    aria-label={`Filter by ${getCategoryLabel(category)}`}
+                  />
+                  <span className="text-luxury-700">{getCategoryLabel(category)}</span>
+                </div>
+                <span className="text-luxury-400 text-xs">{categoryCounts[category] || 0}</span>
+              </label>
             );
           })}
         </div>
       </div>
 
-      {/* Price Range */}
+      {/* Price Range Slider (dual) */}
       <div className="mb-6">
         <h3 className="text-xs font-bold text-luxury-800 uppercase tracking-wider mb-3">Price Range</h3>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            placeholder="Min"
-            value={filters.minPrice}
-            onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-            className="w-full px-3 py-2 border border-luxury-200 rounded-lg text-xs focus:ring-1 focus:ring-gold-500 outline-none"
-          />
-          <span className="text-luxury-400 text-xs">-</span>
-          <input
-            type="number"
-            placeholder="Max"
-            value={filters.maxPrice}
-            onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-            className="w-full px-3 py-2 border border-luxury-200 rounded-lg text-xs focus:ring-1 focus:ring-gold-500 outline-none"
-          />
+        <div className="px-2">
+          <div className="flex items-center justify-between text-xs text-luxury-500 mb-2">
+            <span>₹{filters.minPrice || priceBounds.min}</span>
+            <span>₹{filters.maxPrice || priceBounds.max}</span>
+          </div>
+
+          <div className="relative h-8 flex items-center">
+            <input
+              type="range"
+              min={priceBounds.min}
+              max={priceBounds.max}
+              value={filters.minPrice || priceBounds.min}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                const maxVal = Number(filters.maxPrice || priceBounds.max);
+                if (val > maxVal) return;
+                handleFilterChange('minPrice', String(val));
+              }}
+              className="absolute left-0 right-0 appearance-none h-1 bg-transparent"
+            />
+            <input
+              type="range"
+              min={priceBounds.min}
+              max={priceBounds.max}
+              value={filters.maxPrice || priceBounds.max}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                const minVal = Number(filters.minPrice || priceBounds.min);
+                if (val < minVal) return;
+                handleFilterChange('maxPrice', String(val));
+              }}
+              className="absolute left-0 right-0 appearance-none h-1 bg-transparent"
+            />
+            <div className="w-full h-1 bg-luxury-100 rounded-full" />
+            <div
+              className="absolute h-1 rounded-full"
+              style={{
+                left: `${((Number(filters.minPrice || priceBounds.min) - priceBounds.min) / (priceBounds.max - priceBounds.min)) * 100}%`,
+                right: `${100 - ((Number(filters.maxPrice || priceBounds.max) - priceBounds.min) / (priceBounds.max - priceBounds.min)) * 100}%`,
+                backgroundColor: 'rgba(212, 175, 55, 0.95)'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Availability */}
+      <div className="mb-6">
+        <h3 className="text-xs font-bold text-luxury-800 uppercase tracking-wider mb-3">Availability</h3>
+        <div className="grid grid-cols-1 gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={filters.availability?.inStock} onChange={(e) => handleFilterChange('availability', { inStock: e.target.checked })} />
+            <span>In Stock</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={filters.availability?.outOfStock} onChange={(e) => handleFilterChange('availability', { outOfStock: e.target.checked })} />
+            <span>Out Of Stock</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={filters.availability?.discounted} onChange={(e) => handleFilterChange('availability', { discounted: e.target.checked })} />
+            <span>Discounted Products</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Discount Filter */}
+      <div className="mb-6">
+        <h3 className="text-xs font-bold text-luxury-800 uppercase tracking-wider mb-3">Discount</h3>
+        <div className="flex flex-wrap gap-2">
+          {[10,20,30,50].map((d) => (
+            <button
+              key={d}
+              onClick={() => handleFilterChange('discountMin', filters.discountMin === String(d) ? '' : String(d))}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filters.discountMin === String(d) ? 'bg-gold-500 text-white' : 'bg-white text-luxury-700 border-luxury-200 hover:border-gold-400'}`}>
+              {d}%+ Off
+            </button>
+          ))}
         </div>
       </div>
 
@@ -255,10 +462,10 @@ const ProductsPage = () => {
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
       <SEOHelmet 
-        title={`${filters.category !== 'All' ? getCategoryLabel(filters.category) : 'All'} Necklaces | Panstellia`}
-        description={`Browse our ${filters.category !== 'All' ? getCategoryLabel(filters.category).toLowerCase() : 'complete collection of'} necklace jewelry. Premium quality designs for every occasion.`}
-        keywords={`${filters.category !== 'All' ? getCategoryLabel(filters.category).toLowerCase() + ' necklaces' : 'necklaces'}, jewelry, luxury jewelry`}
-        canonical={`https://panstellia.com/products${filters.category !== 'All' ? `?category=${filters.category}` : ''}`}
+        title={`${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]) : 'All'} Necklaces | Panstellia`}
+        description={`Browse our ${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]).toLowerCase() : 'complete collection of'} necklace jewelry. Premium quality designs for every occasion.`}
+        keywords={`${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]).toLowerCase() + ' necklaces' : 'necklaces'}, jewelry, luxury jewelry`}
+        canonical={`https://panstellia.com/products${(filters.category && filters.category.length === 1) ? `?category=${filters.category[0]}` : ''}`}
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 md:mt-8">
@@ -267,10 +474,10 @@ const ProductsPage = () => {
           <Link to="/" className="hover:text-gold-500 transition-colors">Home</Link>
           <span>/</span>
           <Link to="/products" className="hover:text-gold-500 transition-colors">Shop</Link>
-          {filters.category !== 'All' && (
+          {filters.category && filters.category.length === 1 && (
             <>
               <span>/</span>
-              <span className="text-luxury-800">{getCategoryLabel(filters.category)}</span>
+              <span className="text-luxury-800">{getCategoryLabel(filters.category[0])}</span>
             </>
           )}
         </nav>
@@ -279,7 +486,7 @@ const ProductsPage = () => {
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="font-serif text-3xl md:text-4xl font-bold text-luxury-900 leading-tight">
-              {filters.category !== 'All' ? getCategoryLabel(filters.category) : 'All Products'}
+              {(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]) : (filters.category && filters.category.length > 1 ? 'Filtered Products' : 'All Products') }
             </h1>
             <p className="mt-2 text-xs text-luxury-500 font-medium">
               {filteredProducts.length} items found
@@ -377,6 +584,38 @@ const ProductsPage = () => {
 
           {/* Products Container */}
           <main className="flex-1">
+            {/* Active Filter Chips */}
+            <div className="mb-4 flex items-center gap-2 flex-wrap">
+              {(filters.category || []).map((c) => (
+                <button key={c} onClick={() => {
+                  const next = (filters.category || []).filter(x => x !== c);
+                  handleFilterChange('category', next);
+                }} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm flex items-center gap-2">
+                  <span>{getCategoryLabel(c)}</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
+              ))}
+
+              {filters.minPrice && (
+                <button onClick={() => handleFilterChange('minPrice', '')} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">Under ₹{filters.maxPrice || ''} ✕</button>
+              )}
+
+              {filters.maxPrice && !filters.minPrice && (
+                <button onClick={() => handleFilterChange('maxPrice', '')} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">Under ₹{filters.maxPrice} ✕</button>
+              )}
+
+              {filters.discountMin && (
+                <button onClick={() => handleFilterChange('discountMin', '')} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">{filters.discountMin}%+ Off ✕</button>
+              )}
+
+              {filters.availability && filters.availability.inStock && (
+                <button onClick={() => handleFilterChange('availability', { inStock: false })} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">In Stock ✕</button>
+              )}
+
+              {filters.availability && filters.availability.discounted && (
+                <button onClick={() => handleFilterChange('availability', { discounted: false })} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">Discounted ✕</button>
+              )}
+            </div>
             {loading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 {Array(6).fill(0).map((_, i) => (
