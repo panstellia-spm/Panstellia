@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/UI/ProductCard';
 import OptimizedImage from '../components/UI/OptimizedImage';
+import ClientReviews from '../components/UI/ClientReviews';
 import SEOHelmet from '../utils/seoHelmet';
 import { getOrganizationSchema } from '../utils/structuredData';
 import { getCategoryLabel } from '../utils/categoryLabels';
@@ -390,6 +391,8 @@ const HomePage = () => {
         </div>
       </section>
 
+      
+
       {/* Featured Bestsellers Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -443,6 +446,9 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+      
+      {/* Client Reviews Section */}
+      <ClientReviews />
 
       {/* Banner Section */}
       <section className="py-16 bg-gradient-to-r from-gold-500 to-gold-600 relative overflow-hidden shadow-inner">
