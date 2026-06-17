@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { createRazorpayOrder, verifyPayment, openCheckout, markPaymentFailed } from '../services/payment';
 import { db } from '../services/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, runTransaction } from 'firebase/firestore';
 import { sendOrderNotifications, formatOrderDataForEmail } from '../services/orderNotifications';
 
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -46,8 +46,45 @@ const CheckoutPage = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const rollbackReservations = async (items) => {
+    try {
+      await runTransaction(db, async (transaction) => {
+        for (const item of items) {
+          const productRef = doc(db, 'products', item.id);
+          const productSnap = await transaction.get(productRef);
+          if (productSnap.exists()) {
+            const pData = productSnap.data();
+            const oldStock = Number(pData.stockQuantity ?? 0);
+            const oldReserved = Number(pData.reservedQuantity ?? 0);
+            const newReserved = Math.max(0, oldReserved - item.quantity);
+            const newAvailable = oldStock - newReserved;
+            
+            transaction.update(productRef, {
+              reservedQuantity: newReserved,
+              availableQuantity: newAvailable,
+              lastStockUpdate: new Date().toISOString(),
+              stockUpdatedBy: 'System (Reservation Release)',
+            });
+          }
+        }
+      });
+      console.log('✅ Stock reservations rolled back successfully');
+    } catch (e) {
+      console.error('⚠️ Failed to rollback reservations:', e);
+    }
+  };
+
   const handlePayment = async () => {
     setLoading(true);
+    let hasReservedStock = false;
+    const cartItemsSnapshot = cartItems.map((ci) => ({
+      id: ci.id,
+      name: ci.name,
+      price: ci.price,
+      quantity: ci.quantity,
+      image: ci.image,
+      category: ci.category || '',
+    }));
 
     try {
       // Validate form
@@ -62,47 +99,101 @@ const CheckoutPage = () => {
           const shortCode = Math.random().toString(36).slice(2, 8).toUpperCase();
           const orderId = `COD-${shortCode}`;
 
-          const paymentItems = cartItems.map((ci) => ({
-            name: ci.name,
-            price: ci.price,
-            quantity: ci.quantity,
-            image: ci.image,
-          }));
+          // Run transaction to check/deduct stock and save order/payment
+          await runTransaction(db, async (transaction) => {
+            const productDocs = [];
+            
+            // 1. Read all product docs to verify stock
+            for (const item of cartItems) {
+              const productRef = doc(db, 'products', item.id);
+              const productSnap = await transaction.get(productRef);
+              if (!productSnap.exists()) {
+                throw new Error(`Product "${item.name}" not found.`);
+              }
+              productDocs.push({ ref: productRef, snap: productSnap, item });
+            }
 
-          // Persist COD as a payment record
-          await addDoc(collection(db, 'payments'), {
-            orderId: orderId,
-            customerName: formData.name,
-            phone: formData.phone,
-            amount: total * 100, // keep paise
-            paymentMethod,
-            paymentStatus: 'Pending',
-            createdAt: serverTimestamp(),
-            items: paymentItems,
-            userId: user.uid,
-            shippingAddress: formData.address,
-            shippingCity: formData.city,
-            shippingState: formData.state,
-            shippingPincode: formData.pincode,
-            customerOrderId: orderId,
-          });
+            // 2. Validate availability
+            for (const { snap, item } of productDocs) {
+              const pData = snap.data();
+              const stockQuantity = Number(pData.stockQuantity ?? 0);
+              const reservedQuantity = Number(pData.reservedQuantity ?? 0);
+              const available = stockQuantity - reservedQuantity;
+              if (available < item.quantity) {
+                throw new Error(`Insufficient stock for "${item.name}". Only ${available} available.`);
+              }
+            }
 
-          // Persist order so it appears in the user dashboard (/orders and /order/:id)
-          await addDoc(collection(db, 'orders'), {
-            userId: user.uid,
-            orderId,
-            customerName: formData.name,
-            phone: formData.phone,
-            total,
-            items: paymentItems,
-            status: 'processing',
-            createdAt: serverTimestamp(),
-            paymentMethod,
-            paymentStatus: 'Pending',
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            pincode: formData.pincode,
+            // 3. Apply updates & log stock changes
+            for (const { ref, snap, item } of productDocs) {
+              const pData = snap.data();
+              const oldStock = Number(pData.stockQuantity ?? 0);
+              const oldReserved = Number(pData.reservedQuantity ?? 0);
+              const newStock = Math.max(0, oldStock - item.quantity);
+              const newAvailable = newStock - oldReserved;
+              
+              let inventoryStatus = 'in_stock';
+              if (newStock <= 0) {
+                inventoryStatus = 'out_of_stock';
+              } else if (newStock <= Number(pData.reorderThreshold ?? 5)) {
+                inventoryStatus = 'low_stock';
+              }
+
+              transaction.update(ref, {
+                stockQuantity: newStock,
+                availableQuantity: newAvailable,
+                inventoryStatus,
+                lastStockUpdate: new Date().toISOString(),
+                stockUpdatedBy: 'System (COD Purchase)',
+                inventoryValue: newStock * Number(pData.price ?? 0),
+              });
+
+              // Write inventory log
+              const logRef = doc(collection(db, 'inventory_logs'));
+              transaction.set(logRef, {
+                productId: item.id,
+                productName: item.name,
+                skuCode: pData.skuCode || '',
+                action: 'Stock Decrease',
+                change: -item.quantity,
+                previousValue: oldStock,
+                newValue: newStock,
+                adminId: user.uid,
+                adminName: user.displayName || user.email || 'Customer (COD Checkout)',
+                timestamp: new Date().toISOString(),
+                reason: `COD Order #${orderId}`,
+              });
+            }
+
+            // 4. Save order and payment records
+            const orderDocRef = doc(collection(db, 'orders'));
+            const paymentDocRef = doc(collection(db, 'payments'));
+
+            const commonOrderData = {
+              userId: user.uid,
+              orderId,
+              customerName: formData.name,
+              phone: formData.phone,
+              total,
+              items: cartItemsSnapshot,
+              status: 'processing',
+              createdAt: new Date().toISOString(),
+              paymentMethod,
+              paymentStatus: 'Pending',
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+              pincode: formData.pincode,
+            };
+
+            transaction.set(paymentDocRef, {
+              ...commonOrderData,
+              amount: total * 100, // paise
+              customerOrderId: orderId,
+              orderDocId: orderDocRef.id,
+            });
+
+            transaction.set(orderDocRef, commonOrderData);
           });
 
           // Send order confirmation and admin notification emails
@@ -117,7 +208,7 @@ const CheckoutPage = () => {
               shippingCity: formData.city,
               shippingState: formData.state,
               shippingPincode: formData.pincode,
-              cartItems: paymentItems,
+              cartItems: cartItemsSnapshot,
               total,
               tax: 0,
               shipping: 0,
@@ -151,7 +242,7 @@ const CheckoutPage = () => {
           });
         } catch (e) {
           console.error('Failed to store COD payment record in Firestore:', e);
-          toast.error('Failed to place COD order. Please try again.', {
+          toast.error(e.message || 'Failed to place COD order. Please try again.', {
             position: 'bottom-right',
           });
           return;
@@ -163,19 +254,61 @@ const CheckoutPage = () => {
       // Razorpay flow
       const amountInPaise = Math.round(total * 100);
       const authToken = await user.getIdToken();
-      const cartItemsSnapshot = cartItems.map((ci) => ({
-        id: ci.id,
-        name: ci.name,
-        price: ci.price,
-        quantity: ci.quantity,
-        image: ci.image,
-        category: ci.category,
-      }));
 
       if (amountInPaise < 100) {
         throw new Error('Minimum order amount is ₹1');
       }
 
+      // 1. Reserve stock client-side first
+      await runTransaction(db, async (transaction) => {
+        const productDocs = [];
+        for (const item of cartItems) {
+          const productRef = doc(db, 'products', item.id);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists()) {
+            throw new Error(`Product "${item.name}" not found.`);
+          }
+          productDocs.push({ ref: productRef, snap: productSnap, item });
+        }
+
+        // Validate stock availability
+        for (const { snap, item } of productDocs) {
+          const pData = snap.data();
+          const stockQuantity = Number(pData.stockQuantity ?? 0);
+          const reservedQuantity = Number(pData.reservedQuantity ?? 0);
+          const available = stockQuantity - reservedQuantity;
+          if (available < item.quantity) {
+            throw new Error(`Insufficient stock for "${item.name}". Only ${available} available.`);
+          }
+        }
+
+        // Reserve stock
+        for (const { ref, snap, item } of productDocs) {
+          const pData = snap.data();
+          const oldStock = Number(pData.stockQuantity ?? 0);
+          const oldReserved = Number(pData.reservedQuantity ?? 0);
+          const newReserved = oldReserved + item.quantity;
+          const newAvailable = oldStock - newReserved;
+
+          let inventoryStatus = 'in_stock';
+          if (oldStock <= 0) {
+            inventoryStatus = 'out_of_stock';
+          } else if (oldStock <= Number(pData.reorderThreshold ?? 5)) {
+            inventoryStatus = 'low_stock';
+          }
+
+          transaction.update(ref, {
+            reservedQuantity: newReserved,
+            availableQuantity: newAvailable,
+            inventoryStatus,
+            lastStockUpdate: new Date().toISOString(),
+            stockUpdatedBy: 'System (Razorpay Reservation)',
+          });
+        }
+      });
+      hasReservedStock = true;
+
+      // 2. Create the order on the server
       const orderData = await createRazorpayOrder(amountInPaise, 'INR', {
         receipt: `order_${Date.now()}`,
         authToken,
@@ -235,6 +368,56 @@ const CheckoutPage = () => {
         },
         onSuccess: async (response) => {
           try {
+            // Deduct stock client-side first
+            await runTransaction(db, async (transaction) => {
+              for (const item of cartItemsSnapshot) {
+                const productRef = doc(db, 'products', item.id);
+                const productSnap = await transaction.get(productRef);
+                if (productSnap.exists()) {
+                  const pData = productSnap.data();
+                  const oldStock = Number(pData.stockQuantity ?? 0);
+                  const oldReserved = Number(pData.reservedQuantity ?? 0);
+                  const newStock = Math.max(0, oldStock - item.quantity);
+                  const newReserved = Math.max(0, oldReserved - item.quantity);
+                  const newAvailable = newStock - newReserved;
+
+                  let inventoryStatus = 'in_stock';
+                  if (newStock <= 0) {
+                    inventoryStatus = 'out_of_stock';
+                  } else if (newStock <= Number(pData.reorderThreshold ?? 5)) {
+                    inventoryStatus = 'low_stock';
+                  }
+
+                  transaction.update(productRef, {
+                    stockQuantity: newStock,
+                    reservedQuantity: newReserved,
+                    availableQuantity: newAvailable,
+                    inventoryStatus,
+                    lastStockUpdate: new Date().toISOString(),
+                    stockUpdatedBy: 'System (Purchase)',
+                    inventoryValue: newStock * Number(pData.price ?? 0),
+                  });
+
+                  // Log stock change in inventory_logs
+                  const logRef = doc(collection(db, 'inventory_logs'));
+                  transaction.set(logRef, {
+                    productId: item.id,
+                    productName: item.name,
+                    skuCode: pData.skuCode || '',
+                    action: 'Stock Decrease',
+                    change: -item.quantity,
+                    previousValue: oldStock,
+                    newValue: newStock,
+                    adminId: user.uid,
+                    adminName: user.displayName || user.email || 'Customer (Purchase)',
+                    timestamp: new Date().toISOString(),
+                    reason: `Razorpay Order #${order_number || response.razorpay_order_id}`,
+                  });
+                }
+              }
+            });
+
+            // Call verifyPayment in backend to finalize the Firestore order status to processing
             const verificationResult = await verifyPayment(
               response.razorpay_payment_id,
               response.razorpay_order_id,
@@ -292,6 +475,7 @@ const CheckoutPage = () => {
             }
           } catch (error) {
             console.error('Payment verification error:', error);
+            await rollbackReservations(cartItemsSnapshot);
             await markCurrentPaymentFailed(error.message || 'Payment verification failed', response.razorpay_payment_id);
             toast.error('Payment verification failed. Please contact support.', {
               position: 'bottom-right',
@@ -299,6 +483,7 @@ const CheckoutPage = () => {
           }
         },
         onFailure: async (response) => {
+          await rollbackReservations(cartItemsSnapshot);
           const paymentId = response?.error?.metadata?.payment_id;
           const reason = response?.error?.description || response?.error?.reason || 'Payment failed';
           await markCurrentPaymentFailed(reason, paymentId);
@@ -307,6 +492,7 @@ const CheckoutPage = () => {
           });
         },
         onDismiss: async () => {
+          await rollbackReservations(cartItemsSnapshot);
           await markCurrentPaymentFailed('Payment cancelled by customer');
           toast.info('Payment cancelled', {
             position: 'bottom-right',
@@ -317,6 +503,9 @@ const CheckoutPage = () => {
       await openCheckout(razorpayOptions);
     } catch (error) {
       console.error('Payment error:', error);
+      if (hasReservedStock) {
+        await rollbackReservations(cartItemsSnapshot);
+      }
       toast.error(error.message || 'Payment failed', {
         position: 'bottom-right',
       });
