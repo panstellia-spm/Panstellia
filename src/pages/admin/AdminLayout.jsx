@@ -202,7 +202,7 @@ export default function AdminLayout({ children }) {
 
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 flex">
+        <div className="lg:hidden fixed inset-0 z-[60] flex">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <aside className="relative z-50 flex flex-col w-72 bg-white shadow-2xl">
             <SidebarContent onClose={() => setMobileOpen(false)} />

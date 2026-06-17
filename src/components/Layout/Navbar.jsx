@@ -74,19 +74,19 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-150 ease-out ${
         scrolled ? 'bg-white shadow-lg' : 'bg-transparent'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-14' : 'h-20'}`}>
+          <div className={`flex items-center justify-between transition-all duration-150 ease-out ${scrolled ? 'h-14' : 'h-20'}`}>
             {/* Logo */}
             <Link to="/" className="flex items-center md:gap-2">
               <img 
                 src="/favicon.svg" 
                 alt="Panstellia" 
-                className={`hidden md:flex transition-all duration-300 w-auto ${scrolled ? 'h-10' : 'h-14'}`} 
+                className={`transition-all duration-150 ease-out w-auto ${scrolled ? 'h-8 md:h-10' : 'h-10 md:h-14'}`} 
               />
-              <span className="font-serif text-xl md:text-2xl font-bold text-luxury-800">Panstellia</span>
+              <span className="hidden md:block font-serif text-xl md:text-2xl font-bold text-luxury-800">Panstellia</span>
             </Link>
 
             {/* Desktop Navigation */}

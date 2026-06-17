@@ -12,6 +12,7 @@ function tokenize(str) {
   if (!str || typeof str !== 'string') return [];
   return str
     .toLowerCase()
+    // eslint-disable-next-line no-misleading-character-class
     .replace(/[^a-z0-9\u0900-\u097f\s]/g, ' ') // keep alphanumeric + Devanagari
     .split(/\s+/)
     .filter(t => t.length >= 2); // skip single-char tokens
