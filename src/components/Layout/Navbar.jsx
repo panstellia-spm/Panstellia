@@ -105,27 +105,38 @@ const Navbar = () => {
                       </Link>
                       
                       {/* Mega Menu Dropdown */}
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-0 pt-2 w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 z-50">
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-0 pt-2 w-[600px] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 z-50">
                         <motion.div
                           initial={{ opacity: 0, y: -8 }}
                           whileInView={{ opacity: 1, y: 0 }}
                           className="bg-white shadow-2xl rounded-b-xl border border-luxury-100 p-6"
                         >
-                          <h4 className="font-serif text-sm font-bold text-luxury-900 border-b border-luxury-100 pb-2 mb-3">Shop Collections</h4>
-                          <div className="grid grid-cols-2 gap-3">
+                          <h4 className="font-serif text-sm font-bold text-luxury-900 border-b border-luxury-100 pb-3 mb-4">Shop Collections</h4>
+                          <div className="grid grid-cols-3 gap-4">
                             {[
-                              { name: 'Gold', to: '/products?category=Gold' },
-                              { name: 'Silver', to: '/products?category=Silver' },
-                              { name: 'Lux Wear', to: '/products?category=Lux%20Wear' },
-                              { name: 'Party Wear', to: '/products?category=Party%20Wear' },
-                              { name: 'Elegant Spark', to: '/products?category=Elegant%20Spark' }
+                              { name: 'Gold', to: '/products?category=Gold', img: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' },
+                              { name: 'Silver', to: '/products?category=Silver', img: 'https://images.unsplash.com/photo-1599643478514-4a884fbf32d9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' },
+                              { name: 'Lux Wear', to: '/products?category=Lux%20Wear', img: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' },
+                              { name: 'Party Wear', to: '/products?category=Party%20Wear', img: 'https://images.unsplash.com/photo-1596944924616-7b38e7cfac36?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' },
+                              { name: 'Elegant Spark', to: '/products?category=Elegant%20Spark', img: 'https://images.unsplash.com/photo-1610652492500-ded49ceeb378?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' }
                             ].map((cat) => (
                               <Link
                                 key={cat.name}
                                 to={cat.to}
-                                className="text-xs text-luxury-600 hover:text-gold-500 font-semibold transition-colors py-1.5 px-2 hover:bg-luxury-50 rounded"
+                                className="group/cat relative rounded-lg overflow-hidden flex flex-col items-center shadow-sm border border-transparent hover:border-gold-300 hover:shadow-md transition-all bg-luxury-50"
                               >
-                                {getCategoryLabel(cat.name)}
+                                <div className="w-full aspect-[4/3] overflow-hidden">
+                                  <img 
+                                    src={cat.img} 
+                                    alt={cat.name} 
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover/cat:scale-110" 
+                                  />
+                                </div>
+                                <div className="w-full py-2.5 text-center bg-white">
+                                  <span className="text-xs text-luxury-800 group-hover/cat:text-gold-600 font-bold uppercase tracking-wider transition-colors">
+                                    {getCategoryLabel(cat.name)}
+                                  </span>
+                                </div>
                               </Link>
                             ))}
                           </div>

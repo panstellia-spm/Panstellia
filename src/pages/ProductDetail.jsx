@@ -27,9 +27,24 @@ const ProductDetailPage = () => {
   const [isZooming, setIsZooming] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 });
   const [openAccordion, setOpenAccordion] = useState(0); // Default to first open
+  const [isStickyVisible, setIsStickyVisible] = useState(false);
 
   const touchStartXRef = useRef(null);
+  const addToCartRef = useRef(null);
   const MAX_GALLERY_THUMBS = 6;
+
+  useEffect(() => {
+    if (!addToCartRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Show sticky bar when the button scrolls up out of view (top < 0)
+        setIsStickyVisible(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+      },
+      { threshold: 0 }
+    );
+    observer.observe(addToCartRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const foundProduct = getProductById(id);
@@ -473,7 +488,7 @@ const ProductDetailPage = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2" ref={addToCartRef}>
                 <button
                   onClick={handleAddToCart}
                   disabled={isAdding}
@@ -593,6 +608,56 @@ const ProductDetailPage = () => {
           </div>
         )}
       </div>
+
+      {/* Sticky Add-to-Cart Bar */}
+      <AnimatePresence>
+        {isStickyVisible && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-luxury-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] p-4 md:p-3"
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 hidden sm:flex">
+                <img src={imageUrl} alt={product.name} className="w-12 h-12 rounded object-cover border border-luxury-100" />
+                <div>
+                  <h4 className="font-serif font-bold text-luxury-900 text-sm line-clamp-1">{product.name}</h4>
+                  <p className="text-luxury-600 text-xs font-semibold">₹{product.price?.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end flex-1 sm:flex-none">
+                <div className="flex items-center border border-luxury-200 rounded-lg bg-white shadow-sm h-10">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-8 h-full flex items-center justify-center text-luxury-600 hover:bg-luxury-50 transition-colors rounded-l-lg"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="w-8 text-center font-bold text-sm text-luxury-900">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-8 h-full flex items-center justify-center text-luxury-600 hover:bg-luxury-50 transition-colors rounded-r-lg"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isAdding}
+                  className="btn-primary py-2 px-6 flex items-center justify-center font-bold tracking-wide shadow-md whitespace-nowrap text-sm h-10 flex-1 sm:flex-none"
+                >
+                  <ShoppingBag className="w-4 h-4 mr-2" />
+                  {isAdding ? 'Adding...' : 'Add to Cart'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
