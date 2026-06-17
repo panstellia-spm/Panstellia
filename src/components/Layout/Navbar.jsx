@@ -24,6 +24,9 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Detect if currently on admin panel routes for dynamic menu label
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -77,7 +80,7 @@ const Navbar = () => {
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-150 ease-out ${
         scrolled ? 'bg-white shadow-lg' : 'bg-transparent'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className={`flex items-center justify-between transition-all duration-150 ease-out ${scrolled ? 'h-14' : 'h-20'}`}>
             {/* Logo */}
             <Link to="/" className="flex items-center md:gap-2">
@@ -154,7 +157,7 @@ const Navbar = () => {
             {/* Search & Icons */}
             <div className="flex items-center space-x-2 md:space-x-4">
               {/* Expandable Search Input (Desktop/Mobile) */}
-              <div className="relative flex items-center">
+              <div className="flex items-center">
                 <button 
                   onClick={() => setSearchOpen(!searchOpen)}
                   className="p-2 text-luxury-600 hover:text-gold-600 transition-colors"
@@ -181,7 +184,7 @@ const Navbar = () => {
 
                 {/* Autocomplete Card */}
                 {searchOpen && searchResults.length > 0 && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-white shadow-2xl rounded-xl border border-luxury-100 p-2 z-50">
+                  <div className="absolute right-4 sm:right-6 lg:right-8 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl rounded-xl border border-luxury-100 p-2 z-50">
                     {searchResults.map(product => (
                       <Link
                         key={product.id}
@@ -230,27 +233,54 @@ const Navbar = () => {
               {/* User Menu */}
               {user ? (
                 <div className="relative group">
-                  <button className="p-2 text-luxury-600 hover:text-gold-600 transition-colors">
+                  <button className="relative p-2 text-luxury-600 hover:text-gold-600 transition-colors">
                     <User className="w-5 h-5" />
+                    {/* Admin badge indicator */}
+                    {isAdmin && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-gold-500 rounded-full border-2 border-white flex items-center justify-center" title="Admin">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      </span>
+                    )}
                   </button>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-luxury-100">
                     <div className="py-2">
-                      <p className="px-4 py-2 text-sm text-luxury-600 border-b truncate">
-                        {user.email}
-                      </p>
-                      <Link to="/orders" className="block px-4 py-2 text-sm text-luxury-700 hover:bg-luxury-50">
+                      {/* User info header */}
+                      <div className="px-4 py-2.5 border-b border-luxury-100">
+                        <p className="text-xs text-luxury-500 truncate">{user.email}</p>
+                        {isAdmin && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-gold-50 border border-gold-200 rounded-full text-[10px] font-bold text-gold-700 uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+                            Administrator
+                          </span>
+                        )}
+                      </div>
+                      <Link to="/orders" className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors">
                         My Orders
                       </Link>
                       {isAdmin && (
-                        <Link to="/admin" className="block px-4 py-2 text-sm text-luxury-700 hover:bg-luxury-50">
-                          Admin Panel
-                        </Link>
+                        isAdminRoute ? (
+                          <Link
+                            to="/"
+                            className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors flex items-center gap-2"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Official Platform
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/admin"
+                            className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors flex items-center gap-2"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+                            Admin Panel
+                          </Link>
+                        )
                       )}
                       <button 
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
                       >
-                        <LogOut className="w-4 h-4 inline mr-2" />
+                        <LogOut className="w-4 h-4" />
                         Logout
                       </button>
                     </div>
@@ -327,11 +357,17 @@ const Navbar = () => {
               {user ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gold-100 flex items-center justify-center text-gold-600 font-bold flex-shrink-0">
+                    <div className="relative w-10 h-10 rounded-full bg-gold-100 flex items-center justify-center text-gold-600 font-bold flex-shrink-0">
                       {user.email?.slice(0, 2).toUpperCase()}
+                      {/* Admin badge on avatar */}
+                      {isAdmin && (
+                        <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-gold-500 rounded-full border-2 border-white" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] text-luxury-500 uppercase font-semibold">Logged in</p>
+                      <p className="text-[10px] text-luxury-500 uppercase font-semibold">
+                        {isAdmin ? 'Administrator' : 'Logged in'}
+                      </p>
                       <p className="text-xs font-semibold text-luxury-800 truncate">{user.email}</p>
                     </div>
                   </div>
@@ -344,13 +380,25 @@ const Navbar = () => {
                       My Orders
                     </Link>
                     {isAdmin && (
-                      <Link 
-                        to="/admin" 
-                        onClick={() => setIsOpen(false)} 
-                        className="text-xs text-luxury-700 hover:text-gold-500 font-medium py-1"
-                      >
-                        Admin Panel
-                      </Link>
+                      isAdminRoute ? (
+                        <Link 
+                          to="/" 
+                          onClick={() => setIsOpen(false)} 
+                          className="text-xs text-emerald-600 hover:text-emerald-700 font-medium py-1 flex items-center gap-1.5"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Official Platform
+                        </Link>
+                      ) : (
+                        <Link 
+                          to="/admin" 
+                          onClick={() => setIsOpen(false)} 
+                          className="text-xs text-gold-600 hover:text-gold-700 font-medium py-1 flex items-center gap-1.5"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+                          Admin Panel
+                        </Link>
+                      )
                     )}
                     <button
                       onClick={() => {

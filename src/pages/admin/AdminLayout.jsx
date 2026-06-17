@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -160,7 +160,10 @@ export default function AdminLayout({ children }) {
               {(user?.email?.[0] || 'A').toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-luxury-900 truncate">Admin</p>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <p className="text-xs font-semibold text-luxury-900 truncate">Admin</p>
+                <span className="flex-shrink-0 px-1.5 py-0.5 bg-gold-100 border border-gold-200 rounded text-[9px] font-bold text-gold-700 uppercase tracking-wider">Role</span>
+              </div>
               <p className="text-xs text-luxury-500 truncate">{user?.email}</p>
             </div>
           </div>
@@ -242,14 +245,13 @@ export default function AdminLayout({ children }) {
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
             </button>
-            <a
-              href="/"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/"
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-luxury-600 border border-luxury-200 hover:bg-luxury-50 transition-colors"
             >
-              View Store
-            </a>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Official Platform
+            </Link>
           </div>
         </header>
 

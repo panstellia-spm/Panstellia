@@ -1,15 +1,80 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Package, CheckCircle, XCircle, Clock, ChevronLeft, Truck } from 'lucide-react';
+import {
+  Package,
+  XCircle,
+  ChevronLeft,
+  Truck,
+  CreditCard,
+  Calendar,
+  Hash,
+  ShieldCheck,
+} from 'lucide-react';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
 import { db } from '../services/firebase';
 import SEOHelmet from '../utils/seoHelmet';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import OrderTimeline, { StatusBadge } from '../components/UI/OrderTimeline';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function safeToDate(value) {
+  try {
+    if (!value) return null;
+    if (typeof value?.toDate === 'function') return value.toDate();
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
+function formatDate(value) {
+  const d = safeToDate(value);
+  if (!d) return 'N/A';
+  return d.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function formatAddress(o) {
+  const parts = [o?.address, o?.city, o?.state, o?.pincode]
+    .map((x) => (typeof x === 'string' ? x.trim() : ''))
+    .filter(Boolean);
+  return parts.length ? parts.join(', ') : 'N/A';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INFO TILE — small reusable detail card
+// ─────────────────────────────────────────────────────────────────────────────
+
+function InfoTile({ icon: Icon, label, value, iconClass = 'text-gold-600' }) {
+  return (
+    <div className="flex items-start gap-3 p-4 bg-luxury-50 rounded-xl border border-luxury-100 hover:border-gold-200 transition-colors duration-200">
+      <span className={`mt-0.5 shrink-0 ${iconClass}`}>
+        <Icon className="w-5 h-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs text-luxury-500 uppercase tracking-wide font-semibold mb-0.5">
+          {label}
+        </p>
+        <p className="text-sm font-semibold text-luxury-900 break-words">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN PAGE
+// ─────────────────────────────────────────────────────────────────────────────
 
 const OrderDetailsPage = () => {
-
   const { id } = useParams();
   const { user } = useAuth();
 
@@ -25,7 +90,7 @@ const OrderDetailsPage = () => {
       setError(null);
 
       try {
-        // 1a) Try fetching directly from `orders` collection by document ID
+        // 1a) Direct document fetch from `orders` collection
         const orderDocRef = doc(db, 'orders', id);
         const orderDocSnap = await getDoc(orderDocRef);
 
@@ -37,7 +102,7 @@ const OrderDetailsPage = () => {
           }
         }
 
-        // 1b) Try querying `orders` collection by `orderId` field
+        // 1b) Query `orders` collection by `orderId` field
         const ordersRef = collection(db, 'orders');
         const qOrders = query(
           ordersRef,
@@ -47,12 +112,12 @@ const OrderDetailsPage = () => {
         const snapOrders = await getDocs(qOrders);
 
         if (!snapOrders.empty) {
-          const doc = snapOrders.docs[0];
-          setOrder({ id: doc.id, ...doc.data() });
+          const d = snapOrders.docs[0];
+          setOrder({ id: d.id, ...d.data() });
           return;
         }
 
-        // 2a) Fallback: Try fetching directly from `payments` collection by document ID
+        // 2a) Fallback: direct document fetch from `payments` collection
         const paymentDocRef = doc(db, 'payments', id);
         const paymentDocSnap = await getDoc(paymentDocRef);
 
@@ -61,10 +126,11 @@ const OrderDetailsPage = () => {
           if (data.userId === user.uid) {
             setOrder({
               id: paymentDocSnap.id,
-              status: data.paymentStatus || data.status || 'paid',
-              total: data.amount ? (Number(data.amount) / 100) : data.total,
+              status: data.status || data.paymentStatus || 'processing',
+              total: data.amount ? Number(data.amount) / 100 : data.total,
               items: data.items || [],
               paymentMethod: data.paymentMethod,
+              paymentStatus: data.paymentStatus,
               address: data.shippingAddress,
               city: data.shippingCity,
               state: data.shippingState,
@@ -78,7 +144,7 @@ const OrderDetailsPage = () => {
           }
         }
 
-        // 2b) Try querying `payments` collection by `orderId` field
+        // 2b) Query `payments` collection by `orderId` field
         const paymentsRef = collection(db, 'payments');
         const qPayments = query(
           paymentsRef,
@@ -88,15 +154,15 @@ const OrderDetailsPage = () => {
         const snapPayments = await getDocs(qPayments);
 
         if (!snapPayments.empty) {
-          const doc = snapPayments.docs[0];
-          const data = doc.data();
-
+          const d = snapPayments.docs[0];
+          const data = d.data();
           setOrder({
-            id: doc.id,
-            status: data.paymentStatus || data.status || 'paid',
-            total: data.amount ? (Number(data.amount) / 100) : data.total,
+            id: d.id,
+            status: data.status || data.paymentStatus || 'processing',
+            total: data.amount ? Number(data.amount) / 100 : data.total,
             items: data.items || [],
             paymentMethod: data.paymentMethod,
+            paymentStatus: data.paymentStatus,
             address: data.shippingAddress,
             city: data.shippingCity,
             state: data.shippingState,
@@ -122,228 +188,298 @@ const OrderDetailsPage = () => {
     fetchOrder();
   }, [user, id]);
 
+  // ── Derived values ────────────────────────────────────────────────────────
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'delivered':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'cancelled':
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      default:
-        return <Clock className="w-5 h-5 text-yellow-500" />;
-    }
-  };
+  const rawStatus = order?.status || 'processing';
+  const isCancelled = rawStatus.toLowerCase().trim() === 'cancelled';
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'delivered':
-        return 'badge-success';
-      case 'cancelled':
-        return 'badge-error';
-      default:
-        return 'badge-warning';
-    }
-  };
+  const calculatedSubtotal = (order?.items || []).reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1),
+    0
+  );
+  const subtotal =
+    order?.subtotal != null ? Number(order.subtotal) : calculatedSubtotal;
+  const shipping =
+    order?.shipping != null
+      ? Number(order.shipping)
+      : subtotal > 1000
+      ? 0
+      : 99;
+  const tax =
+    order?.tax != null
+      ? Number(order.tax)
+      : order?.gst != null
+      ? Number(order.gst)
+      : subtotal * 0.05;
+  const total =
+    order?.total != null ? Number(order.total) : subtotal + shipping + tax;
 
-  const status = order?.status || 'unknown';
-
-  const formatAddress = (o) => {
-    const parts = [o?.address, o?.city, o?.state, o?.pincode]
-      .map((x) => (typeof x === 'string' ? x.trim() : '') )
-      .filter(Boolean);
-
-    return parts.length ? parts.join(', ') : 'N/A';
-  };
-
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
       <SEOHelmet
-        title={`Order Details | Panstellia`}
+        title="Order Details | Panstellia"
         description="View your order status and order information."
         keywords="order status, order details"
         canonical={`https://panstellia.com/order/${id}`}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Back link */}
         <div className="flex items-center gap-2 mb-6">
           <Link
             to="/orders"
-            className="text-gold-600 hover:text-gold-700 flex items-center"
+            className="inline-flex items-center gap-1 text-sm text-gold-600 hover:text-gold-700 font-medium transition-colors duration-200 group"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
             Back to Orders
           </Link>
         </div>
 
+        {/* ── Loading skeleton ──────────────────────────────────────────── */}
         {loading ? (
           <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="skeleton h-6 w-40 mb-4" />
-              <div className="skeleton h-10 w-64" />
+            <div className="bg-white rounded-2xl shadow-md p-6">
+              <div className="skeleton h-6 w-48 mb-4 rounded" />
+              <div className="skeleton h-4 w-32 mb-8 rounded" />
+              <div className="skeleton h-20 w-full rounded-xl" />
+            </div>
+            <div className="bg-white rounded-2xl shadow-md p-6">
+              <div className="flex gap-4">
+                <div className="skeleton w-20 h-20 rounded-xl shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="skeleton h-4 w-3/4 rounded" />
+                  <div className="skeleton h-4 w-1/4 rounded" />
+                </div>
+              </div>
             </div>
           </div>
         ) : error ? (
-          <div className="bg-white rounded-xl shadow-md p-6 text-center">
-            <Package className="w-12 h-12 text-luxury-300 mx-auto" />
+          /* ── Error state ───────────────────────────────────────────────── */
+          <div className="bg-white rounded-2xl shadow-md p-10 text-center">
+            <XCircle className="w-12 h-12 text-red-400 mx-auto" />
             <h2 className="mt-4 font-serif text-xl font-bold text-luxury-900">
               Unable to load order
             </h2>
             <p className="mt-2 text-luxury-600">Please try again later.</p>
-            <Link to="/orders" className="mt-4 btn-primary inline-flex">
+            <Link to="/orders" className="mt-6 btn-primary inline-flex">
               View Orders
             </Link>
           </div>
         ) : !order ? (
-          <div className="bg-white rounded-xl shadow-md p-6 text-center">
+          /* ── Not found ─────────────────────────────────────────────────── */
+          <div className="bg-white rounded-2xl shadow-md p-10 text-center">
             <Package className="w-12 h-12 text-luxury-300 mx-auto" />
             <h2 className="mt-4 font-serif text-xl font-bold text-luxury-900">
               Order not found
             </h2>
-            <p className="mt-2 text-luxury-600">It may have been removed or you do not have access.</p>
-            <Link to="/orders" className="mt-4 btn-primary inline-flex">
+            <p className="mt-2 text-luxury-600">
+              It may have been removed or you do not have access.
+            </p>
+            <Link to="/orders" className="mt-6 btn-primary inline-flex">
               View Orders
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-luxury-500">Order #{order.id.slice(0, 8).toUpperCase()}</p>
-                <p className="text-sm text-luxury-500">
-                  {order.createdAt?.toDate?.().toLocaleDateString() ||
-                    new Date(order.createdAt).toLocaleDateString()}
-                </p>
-              </div>
+          <div className="space-y-5">
+            {/* ── Header card ───────────────────────────────────────────── */}
+            <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+              <div className="h-1 w-full bg-gradient-to-r from-gold-400 via-gold-500 to-gold-300" />
+              <div className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div>
+                    <h1 className="font-serif text-2xl font-bold text-luxury-900">
+                      Order Details
+                    </h1>
+                    <p className="text-sm text-luxury-500 mt-1">
+                      Complete information about your order
+                    </p>
+                  </div>
+                  <StatusBadge
+                    status={rawStatus}
+                    className="self-start text-sm px-4 py-1.5"
+                  />
+                </div>
 
-              <div className={`badge ${getStatusColor(status)}`}>
-                {getStatusIcon(status)}
-                <span className="ml-1 capitalize">{status}</span>
+                {/* Info tiles */}
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <InfoTile
+                    icon={Hash}
+                    label="Order ID"
+                    value={`#${order.id.slice(0, 8).toUpperCase()}`}
+                  />
+                  <InfoTile
+                    icon={Calendar}
+                    label="Order Date"
+                    value={formatDate(order.createdAt)}
+                  />
+                  <InfoTile
+                    icon={CreditCard}
+                    label="Payment Method"
+                    value={order.paymentMethod || 'N/A'}
+                  />
+                  <InfoTile
+                    icon={ShieldCheck}
+                    label="Payment Status"
+                    value={order.paymentStatus || 'N/A'}
+                    iconClass={
+                      (order.paymentStatus || '').toLowerCase() === 'paid'
+                        ? 'text-green-500'
+                        : 'text-gold-600'
+                    }
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-luxury-200">
-              <h2 className="font-semibold text-luxury-900 mb-2">Status</h2>
-              <div className={`badge ${getStatusColor(status)} inline-flex items-center`}>
-                {getStatusIcon(status)}
-                <span className="ml-1 capitalize">{status}</span>
+            {/* ── Order Tracking Timeline ───────────────────────────────── */}
+            {!isCancelled && (
+              <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-green-400 via-green-500 to-emerald-400" />
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Truck className="w-5 h-5 text-green-600" />
+                    <h2 className="font-serif text-lg font-bold text-luxury-900">
+                      Order Tracking
+                    </h2>
+                    <span className="ml-auto text-xs text-luxury-400">
+                      Refresh page to see latest updates
+                    </span>
+                  </div>
+                  {/*
+                    OrderTimeline receives the raw status string directly from
+                    Firestore — the same string the admin wrote.
+                    No mapping, no transformation.
+                  */}
+                  <OrderTimeline status={rawStatus} />
+                </div>
               </div>
+            )}
 
-              <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* ── Cancelled notice ──────────────────────────────────────── */}
+            {isCancelled && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start gap-3">
+                <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <h2 className="font-semibold text-luxury-900 mb-3">Items</h2>
+                  <p className="font-semibold text-red-700">Order Cancelled</p>
+                  <p className="text-sm text-red-500 mt-0.5">
+                    This order has been cancelled. Refunds, if applicable, are
+                    processed within 5–7 business days.
+                  </p>
+                </div>
+              </div>
+            )}
 
+            {/* ── Products + Summary ────────────────────────────────────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Product list */}
+              <div className="lg:col-span-2 bg-white rounded-2xl shadow-md overflow-hidden">
+                <div className="px-6 py-4 border-b border-luxury-100">
+                  <h2 className="font-serif text-lg font-bold text-luxury-900">
+                    Items Ordered
+                  </h2>
+                </div>
+                <div className="divide-y divide-luxury-100">
                   {order.items?.length > 0 ? (
-                    <div className="space-y-3">
-                      {order.items.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-start justify-between gap-4"
-                        >
-                          <div className="flex items-start gap-4">
-                            {item.image ? (
-                              <img
-                                src={getOptimizedImageUrl(item.image, { width: 120, quality: 60 })}
-                                alt={item.name}
-                                className="w-16 h-16 object-cover rounded-lg"
-                              />
-                            ) : (
-                              <div className="w-16 h-16 rounded-lg bg-luxury-100" />
-                            )}
+                    order.items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-4 px-6 py-4 hover:bg-luxury-50 transition-colors duration-150 group"
+                      >
+                        {item.image ? (
+                          <img
+                            src={getOptimizedImageUrl(item.image, {
+                              width: 120,
+                              quality: 70,
+                            })}
+                            alt={item.name}
+                            className="w-[72px] h-[72px] object-cover rounded-xl border border-luxury-100 group-hover:scale-105 transition-transform duration-300 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-[72px] h-[72px] rounded-xl bg-luxury-100 shrink-0" />
+                        )}
 
-                            <div>
-                              <p className="text-luxury-900 font-medium">
-                                {item.name || 'Item'}
-                              </p>
-                              <p className="text-sm text-luxury-600">
-                                Qty: {item.quantity ?? 1}
-                              </p>
-                              <p className="text-sm text-luxury-600">
-                                Selling Price: ₹{Number(item.price || 0).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-
-                          <p className="text-luxury-900 font-semibold">
-                            ₹{Number((item.price || 0) * (item.quantity || 1)).toLocaleString()}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-luxury-900 leading-snug">
+                            {item.name || 'Item'}
+                          </p>
+                          <p className="text-sm text-luxury-500 mt-0.5">
+                            Qty: {item.quantity ?? 1}
+                          </p>
+                          <p className="text-sm text-luxury-600 mt-0.5">
+                            ₹{Number(item.price || 0).toLocaleString()} each
                           </p>
                         </div>
-                      ))}
-                    </div>
+
+                        <p className="font-bold text-luxury-900 text-sm shrink-0">
+                          ₹
+                          {Number(
+                            (item.price || 0) * (item.quantity || 1)
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    ))
                   ) : (
-                    <p className="text-sm text-luxury-600">No items found.</p>
+                    <div className="px-6 py-8 text-center text-luxury-400 text-sm">
+                      No items found.
+                    </div>
                   )}
                 </div>
+              </div>
 
-                <div>
-                  <h2 className="font-semibold text-luxury-900 mb-3 flex items-center gap-2">
-                    <Truck className="w-5 h-5 text-gold-600" />
-                    Shipping & Billing
-                  </h2>
-
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-luxury-500">Address</p>
-                      <p className="text-luxury-900 font-medium">
-                        {formatAddress(order)}
-                      </p>
-
+              {/* Right column: summary + address */}
+              <div className="flex flex-col gap-5">
+                {/* Price breakdown */}
+                <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+                  <div className="px-5 py-4 border-b border-luxury-100">
+                    <h2 className="font-serif text-lg font-bold text-luxury-900">
+                      Order Summary
+                    </h2>
+                  </div>
+                  <div className="px-5 py-4 space-y-3">
+                    <div className="flex justify-between text-sm text-luxury-600">
+                      <span>Subtotal</span>
+                      <span>₹{subtotal.toLocaleString()}</span>
                     </div>
-
-                    <div className="space-y-2 border-t border-luxury-200 pt-4">
-                      {(() => {
-                        // Calculate fallback subtotal from items
-                        const calculatedSubtotal = (order.items || []).reduce(
-                          (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1),
-                          0
-                        );
-
-                        // Prefer persisted values if present, otherwise use calculated values.
-                        const subtotal = order.subtotal != null ? Number(order.subtotal) : calculatedSubtotal;
-                        
-                        const shipping = order.shipping != null 
-                          ? Number(order.shipping) 
-                          : (subtotal > 1000 ? 0 : 99);
-                        
-                        const tax = order.tax != null 
-                          ? Number(order.tax) 
-                          : (order.gst != null ? Number(order.gst) : subtotal * 0.05);
-
-                        const total = order.total != null 
-                          ? Number(order.total) 
-                          : (subtotal + shipping + tax);
-
-                        return (
-                          <>
-                            <div className="flex items-center justify-between text-sm text-luxury-600">
-                              <span>Subtotal</span>
-                              <span>₹{subtotal.toLocaleString()}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm text-luxury-600">
-                              <span>Shipping</span>
-                              <span>
-                                {shipping === 0 ? 'Free' : `₹${shipping.toLocaleString()}`}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm text-luxury-600">
-                              <span>Tax (5%)</span>
-                              <span>₹{tax.toLocaleString()}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-lg font-semibold text-luxury-900 pt-2 border-t border-luxury-200">
-                              <span>Total</span>
-                              <span>₹{total.toLocaleString()}</span>
-                            </div>
-                          </>
-                        );
-                      })()}
+                    <div className="flex justify-between text-sm text-luxury-600">
+                      <span>Shipping</span>
+                      <span
+                        className={
+                          shipping === 0 ? 'text-green-600 font-medium' : ''
+                        }
+                      >
+                        {shipping === 0 ? 'Free' : `₹${shipping.toLocaleString()}`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm text-luxury-600">
+                      <span>Tax (5% GST)</span>
+                      <span>₹{tax.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-luxury-900 text-base pt-3 border-t border-luxury-100">
+                      <span>Total</span>
+                      <span className="text-gradient">
+                        ₹{total.toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
 
+                {/* Shipping address */}
+                <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+                  <div className="px-5 py-4 border-b border-luxury-100 flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-gold-600" />
+                    <h2 className="font-serif text-base font-bold text-luxury-900">
+                      Shipping Address
+                    </h2>
+                  </div>
+                  <div className="px-5 py-4">
+                    <p className="text-sm text-luxury-700 leading-relaxed">
+                      {formatAddress(order)}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -353,4 +489,3 @@ const OrderDetailsPage = () => {
 };
 
 export default OrderDetailsPage;
-

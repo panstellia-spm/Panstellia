@@ -29,12 +29,18 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  // Tracks when auth state is in transition (login/logout/refresh).
+  // AdminRoute waits for this to be false before making access decisions,
+  // preventing the race condition where isAdmin is still false when navigate('/admin') fires.
+  const [roleLoading, setRoleLoading] = useState(true);
 
   // Check for admin emails
   const adminEmails = ['support@panstellia.com']; // Add your admin email here
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // Signal that role is being resolved — guards must wait
+      setRoleLoading(true);
       setUser(currentUser);
       
       if (currentUser) {
@@ -44,19 +50,22 @@ export const AuthProvider = ({ children }) => {
         
         if (userDoc.exists()) {
           setUserData(userDoc.data());
-          // Check if user is admin
-          setIsAdmin(adminEmails.includes(currentUser.email));
         }
+        // Set admin status — works regardless of whether Firestore doc exists
+        setIsAdmin(adminEmails.includes(currentUser.email));
       } else {
         setUserData(null);
         setIsAdmin(false);
       }
       
+      // Role is now definitively resolved — guards can proceed
+      setRoleLoading(false);
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
+
 
   const signup = async (email, password, name) => {
     try {
@@ -86,7 +95,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return { success: true, user: userCredential.user };
+      // Determine admin status immediately so Login.jsx can route without waiting for onAuthStateChanged
+      const isAdminUser = adminEmails.includes(email);
+      return { success: true, user: userCredential.user, isAdmin: isAdminUser };
     } catch (error) {
       throw new Error(error.message);
     }
@@ -114,7 +125,9 @@ export const AuthProvider = ({ children }) => {
         });
       }
 
-      return { success: true, user };
+      // Determine admin status immediately so Login.jsx can route without waiting for onAuthStateChanged
+      const isAdminUser = adminEmails.includes(user.email);
+      return { success: true, user, isAdmin: isAdminUser };
     } catch (error) {
       throw new Error(error.message);
     }
@@ -142,6 +155,7 @@ export const AuthProvider = ({ children }) => {
     user,
     userData,
     loading,
+    roleLoading,
     isAdmin,
     signup,
     login,

@@ -171,7 +171,11 @@ const ProductsPage = () => {
         sorted.sort((a, b) => (b.ratings || 0) - (a.ratings || 0));
         break;
       case 'best-selling':
-        sorted.sort((a, b) => (b.sales || 0) - (a.sales || 0));
+        sorted.sort((a, b) => {
+          const salesA = a.sales ?? ((a.reviews || 0) * 5 + (a.featured ? 20 : 0));
+          const salesB = b.sales ?? ((b.reviews || 0) * 5 + (b.featured ? 20 : 0));
+          return salesB - salesA;
+        });
         break;
       case 'biggest-discount':
         sorted.sort((a, b) => {
@@ -181,11 +185,19 @@ const ProductsPage = () => {
         });
         break;
       case 'trending':
-        sorted.sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0));
+        sorted.sort((a, b) => {
+          const scoreA = a.trendingScore ?? ((a.featured ? 100 : 0) + (a.ratings || 4.5) * 10 + (a.reviews || 0));
+          const scoreB = b.trendingScore ?? ((b.featured ? 100 : 0) + (b.ratings || 4.5) * 10 + (b.reviews || 0));
+          return scoreB - scoreA;
+        });
         break;
       case 'newest':
       default:
-        sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        sorted.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
         break;
     }
 
@@ -216,6 +228,12 @@ const ProductsPage = () => {
     if (searchQuery) params.search = searchQuery;
 
     setSearchParams(params);
+  };
+
+  const clearSearch = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('search');
+    setSearchParams(newParams);
   };
 
   const clearFilters = () => {
@@ -288,31 +306,41 @@ const ProductsPage = () => {
         <h4 className="text-xs font-semibold text-luxury-800 uppercase tracking-wider mb-2">Quick Filters</h4>
         <div className="flex flex-wrap gap-2">
           {[
-            { key: 'trending', label: 'Trending' },
-            { key: 'new-arrivals', label: 'New Arrivals' },
-            { key: 'best-sellers', label: 'Best Sellers' },
-            { key: 'premium', label: 'Premium Collection' },
-            { key: 'under-200', label: 'Under ₹200' }
+            { key: 'trending', label: 'Trending', isActive: filters.sortBy === 'trending' },
+            { key: 'new-arrivals', label: 'New Arrivals', isActive: filters.sortBy === 'newest' },
+            { key: 'best-sellers', label: 'Best Sellers', isActive: filters.sortBy === 'best-selling' },
+            { key: 'under-200', label: 'Under ₹200', isActive: filters.maxPrice === '200' && !filters.minPrice }
           ].map((q) => (
             <button
               key={q.key}
               type="button"
               onClick={() => {
-                if (q.key === 'under-200') {
-                  handleFilterChange('minPrice', '');
-                  handleFilterChange('maxPrice', '200');
-                } else if (q.key === 'premium') {
-                  // map premium to a collection filter
-                  handleFilterChange('category', ['Premium Collection']);
-                } else if (q.key === 'trending') {
-                  handleFilterChange('sortBy', 'trending');
-                } else if (q.key === 'best-sellers') {
-                  handleFilterChange('sortBy', 'best-selling');
-                } else if (q.key === 'new-arrivals') {
-                  handleFilterChange('sortBy', 'newest');
+                if (q.isActive) {
+                  // Toggle off
+                  if (q.key === 'under-200') {
+                    handleFilterChange('maxPrice', '');
+                  } else {
+                    handleFilterChange('sortBy', 'newest');
+                  }
+                } else {
+                  // Toggle on
+                  if (q.key === 'under-200') {
+                    handleFilterChange('minPrice', '');
+                    handleFilterChange('maxPrice', '200');
+                  } else if (q.key === 'trending') {
+                    handleFilterChange('sortBy', 'trending');
+                  } else if (q.key === 'best-sellers') {
+                    handleFilterChange('sortBy', 'best-selling');
+                  } else if (q.key === 'new-arrivals') {
+                    handleFilterChange('sortBy', 'newest');
+                  }
                 }
               }}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all bg-white text-luxury-700 border-luxury-200 hover:border-gold-400 hover:text-gold-600"
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                q.isActive
+                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
+                  : 'bg-white text-luxury-700 border-luxury-200 hover:border-gold-400 hover:text-gold-600'
+              }`}
             >
               {q.label}
             </button>
@@ -379,7 +407,8 @@ const ProductsPage = () => {
                 if (val > maxVal) return;
                 handleFilterChange('minPrice', String(val));
               }}
-              className="absolute left-0 right-0 appearance-none h-1 bg-transparent"
+              className="dual-slider-input"
+              style={{ zIndex: (filters.minPrice && Number(filters.minPrice) > (priceBounds.max - priceBounds.min) / 2) ? 25 : 20 }}
             />
             <input
               type="range"
@@ -392,7 +421,8 @@ const ProductsPage = () => {
                 if (val < minVal) return;
                 handleFilterChange('maxPrice', String(val));
               }}
-              className="absolute left-0 right-0 appearance-none h-1 bg-transparent"
+              className="dual-slider-input"
+              style={{ zIndex: (filters.maxPrice && Number(filters.maxPrice) <= (priceBounds.max - priceBounds.min) / 2) ? 25 : 20 }}
             />
             <div className="w-full h-1 bg-luxury-100 rounded-full" />
             <div
@@ -586,34 +616,99 @@ const ProductsPage = () => {
           <main className="flex-1">
             {/* Active Filter Chips */}
             <div className="mb-4 flex items-center gap-2 flex-wrap">
+              {/* Search Chip */}
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>Search: &quot;{searchQuery}&quot;</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
+              )}
+
               {(filters.category || []).map((c) => (
-                <button key={c} onClick={() => {
-                  const next = (filters.category || []).filter(x => x !== c);
-                  handleFilterChange('category', next);
-                }} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm flex items-center gap-2">
+                <button
+                  key={c}
+                  onClick={() => {
+                    const next = (filters.category || []).filter(x => x !== c);
+                    handleFilterChange('category', next);
+                  }}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
                   <span>{getCategoryLabel(c)}</span>
                   <span className="text-luxury-400">✕</span>
                 </button>
               ))}
 
-              {filters.minPrice && (
-                <button onClick={() => handleFilterChange('minPrice', '')} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">Under ₹{filters.maxPrice || ''} ✕</button>
-              )}
-
-              {filters.maxPrice && !filters.minPrice && (
-                <button onClick={() => handleFilterChange('maxPrice', '')} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">Under ₹{filters.maxPrice} ✕</button>
-              )}
+              {/* Price Range Chips */}
+              {filters.minPrice && filters.maxPrice ? (
+                <button
+                  onClick={() => {
+                    handleFilterChange('minPrice', '');
+                    handleFilterChange('maxPrice', '');
+                  }}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>₹{filters.minPrice} - ₹{filters.maxPrice}</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
+              ) : filters.minPrice ? (
+                <button
+                  onClick={() => handleFilterChange('minPrice', '')}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>≥ ₹{filters.minPrice}</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
+              ) : filters.maxPrice ? (
+                <button
+                  onClick={() => handleFilterChange('maxPrice', '')}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>≤ ₹{filters.maxPrice}</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
+              ) : null}
 
               {filters.discountMin && (
-                <button onClick={() => handleFilterChange('discountMin', '')} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">{filters.discountMin}%+ Off ✕</button>
+                <button
+                  onClick={() => handleFilterChange('discountMin', '')}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>{filters.discountMin}%+ Off</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
               )}
 
               {filters.availability && filters.availability.inStock && (
-                <button onClick={() => handleFilterChange('availability', { inStock: false })} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">In Stock ✕</button>
+                <button
+                  onClick={() => handleFilterChange('availability', { inStock: false })}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>In Stock</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
+              )}
+
+              {filters.availability && filters.availability.outOfStock && (
+                <button
+                  onClick={() => handleFilterChange('availability', { outOfStock: false })}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>Out of Stock</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
               )}
 
               {filters.availability && filters.availability.discounted && (
-                <button onClick={() => handleFilterChange('availability', { discounted: false })} className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-sm text-luxury-700 shadow-sm">Discounted ✕</button>
+                <button
+                  onClick={() => handleFilterChange('availability', { discounted: false })}
+                  className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                >
+                  <span>Discounted</span>
+                  <span className="text-luxury-400">✕</span>
+                </button>
               )}
             </div>
             {loading ? (

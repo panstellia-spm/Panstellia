@@ -13,7 +13,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout/Layout';
 import ScrollToTopOnNavigation from './components/ScrollToTopOnNavigation';
 
-
 // Pages are split by route so the first visit only downloads the active page.
 const HomePage = lazy(() => import('./pages/Home'));
 const ProductsPage = lazy(() => import('./pages/Products'));
@@ -33,9 +32,8 @@ const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsConditionsPage = lazy(() => import('./pages/TermsConditions'));
 const ShippingPolicyPage = lazy(() => import('./pages/ShippingPolicy'));
 const ElegantSparkPage = lazy(() => import('./pages/ElegantSpark'));
+// Added by teammate — custom 404 page
 const NotFoundPage = lazy(() => import('./pages/NotFound'));
-
-
 
 import { useAuth } from './context/AuthContext';
 
@@ -45,41 +43,35 @@ const PageLoader = () => (
   </div>
 );
 
-// Protected Route Component
+// Spinner used by both route guards
+const FullPageSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="w-12 h-12 border-4 border-gold-500 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
+
+// Protected Route Component — requires any authenticated user
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-gold-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
+
+  if (loading) return <FullPageSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+
   return children;
 };
 
-// Admin Route Component
+// Admin Route Component — requires authenticated admin user
+// Uses BOTH `loading` (initial auth check) and `roleLoading` (Firestore role fetch).
+// This fixes the race condition: navigate('/admin') fires from Login.jsx before
+// onAuthStateChanged has completed the Firestore lookup, so isAdmin is still false.
+// By waiting for roleLoading, AdminRoute shows a spinner during that brief window
+// instead of immediately redirecting back to '/'.
 const AdminRoute = ({ children }) => {
-  const { user, isAdmin, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-gold-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-  
-  if (!user || !isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-  
+  const { user, isAdmin, loading, roleLoading } = useAuth();
+
+  if (loading || roleLoading) return <FullPageSpinner />;
+  if (!user || !isAdmin) return <Navigate to="/" replace />;
+
   return children;
 };
 
@@ -90,99 +82,95 @@ function App() {
         <BrowserRouter>
           <ScrollToTopOnNavigation />
           <AuthProvider>
-
             <ProductProvider>
               <CartProvider>
                 <WishlistProvider>
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Layout />}>
-                    <Route index element={<HomePage />} />
-                    <Route path="products" element={<ProductsPage />} />
-                    <Route path="category/elegant-spark" element={<ElegantSparkPage />} />
-                    <Route path="product/:id" element={<ProductDetailPage />} />
-                    <Route path="login" element={<LoginPage />} />
-                    <Route path="signup" element={<SignupPage />} />
-                    <Route path="forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="cart" element={<CartPage />} />
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route path="/" element={<Layout />}>
+                        <Route index element={<HomePage />} />
+                        <Route path="products" element={<ProductsPage />} />
+                        <Route path="category/elegant-spark" element={<ElegantSparkPage />} />
+                        <Route path="product/:id" element={<ProductDetailPage />} />
+                        <Route path="login" element={<LoginPage />} />
+                        <Route path="signup" element={<SignupPage />} />
+                        <Route path="forgot-password" element={<ForgotPasswordPage />} />
+                        <Route path="cart" element={<CartPage />} />
+                        <Route path="wishlist" element={<WishlistPage />} />
+                        <Route path="about-us" element={<AboutUsPage />} />
+                        <Route path="privacy" element={<PrivacyPolicyPage />} />
+                        <Route path="terms" element={<TermsConditionsPage />} />
+                        <Route path="shipping" element={<ShippingPolicyPage />} />
 
-                    <Route path="wishlist" element={<WishlistPage />} />
-                    <Route path="about-us" element={<AboutUsPage />} />
-                    <Route path="privacy" element={<PrivacyPolicyPage />} />
-                    <Route path="terms" element={<TermsConditionsPage />} />
-                    <Route path="shipping" element={<ShippingPolicyPage />} />
-                    
-                    {/* Protected Routes */}
-                    <Route 
-                      path="checkout" 
-                      element={
-                        <ProtectedRoute>
-                          <CheckoutPage />
-                        </ProtectedRoute>
-                      } 
-                    />
+                        {/* Protected Routes (any logged-in user) */}
+                        <Route
+                          path="checkout"
+                          element={
+                            <ProtectedRoute>
+                              <CheckoutPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="orders"
+                          element={
+                            <ProtectedRoute>
+                              <OrdersPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="order/:id"
+                          element={
+                            <ProtectedRoute>
+                              <OrderDetailsPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="order-success"
+                          element={
+                            <ProtectedRoute>
+                              <OrderSuccessPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                    <Route 
-                      path="orders" 
-                      element={
-                        <ProtectedRoute>
-                          <OrdersPage />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="order/:id"
-                      element={
-                        <ProtectedRoute>
-                          <OrderDetailsPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route 
-                      path="order-success"
-                      element={
-                        <ProtectedRoute>
-                          <OrderSuccessPage />
-                        </ProtectedRoute>
-                      }
-                    />
+                        {/* Admin Routes (admin only) */}
+                        <Route
+                          path="admin/*"
+                          element={
+                            <AdminRoute>
+                              <AdminRouter />
+                            </AdminRoute>
+                          }
+                        />
+                      </Route>
 
-                    
-                    {/* Admin Routes */}
-                    <Route 
-                      path="admin/*" 
-                      element={
-                        <AdminRoute>
-                          <AdminRouter />
-                        </AdminRoute>
-                      } 
-                    />
-                  </Route>
-                  
-                  {/* Catch all - 404 page */}
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-              </Suspense>
-            </WishlistProvider>
-          </CartProvider>
-        </ProductProvider>
-      </AuthProvider>
-      
-      {/* Toast Notifications */}
-      <ToastContainer
-        position="bottom-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
-    </BrowserRouter>
+                      {/* Catch all — custom 404 page */}
+                      <Route path="*" element={<NotFoundPage />} />
+                    </Routes>
+                  </Suspense>
+                </WishlistProvider>
+              </CartProvider>
+            </ProductProvider>
+          </AuthProvider>
+
+          {/* Toast Notifications */}
+          <ToastContainer
+            position="bottom-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
+        </BrowserRouter>
       </HelmetProvider>
     </ErrorBoundary>
   );
