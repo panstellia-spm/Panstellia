@@ -26,6 +26,7 @@ export const sendCustomerOrderConfirmation = async (orderData) => {
     const {
       customerName,
       customerEmail,
+      customerPhone,
       productName,
       quantity,
       totalAmount,
