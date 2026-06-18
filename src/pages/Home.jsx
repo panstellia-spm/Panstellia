@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, Star, Truck, Shield, RefreshCw, ChevronLeft, ChevronRight, BadgePercent, Gift, ShoppingBag, LayoutGrid } from 'lucide-react';
+import { Sparkles, ArrowRight, Star, Truck, Shield, RefreshCw, ChevronLeft, ChevronRight, BadgePercent, Gift } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/UI/ProductCard';
 import OptimizedImage from '../components/UI/OptimizedImage';
+import ClientReviews from '../components/UI/ClientReviews';
+import CustomerFeedback from '../components/UI/CustomerFeedback';
 import SEOHelmet from '../utils/seoHelmet';
 import { getOrganizationSchema } from '../utils/structuredData';
 import { getCategoryLabel } from '../utils/categoryLabels';
@@ -72,14 +74,12 @@ const HomePage = () => {
     {
       name: 'Gold',
       image: getOptimizedImageUrl('https://i.ibb.co/4gRy3WYW/Use-AI-Image-May-19-2026-13-21-30.png', { width: 600 }),
-      count: products.filter(p => p.category === 'Gold').length,
-      status: 'Launching Soon'
+      count: products.filter(p => p.category === 'Gold').length
     },
     {
       name: 'Silver',
       image: getOptimizedImageUrl('https://i.ibb.co/p6W1S5xB/1000092270-ezremove.png', { width: 600 }),
-      count: products.filter(p => p.category === 'Silver').length,
-      status: 'Launching Soon'
+      count: products.filter(p => p.category === 'Silver').length
     },
     {
       name: 'Lux Wear',
@@ -228,10 +228,7 @@ const HomePage = () => {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="max-w-xl text-left"
           >
-            <div className="inline-flex items-center px-4 py-2 bg-gold-500/20 border border-gold-500/35 rounded-full text-gold-300 text-xs font-semibold uppercase tracking-wider mb-6">
-              <Sparkles className="w-3.5 h-3.5 mr-2 text-gold-400" />
-              New Collection 2026
-            </div>
+
             <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight">
               Wear Your Story
             </h1>
@@ -239,16 +236,15 @@ const HomePage = () => {
               Handcrafted luxury necklaces for every occasion
             </p>
             <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Link to="/products" className="btn-primary inline-flex items-center justify-center py-3 px-8 text-sm bg-gold-500 hover:bg-gold-600 text-white rounded-lg font-semibold transition-colors duration-300">
-                <ShoppingBag className="w-4 h-4 mr-2" />
-                Shop All Products
+              <Link to="/products" className="btn-primary inline-flex items-center justify-center py-3 px-8 text-sm">
+                Shop Now
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
               <Link 
                 to="/products?category=Lux%20Wear" 
-                className="border-2 border-white text-white py-3 px-6 rounded-lg font-semibold hover:bg-white/10 transition-colors duration-300 inline-flex items-center justify-center text-sm"
+                className="border-2 border-white text-white py-3 px-6 rounded-lg font-semibold hover:bg-white hover:text-luxury-900 transition-colors duration-300 inline-flex items-center justify-center text-sm"
               >
-                <LayoutGrid className="w-4 h-4 mr-2" />
-                View Elite Series
+                Explore Collections
               </Link>
             </div>
           </motion.div>
@@ -378,7 +374,7 @@ const HomePage = () => {
                   
                   {/* Category count badge */}
                   <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-luxury-900 text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow-sm">
-                    {category.status || `${category.count} items`}
+                    {category.count} items
                   </span>
 
                   <div className="absolute bottom-0 left-0 right-0 p-4 z-10 text-center">
@@ -392,6 +388,8 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+
+      
 
       {/* Featured Bestsellers Section */}
       <section className="py-16 bg-white">
@@ -444,6 +442,16 @@ const HomePage = () => {
               <ArrowRight className="w-5 h-5 ml-2" />
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Client Reviews Section */}
+      <ClientReviews />
+
+      {/* Customer Feedback Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <CustomerFeedback />
         </div>
       </section>
 
