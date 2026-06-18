@@ -24,8 +24,7 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
-  const [isZooming, setIsZooming] = useState(false);
-  const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 });
+
   const [openAccordion, setOpenAccordion] = useState(0); // Default to first open
 
   const touchStartXRef = useRef(null);
@@ -131,16 +130,7 @@ const ProductDetailPage = () => {
     }
   };
 
-  const handleZoomMove = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
 
-    setZoomPosition({
-      x: Math.min(100, Math.max(0, x)),
-      y: Math.min(100, Math.max(0, y))
-    });
-  };
 
   const toggleAccordion = (index) => {
     setOpenAccordion(openAccordion === index ? null : index);
@@ -212,10 +202,7 @@ const ProductDetailPage = () => {
             {/* Main Image Stage */}
             <div className="order-1 md:order-2 flex-1 relative bg-white rounded-xl shadow-md border border-luxury-100 overflow-hidden aspect-[4/5]">
               <div
-                className="w-full h-full relative cursor-crosshair overflow-hidden group"
-                onMouseEnter={() => setIsZooming(true)}
-                onMouseLeave={() => setIsZooming(false)}
-                onMouseMove={handleZoomMove}
+                className="w-full h-full relative overflow-hidden group"
                 onTouchStart={(e) => {
                   touchStartXRef.current = e.touches?.[0]?.clientX ?? null;
                 }}
@@ -248,11 +235,7 @@ const ProductDetailPage = () => {
                       src={imageUrl}
                       alt={product.name}
                       priority={true}
-                      className={`w-full h-full object-cover transition-transform duration-300`}
-                      style={{
-                        transform: isZooming ? 'scale(1.2)' : 'scale(1)',
-                        transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`
-                      }}
+                      className="w-full h-full object-cover"
                     />
                   </motion.div>
                 </AnimatePresence>
@@ -263,15 +246,7 @@ const ProductDetailPage = () => {
                   </div>
                 )}
 
-                {isZooming && (
-                  <div
-                    className="hidden lg:block absolute z-20 w-40 h-40 -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/25 shadow-lg backdrop-blur-[1px] pointer-events-none"
-                    style={{
-                      left: `${zoomPosition.x}%`,
-                      top: `${zoomPosition.y}%`
-                    }}
-                  />
-                )}
+
 
                 {/* Arrow Controls */}
                 {imageUrls.length > 1 && (
@@ -305,18 +280,7 @@ const ProductDetailPage = () => {
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-tr from-gold-500/5 via-transparent to-gold-600/5" />
               </div>
 
-              {/* Side zoom preview (Desktop) */}
-              {isZooming && (
-                <div
-                  className="hidden lg:block absolute left-full top-0 ml-4 z-30 w-full h-full rounded-xl border border-luxury-100 bg-white shadow-2xl pointer-events-none"
-                  style={{
-                    backgroundImage: `url(${imageUrl})`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundSize: '220%',
-                    backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`
-                  }}
-                />
-              )}
+
             </div>
           </div>
 
