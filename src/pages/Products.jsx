@@ -28,7 +28,7 @@ const ProductsPage = () => {
   const minPriceQuery = searchParams.get('minPrice') || '';
   const maxPriceQuery = searchParams.get('maxPrice') || '';
   const sortByQuery = searchParams.get('sortBy') || 'newest';
-  
+
   // Filters state: category is an array (multi-select). Empty array means all categories
   const [filters, setFilters] = useState({
     category: categoryQuery ? categoryQuery.split(',') : [],
@@ -336,11 +336,10 @@ const ProductsPage = () => {
                   }
                 }
               }}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                q.isActive
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${q.isActive
                   ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
                   : 'bg-white text-luxury-700 border-luxury-200 hover:border-gold-400 hover:text-gold-600'
-              }`}
+                }`}
             >
               {q.label}
             </button>
@@ -460,7 +459,7 @@ const ProductsPage = () => {
       <div className="mb-6">
         <h3 className="text-xs font-bold text-luxury-800 uppercase tracking-wider mb-3">Discount</h3>
         <div className="flex flex-wrap gap-2">
-          {[10,20,30,50].map((d) => (
+          {[10, 20, 30, 50].map((d) => (
             <button
               key={d}
               onClick={() => handleFilterChange('discountMin', filters.discountMin === String(d) ? '' : String(d))}
@@ -491,13 +490,13 @@ const ProductsPage = () => {
 
   return (
     <div className="min-h-screen bg-luxury-50 py-8">
-      <SEOHelmet 
+      <SEOHelmet
         title={`${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]) : 'All'} Necklaces | Panstellia`}
         description={`Browse our ${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]).toLowerCase() : 'complete collection of'} necklace jewelry. Premium quality designs for every occasion.`}
         keywords={`${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]).toLowerCase() + ' necklaces' : 'necklaces'}, jewelry, luxury jewelry`}
         canonical={`https://panstellia.com/products${(filters.category && filters.category.length === 1) ? `?category=${filters.category[0]}` : ''}`}
       />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 md:mt-8">
         {/* Breadcrumb Trail */}
         <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-luxury-400 mb-6">
@@ -516,7 +515,7 @@ const ProductsPage = () => {
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="font-serif text-3xl md:text-4xl font-bold text-luxury-900 leading-tight">
-              {(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]) : (filters.category && filters.category.length > 1 ? 'Filtered Products' : 'All Products') }
+              {(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]) : (filters.category && filters.category.length > 1 ? 'Filtered Products' : 'All Products')}
             </h1>
             <p className="mt-2 text-xs text-luxury-500 font-medium">
               {filteredProducts.length} items found
@@ -734,15 +733,14 @@ const ProductsPage = () => {
                 </button>
               </div>
             ) : (
-              <motion.div 
+              <motion.div
                 variants={gridContainerVariants}
                 initial="hidden"
                 animate="visible"
-                className={`grid gap-4 sm:gap-6 ${
-                  viewMode === 'grid' 
-                    ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' 
+                className={`grid gap-4 sm:gap-6 ${viewMode === 'grid'
+                    ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
                     : 'grid-cols-1 sm:grid-cols-2'
-                }`}
+                  }`}
               >
                 {filteredProducts.map((product, index) => (
                   <motion.div
