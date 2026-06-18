@@ -9,11 +9,16 @@ const ScrollToTopOnNavigation = () => {
   const location = useLocation();
 
   useEffect(() => {
+    // Skip scroll reset if state explicitly requests it (e.g. on in-page filter changes)
+    if (location.state?.preventScroll) {
+      return;
+    }
+
     // Use rAF so DOM/layout for the new route is committed.
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     });
-  }, [location.pathname, location.search, location.hash]);
+  }, [location.pathname, location.search, location.hash, location.state]);
 
   return null;
 };

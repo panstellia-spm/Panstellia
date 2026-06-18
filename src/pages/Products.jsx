@@ -227,13 +227,13 @@ const ProductsPage = () => {
     if (newFilters.discountMin) params.discountMin = String(newFilters.discountMin);
     if (searchQuery) params.search = searchQuery;
 
-    setSearchParams(params);
+    setSearchParams(params, { replace: true, state: { preventScroll: true } });
   };
 
   const clearSearch = () => {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('search');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true, state: { preventScroll: true } });
   };
 
   const clearFilters = () => {
@@ -245,7 +245,7 @@ const ProductsPage = () => {
       availability: { inStock: false, outOfStock: false, discounted: false },
       discountMin: ''
     });
-    setSearchParams(searchQuery ? { search: searchQuery } : {});
+    setSearchParams(searchQuery ? { search: searchQuery } : {}, { replace: true, state: { preventScroll: true } });
   };
 
   const activeFiltersCount = [
