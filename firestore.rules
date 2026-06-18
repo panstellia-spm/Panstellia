@@ -132,6 +132,35 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ─── Order Notes Collection ───────────────────────────────────────────────
+    // Internal admin notes per order
+    match /order_notes/{noteId} {
+      // Only admins can read, create, delete notes
+      allow read: if isAdminUser();
+      allow create: if isAdminUser() &&
+        request.resource.data.keys().hasAll(['orderId', 'note', 'adminId', 'adminName', 'createdAt']);
+      // Notes are immutable after creation
+      allow update: if false;
+      allow delete: if isAdminUser();
+    }
+
+    // ─── Fulfillment Logs Collection ──────────────────────────────────────────
+    match /fulfillmentLogs/{logId} {
+      allow read: if isAdminUser();
+      allow create: if isAdminUser() &&
+        request.resource.data.keys().hasAll(['orderId', 'adminId', 'adminName', 'action', 'timestamp']);
+      allow update, delete: if false;
+    }
+
+    // ─── Shipments Collection ─────────────────────────────────────────────────
+    match /shipments/{shipmentId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdminUser());
+      allow create: if isAdminUser() &&
+        request.resource.data.keys().hasAll(['orderId', 'userId', 'courierName', 'trackingNumber', 'shippedAt']);
+      allow update: if isAdminUser();
+      allow delete: if false;
+    }
+
     // ─── Default: Deny Everything Else ──────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

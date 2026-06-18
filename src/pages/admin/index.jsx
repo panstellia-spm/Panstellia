@@ -3,6 +3,11 @@ import { Suspense } from 'react';
 import AdminLayout from './AdminLayout';
 import AdminDashboard from './AdminDashboard';
 import AdminOrders from './AdminOrders';
+import AdminOrderDetail from './AdminOrderDetail';
+import AdminFulfillment from './AdminFulfillment';
+import AdminShipping from './AdminShipping';
+import AdminDelayed from './AdminDelayed';
+import AdminOrderAnalytics from './AdminOrderAnalytics';
 import AdminProducts from './AdminProducts';
 import AdminInventory from './AdminInventory';
 import AdminCustomers from './AdminCustomers';
@@ -27,11 +32,29 @@ export default function AdminRouter() {
     <AdminLayout>
       <Suspense fallback={<AdminPageLoader />}>
         <Routes>
+          {/* Dashboard */}
           <Route index element={<AdminDashboard />} />
+
+          {/* Order Management */}
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="orders/:id" element={<AdminOrderDetail />} />
+
+          {/* Fulfillment Operations */}
+          <Route path="fulfillment" element={<AdminFulfillment />} />
+          <Route path="shipping" element={<AdminShipping />} />
+          <Route path="delayed" element={<AdminDelayed />} />
+
+          {/* Intelligence */}
+          <Route path="order-analytics" element={<AdminOrderAnalytics />} />
+
+          {/* Catalog */}
           <Route path="products" element={<AdminProducts />} />
           <Route path="inventory" element={<AdminInventory />} />
+
+          {/* Customers */}
           <Route path="customers" element={<AdminCustomers />} />
+
+          {/* Revenue & Reports */}
           <Route path="revenue" element={
             <div className="max-w-[1400px]">
               <div className="mb-6">
@@ -50,7 +73,11 @@ export default function AdminRouter() {
               <ReportsAdmin />
             </div>
           } />
+
+          {/* System */}
           <Route path="logs" element={<AdminActivityLogs />} />
+
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </Suspense>

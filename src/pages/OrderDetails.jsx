@@ -9,14 +9,16 @@ import {
   Calendar,
   Hash,
   ShieldCheck,
+  Navigation,
 } from 'lucide-react';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where } from 'firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
 import { db } from '../services/firebase';
 import SEOHelmet from '../utils/seoHelmet';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import OrderTimeline, { StatusBadge } from '../components/UI/OrderTimeline';
+import { subscribeToOrder } from '../services/orderTracking';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -83,109 +85,72 @@ const OrderDetailsPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchOrder = async () => {
-      if (!user || !id) return;
+    if (!user || !id) return;
+    setLoading(true);
+    setError(null);
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        // 1a) Direct document fetch from `orders` collection
-        const orderDocRef = doc(db, 'orders', id);
-        const orderDocSnap = await getDoc(orderDocRef);
-
-        if (orderDocSnap.exists()) {
-          const data = orderDocSnap.data();
-          if (data.userId === user.uid) {
-            setOrder({ id: orderDocSnap.id, ...data });
-            return;
+    // Try direct real-time subscription first
+    const unsub = subscribeToOrder(id, (data, err) => {
+      if (data && data.userId === user.uid) {
+        setOrder(data);
+        setLoading(false);
+        return;
+      }
+      // If not found via direct ID, fall back to query
+      if (!data && !err) {
+        // Order not found via direct ID — try fallback queries
+        const fetchFallback = async () => {
+          try {
+            // Query by orderId field in orders
+            const ordersRef = collection(db, 'orders');
+            const qOrders = query(ordersRef, where('userId', '==', user.uid), where('orderId', '==', id));
+            const snapOrders = await getDocs(qOrders);
+            if (!snapOrders.empty) {
+              const d = snapOrders.docs[0];
+              setOrder({ id: d.id, ...d.data() });
+              setLoading(false);
+              return;
+            }
+            // Fallback: payments collection
+            const paymentsRef = collection(db, 'payments');
+            const qPayments = query(paymentsRef, where('userId', '==', user.uid), where('orderId', '==', id));
+            const snapPayments = await getDocs(qPayments);
+            if (!snapPayments.empty) {
+              const d = snapPayments.docs[0];
+              const pdata = d.data();
+              setOrder({
+                id: d.id,
+                status: pdata.status || pdata.paymentStatus || 'processing',
+                total: pdata.amount ? Number(pdata.amount) / 100 : pdata.total,
+                items: pdata.items || [],
+                paymentMethod: pdata.paymentMethod,
+                paymentStatus: pdata.paymentStatus,
+                address: pdata.shippingAddress,
+                city: pdata.shippingCity,
+                state: pdata.shippingState,
+                pincode: pdata.shippingPincode,
+                shipping: pdata.shipping,
+                tax: pdata.tax || pdata.gst,
+                gst: pdata.gst,
+                createdAt: pdata.createdAt,
+              });
+            } else {
+              setOrder(null);
+            }
+          } catch (e) {
+            setError(e);
+          } finally {
+            setLoading(false);
           }
-        }
-
-        // 1b) Query `orders` collection by `orderId` field
-        const ordersRef = collection(db, 'orders');
-        const qOrders = query(
-          ordersRef,
-          where('userId', '==', user.uid),
-          where('orderId', '==', id)
-        );
-        const snapOrders = await getDocs(qOrders);
-
-        if (!snapOrders.empty) {
-          const d = snapOrders.docs[0];
-          setOrder({ id: d.id, ...d.data() });
-          return;
-        }
-
-        // 2a) Fallback: direct document fetch from `payments` collection
-        const paymentDocRef = doc(db, 'payments', id);
-        const paymentDocSnap = await getDoc(paymentDocRef);
-
-        if (paymentDocSnap.exists()) {
-          const data = paymentDocSnap.data();
-          if (data.userId === user.uid) {
-            setOrder({
-              id: paymentDocSnap.id,
-              status: data.status || data.paymentStatus || 'processing',
-              total: data.amount ? Number(data.amount) / 100 : data.total,
-              items: data.items || [],
-              paymentMethod: data.paymentMethod,
-              paymentStatus: data.paymentStatus,
-              address: data.shippingAddress,
-              city: data.shippingCity,
-              state: data.shippingState,
-              pincode: data.shippingPincode,
-              shipping: data.shipping,
-              tax: data.tax || data.gst,
-              gst: data.gst,
-              createdAt: data.createdAt,
-            });
-            return;
-          }
-        }
-
-        // 2b) Query `payments` collection by `orderId` field
-        const paymentsRef = collection(db, 'payments');
-        const qPayments = query(
-          paymentsRef,
-          where('userId', '==', user.uid),
-          where('orderId', '==', id)
-        );
-        const snapPayments = await getDocs(qPayments);
-
-        if (!snapPayments.empty) {
-          const d = snapPayments.docs[0];
-          const data = d.data();
-          setOrder({
-            id: d.id,
-            status: data.status || data.paymentStatus || 'processing',
-            total: data.amount ? Number(data.amount) / 100 : data.total,
-            items: data.items || [],
-            paymentMethod: data.paymentMethod,
-            paymentStatus: data.paymentStatus,
-            address: data.shippingAddress,
-            city: data.shippingCity,
-            state: data.shippingState,
-            pincode: data.shippingPincode,
-            shipping: data.shipping,
-            tax: data.tax || data.gst,
-            gst: data.gst,
-            createdAt: data.createdAt,
-          });
-          return;
-        }
-
-        setOrder(null);
-      } catch (e) {
-        console.error('Error fetching order:', e);
-        setError(e);
-        setOrder(null);
-      } finally {
+        };
+        fetchFallback();
+      } else if (err) {
+        setError(err);
         setLoading(false);
       }
-    };
+    });
 
-    fetchOrder();
+    return unsub;
   }, [user, id]);
 
   // ── Derived values ────────────────────────────────────────────────────────
@@ -343,16 +308,20 @@ const OrderDetailsPage = () => {
                     <h2 className="font-serif text-lg font-bold text-luxury-900">
                       Order Tracking
                     </h2>
-                    <span className="ml-auto text-xs text-luxury-400">
-                      Refresh page to see latest updates
-                    </span>
+                    <Link
+                      to={`/order/${id}/track`}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gold-500 text-white text-xs font-bold hover:bg-gold-600 transition-colors"
+                    >
+                      <Navigation className="w-3.5 h-3.5" />
+                      Live Tracking
+                    </Link>
                   </div>
                   {/*
                     OrderTimeline receives the raw status string directly from
                     Firestore — the same string the admin wrote.
                     No mapping, no transformation.
                   */}
-                  <OrderTimeline status={rawStatus} />
+                  <OrderTimeline status={rawStatus} statusHistory={order?.statusHistory || []} />
                 </div>
               </div>
             )}

@@ -18,6 +18,10 @@ import {
   Settings,
   AlertTriangle,
   Activity,
+  Truck,
+  Clock,
+  TrendingUp,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +38,9 @@ const NAV_GROUPS = [
     label: 'Operations',
     items: [
       { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+      { to: '/admin/fulfillment', label: 'Fulfillment', icon: Zap },
+      { to: '/admin/shipping', label: 'Shipping', icon: Truck },
+      { to: '/admin/delayed', label: 'Delayed Orders', icon: Clock, alert: true },
       { to: '/admin/inventory', label: 'Inventory', icon: Warehouse },
     ],
   },
@@ -47,6 +54,7 @@ const NAV_GROUPS = [
     label: 'Intelligence',
     items: [
       { to: '/admin/customers', label: 'Customers', icon: Users },
+      { to: '/admin/order-analytics', label: 'Order Analytics', icon: TrendingUp },
       { to: '/admin/revenue', label: 'Revenue', icon: DollarSign },
       { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
     ],
@@ -78,11 +86,16 @@ function SidebarNavItem({ item, collapsed }) {
         }
       `}
     >
-      <item.icon
-        className={`flex-shrink-0 w-5 h-5 transition-colors ${isActive ? 'text-gold-600' : 'text-luxury-500 group-hover:text-luxury-700'}`}
-      />
+      <div className="relative flex-shrink-0">
+        <item.icon
+          className={`w-5 h-5 transition-colors ${isActive ? 'text-gold-600' : 'text-luxury-500 group-hover:text-luxury-700'}`}
+        />
+        {item.alert && (
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
+        )}
+      </div>
       {!collapsed && (
-        <span className="truncate">{item.label}</span>
+        <span className="truncate flex-1">{item.label}</span>
       )}
       {isActive && !collapsed && (
         <span className="ml-auto w-1.5 h-1.5 rounded-full bg-gold-500" />
@@ -101,6 +114,7 @@ function SidebarNavItem({ item, collapsed }) {
     </NavLink>
   );
 }
+
 
 export default function AdminLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);

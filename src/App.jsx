@@ -32,6 +32,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsConditionsPage = lazy(() => import('./pages/TermsConditions'));
 const ShippingPolicyPage = lazy(() => import('./pages/ShippingPolicy'));
 const ElegantSparkPage = lazy(() => import('./pages/ElegantSpark'));
+const TrackOrderPage = lazy(() => import('./pages/TrackOrder'));
 // Added by teammate — custom 404 page
 const NotFoundPage = lazy(() => import('./pages/NotFound'));
 
@@ -125,6 +126,14 @@ function App() {
                           element={
                             <ProtectedRoute>
                               <OrderDetailsPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="order/:id/track"
+                          element={
+                            <ProtectedRoute>
+                              <TrackOrderPage />
                             </ProtectedRoute>
                           }
                         />
