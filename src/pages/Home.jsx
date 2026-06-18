@@ -20,7 +20,7 @@ const HomePage = () => {
   const [newsletterEmail, setNewsletterEmail] = useState('');
 
   const RAW_HERO_IMAGES = [
-    'https://i.ibb.co/svsgC1qD/file-000000007ee87208b4727ab98f280ef7.png',
+    'https://i.ibb.co/wFKPsvF3/file-0000000067f871faa8219b12c171e65f.png',
     'https://i.ibb.co/FbBwVw0x/file-000000001d907208abea67f9c539d069.png',
     'https://i.ibb.co/HTxTW4Mc/file-00000000f23871fabbbf324fd6b04d95.png',
     'https://i.ibb.co/tM3wvGWN/file-00000000996072079f2b1c3a294c96b1.png',
@@ -44,7 +44,7 @@ const HomePage = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % collectionImages.length);
-    }, 5000);
+    }, 3500);
     return () => clearInterval(interval);
   }, [collectionImages.length]);
 
@@ -63,10 +63,10 @@ const HomePage = () => {
           if (document.head.contains(preloadLink)) {
             document.head.removeChild(preloadLink);
           }
-        }, 8000);
+        }, 4000);
         return nextIndex;
       });
-    }, 5000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [heroImages]);
 
@@ -214,6 +214,7 @@ const HomePage = () => {
                 alt={`Featured Necklace ${index + 1}`}
                 priority={index === 0}
                 className="absolute inset-0 w-full h-full"
+                imgClassName="object-cover object-center md:object-cover md:object-right"
               />
             </motion.div>
           ))}

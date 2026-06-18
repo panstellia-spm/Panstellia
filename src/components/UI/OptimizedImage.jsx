@@ -16,6 +16,7 @@ const OptimizedImage = ({
   width,
   height,
   className = '',
+  imgClassName = 'object-cover',
   priority = false,
   fallbackSrc = null,
   onClick,
@@ -102,7 +103,7 @@ const OptimizedImage = ({
           src={blurSrc}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover scale-110 blur-sm"
+          className={`absolute inset-0 w-full h-full scale-110 blur-sm ${imgClassName}`}
         />
       )}
 
@@ -118,7 +119,7 @@ const OptimizedImage = ({
           height={height}
           onLoad={() => setIsLoaded(true)}
           onError={handleError}
-          className={`w-full h-full object-cover transition-opacity duration-500
+          className={`w-full h-full transition-opacity duration-500 ${imgClassName}
             ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         />
       )}
