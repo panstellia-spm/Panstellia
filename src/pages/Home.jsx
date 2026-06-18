@@ -27,7 +27,7 @@ const HomePage = () => {
     'https://i.ibb.co/5WhvJJwq/file-00000000ca2471fa9a25e61fd0fccb26.png',
   ];
   const heroImages = RAW_HERO_IMAGES.map((url) =>
-    getOptimizedImageUrl(url, { width: 1400, quality: 85 })
+    getOptimizedImageUrl(url, { width: 1920, quality: 90 })
   );
 
   const RAW_COLLECTION_IMAGES = [
@@ -214,7 +214,7 @@ const HomePage = () => {
                 alt={`Featured Necklace ${index + 1}`}
                 priority={index === 0}
                 className="absolute inset-0 w-full h-full"
-                imgClassName="object-cover object-center md:object-cover md:object-right"
+                imgClassName="object-cover object-right"
               />
             </motion.div>
           ))}

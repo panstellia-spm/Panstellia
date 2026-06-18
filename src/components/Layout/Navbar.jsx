@@ -254,6 +254,9 @@ const Navbar = () => {
                           </span>
                         )}
                       </div>
+                      <Link to="/profile" className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors">
+                        My Profile
+                      </Link>
                       <Link to="/orders" className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors">
                         My Orders
                       </Link>
@@ -372,6 +375,13 @@ const Navbar = () => {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
+                    <Link 
+                      to="/profile" 
+                      onClick={() => setIsOpen(false)} 
+                      className="text-xs text-luxury-700 hover:text-gold-500 font-medium py-1"
+                    >
+                      My Profile
+                    </Link>
                     <Link 
                       to="/orders" 
                       onClick={() => setIsOpen(false)} 

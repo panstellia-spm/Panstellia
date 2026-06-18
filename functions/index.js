@@ -217,6 +217,10 @@ function sanitizeAddress(address) {
     city: String(address?.city || "").slice(0, 120),
     state: String(address?.state || "").slice(0, 120),
     pincode: String(address?.pincode || "").slice(0, 20),
+    apartment: address?.apartment ? String(address.apartment).slice(0, 120) : "",
+    landmark: address?.landmark ? String(address.landmark).slice(0, 120) : "",
+    country: address?.country ? String(address.country).slice(0, 120) : "",
+    addressLabel: address?.addressLabel ? String(address.addressLabel).slice(0, 50) : "",
   };
 }
 
@@ -416,6 +420,10 @@ async function createOrderHandler(req, res) {
         city: addressInfo.city,
         state: addressInfo.state,
         pincode: addressInfo.pincode,
+        apartment: addressInfo.apartment || "",
+        landmark: addressInfo.landmark || "",
+        country: addressInfo.country || "",
+        addressLabel: addressInfo.addressLabel || "",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };

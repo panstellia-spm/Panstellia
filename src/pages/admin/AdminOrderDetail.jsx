@@ -706,13 +706,27 @@ export default function AdminOrderDetail() {
             <InfoRow label="Name" value={order.customerName || order.name} />
             <InfoRow label="Phone" value={order.phone || order.mobile || order.customerPhone} />
             <InfoRow label="Email" value={order.email || order.customerEmail} />
-            <InfoRow label="User ID" value={order.userId?.slice(0, 12)} mono />
+            <InfoRow label="User ID" value={order.userId} mono copy />
           </Section>
 
           {/* Shipping Address */}
           <Section title="Shipping Address" icon={MapPin} iconColor="text-orange-500">
-            <div className="text-sm text-luxury-700 leading-relaxed">
-              {[order.address, order.city, order.state, order.pincode].filter(Boolean).join(', ') || 'No address saved'}
+            <div className="text-sm text-luxury-700 leading-relaxed text-left space-y-1">
+              {order.addressLabel && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-orange-50 text-orange-700 border border-orange-200/50 mb-2">
+                  {order.addressLabel}
+                </span>
+              )}
+              <p className="font-bold text-luxury-900">{order.customerName || order.name}</p>
+              <p className="text-xs text-luxury-500">{order.phone || order.mobile || order.customerPhone}</p>
+              <p className="text-sm text-luxury-800">
+                {order.address}
+                {order.apartment && <span className="block">{order.apartment}</span>}
+                {order.landmark && <span className="block text-xs text-luxury-500 font-normal">Landmark: {order.landmark}</span>}
+                <span className="block">
+                  {[order.city, order.state, order.country].filter(Boolean).join(', ')} - {order.pincode}
+                </span>
+              </p>
             </div>
           </Section>
 

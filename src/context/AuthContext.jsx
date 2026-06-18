@@ -9,7 +9,7 @@ import {
   GoogleAuthProvider,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 
 const googleProvider = new GoogleAuthProvider();
@@ -38,19 +38,31 @@ export const AuthProvider = ({ children }) => {
   const adminEmails = ['support@panstellia.com']; // Add your admin email here
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let unsubscribeUserSnapshot = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       // Signal that role is being resolved — guards must wait
       setRoleLoading(true);
       setUser(currentUser);
       
+      if (unsubscribeUserSnapshot) {
+        unsubscribeUserSnapshot();
+        unsubscribeUserSnapshot = null;
+      }
+
       if (currentUser) {
-        // Fetch user data from Firestore
+        // Set up real-time listener for user data in Firestore
         const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
-        }
+        unsubscribeUserSnapshot = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setUserData(docSnap.data());
+          } else {
+            setUserData(null);
+          }
+        }, (error) => {
+          console.error("Error listening to user document changes:", error);
+        });
+
         // Set admin status — works regardless of whether Firestore doc exists
         setIsAdmin(adminEmails.includes(currentUser.email));
       } else {
@@ -63,8 +75,99 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUserSnapshot) {
+        unsubscribeUserSnapshot();
+      }
+    };
   }, []);
+
+  const addAddress = async (newAddress) => {
+    if (!user) throw new Error('Authentication required');
+    const userDocRef = doc(db, 'users', user.uid);
+    const currentAddresses = userData?.addresses || [];
+    
+    const addressId = Math.random().toString(36).substring(2, 11);
+    const addressWithId = {
+      ...newAddress,
+      _id: addressId,
+      isDefault: newAddress.isDefault || currentAddresses.length === 0
+    };
+
+    let updatedAddresses = [];
+    if (addressWithId.isDefault) {
+      updatedAddresses = currentAddresses.map(addr => ({ ...addr, isDefault: false }));
+      updatedAddresses.push(addressWithId);
+    } else {
+      updatedAddresses = [...currentAddresses, addressWithId];
+    }
+
+    await updateDoc(userDocRef, {
+      addresses: updatedAddresses,
+      updatedAt: serverTimestamp()
+    });
+  };
+
+  const updateAddress = async (addressId, updatedAddress) => {
+    if (!user) throw new Error('Authentication required');
+    const userDocRef = doc(db, 'users', user.uid);
+    const currentAddresses = userData?.addresses || [];
+
+    let updatedAddresses = currentAddresses.map(addr => {
+      if (addr._id === addressId) {
+        return { ...addr, ...updatedAddress, _id: addressId };
+      }
+      if (updatedAddress.isDefault) {
+        return { ...addr, isDefault: false };
+      }
+      return addr;
+    });
+
+    const hasDefault = updatedAddresses.some(addr => addr.isDefault);
+    if (!hasDefault && updatedAddresses.length > 0) {
+      updatedAddresses[0].isDefault = true;
+    }
+
+    await updateDoc(userDocRef, {
+      addresses: updatedAddresses,
+      updatedAt: serverTimestamp()
+    });
+  };
+
+  const deleteAddress = async (addressId) => {
+    if (!user) throw new Error('Authentication required');
+    const userDocRef = doc(db, 'users', user.uid);
+    const currentAddresses = userData?.addresses || [];
+
+    const addressToDelete = currentAddresses.find(addr => addr._id === addressId);
+    let updatedAddresses = currentAddresses.filter(addr => addr._id !== addressId);
+
+    if (addressToDelete?.isDefault && updatedAddresses.length > 0) {
+      updatedAddresses[0].isDefault = true;
+    }
+
+    await updateDoc(userDocRef, {
+      addresses: updatedAddresses,
+      updatedAt: serverTimestamp()
+    });
+  };
+
+  const setDefaultAddress = async (addressId) => {
+    if (!user) throw new Error('Authentication required');
+    const userDocRef = doc(db, 'users', user.uid);
+    const currentAddresses = userData?.addresses || [];
+
+    const updatedAddresses = currentAddresses.map(addr => ({
+      ...addr,
+      isDefault: addr._id === addressId
+    }));
+
+    await updateDoc(userDocRef, {
+      addresses: updatedAddresses,
+      updatedAt: serverTimestamp()
+    });
+  };
 
 
   const signup = async (email, password, name) => {
@@ -161,7 +264,11 @@ export const AuthProvider = ({ children }) => {
     login,
     signInWithGoogle,
     logout,
-    resetPassword
+    resetPassword,
+    addAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress
   };
 
   return (
