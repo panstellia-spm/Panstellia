@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingBag, Star, Check, Eye } from 'lucide-react';
+import { Heart, ShoppingBag, Star, Check, Eye, X, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -9,6 +9,7 @@ import { getProductImageUrls } from '../../utils/imageUtils';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import QuickViewModal from './QuickViewModal';
 import OptimizedImage from './OptimizedImage';
+import NotifyMeModal from './NotifyMeModal';
 
 const ProductCard = ({ product, priority = false }) => {
   const { addToCart } = useCart();
@@ -17,6 +18,7 @@ const ProductCard = ({ product, priority = false }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const [isNotifyOpen, setIsNotifyOpen] = useState(false);
   
   const wishlisted = isInWishlist(product.id);
 
@@ -234,28 +236,50 @@ const ProductCard = ({ product, priority = false }) => {
 
             {/* Stock Status */}
             <div className="mt-auto flex items-center gap-2 pt-2 border-t border-luxury-50/50">
-              <Check className="w-4 h-4 text-green-500 shrink-0" />
-              <span className="text-xs text-green-600 font-semibold">
-                {product.inStock ? 'In Stock' : 'Out of Stock'}
-              </span>
+              {product.inStock ? (
+                <>
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  <span className="text-xs text-green-600 font-semibold">In Stock</span>
+                </>
+              ) : (
+                <>
+                  <X className="w-4 h-4 text-red-500 shrink-0" />
+                  <span className="text-xs text-red-600 font-semibold">Out of Stock</span>
+                </>
+              )}
             </div>
           </Link>
 
           {/* Quick Add Button — BELOW content, always visible */}
           <div className="px-4 pb-4">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddToCart();
-              }}
-              disabled={isAdding}
-              type="button"
-              className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-white py-2.5 rounded-lg font-semibold flex items-center justify-center hover:from-gold-600 hover:to-gold-700 transition-all disabled:opacity-50 text-xs shadow-sm hover:shadow-md active:scale-[0.98]"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-              {isAdding ? 'Adding...' : 'Add to Cart'}
-            </button>
+            {product.inStock ? (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddToCart();
+                }}
+                disabled={isAdding}
+                type="button"
+                className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-white py-2.5 rounded-lg font-semibold flex items-center justify-center hover:from-gold-600 hover:to-gold-700 transition-all disabled:opacity-50 text-xs shadow-sm hover:shadow-md active:scale-[0.98]"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
+                {isAdding ? 'Adding...' : 'Add to Cart'}
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsNotifyOpen(true);
+                }}
+                type="button"
+                className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-white py-2.5 rounded-lg font-semibold flex items-center justify-center hover:from-gold-600 hover:to-gold-700 transition-all text-xs shadow-sm hover:shadow-md active:scale-[0.98]"
+              >
+                <Bell className="w-3.5 h-3.5 mr-1.5" />
+                Notify Me
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -265,6 +289,13 @@ const ProductCard = ({ product, priority = false }) => {
         product={product} 
         isOpen={isQuickViewOpen} 
         onClose={() => setIsQuickViewOpen(false)} 
+      />
+
+      {/* Notify Me Modal */}
+      <NotifyMeModal
+        product={product}
+        isOpen={isNotifyOpen}
+        onClose={() => setIsNotifyOpen(false)}
       />
     </>
   );

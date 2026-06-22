@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { triggerRestockNotifications } from '../services/restockNotifications';
 
 // Helper to get current timestamp
 const getTimestamp = () => new Date().toISOString();
@@ -189,6 +190,14 @@ export const ProductProvider = ({ children }) => {
       setProducts(prev =>
         prev.map((p) => (p.id === id ? normalizedMerged : p))
       );
+      
+      // Check if product was restocked
+      if ((existingProduct.stockQuantity || 0) <= 0 && normalizedMerged.stockQuantity > 0) {
+        triggerRestockNotifications(id, normalizedMerged).catch(err => {
+          console.error("Failed to trigger restock notifications:", err);
+        });
+      }
+
       return { success: true };
 
     } catch (err) {

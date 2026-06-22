@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Heart, ShoppingBag, Truck, Shield, RefreshCw, ChevronLeft, ChevronRight, Check, Plus, Minus } from 'lucide-react';
+import { Star, Heart, ShoppingBag, Truck, Shield, RefreshCw, ChevronLeft, ChevronRight, Check, Plus, Minus, Bell } from 'lucide-react';
 import { useProducts } from '../context/ProductContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -12,6 +12,7 @@ import ProductCard from '../components/UI/ProductCard';
 import OptimizedImage from '../components/UI/OptimizedImage';
 import SEOHelmet from '../utils/seoHelmet';
 import { getProductSchema } from '../utils/structuredData';
+import NotifyMeModal from '../components/UI/NotifyMeModal';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -24,6 +25,7 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  const [isNotifyOpen, setIsNotifyOpen] = useState(false);
 
   const [openAccordion, setOpenAccordion] = useState(0); // Default to first open
 
@@ -438,14 +440,24 @@ const ProductDetailPage = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isAdding}
-                  className="flex-1 btn-primary py-3 flex items-center justify-center font-bold tracking-wide shadow-md"
-                >
-                  <ShoppingBag className="w-4.5 h-4.5 mr-2" />
-                  {isAdding ? 'Adding...' : 'Add to Cart'}
-                </button>
+                {stockStatus.label === 'Out of Stock' ? (
+                  <button
+                    onClick={() => setIsNotifyOpen(true)}
+                    className="flex-1 btn-primary py-3 flex items-center justify-center font-bold tracking-wide shadow-md bg-gradient-to-r from-gold-500 to-gold-600"
+                  >
+                    <Bell className="w-4.5 h-4.5 mr-2" />
+                    Notify Me
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isAdding}
+                    className="flex-1 btn-primary py-3 flex items-center justify-center font-bold tracking-wide shadow-md"
+                  >
+                    <ShoppingBag className="w-4.5 h-4.5 mr-2" />
+                    {isAdding ? 'Adding...' : 'Add to Cart'}
+                  </button>
+                )}
 
                 <button
                   onClick={handleWishlist}
@@ -557,6 +569,13 @@ const ProductDetailPage = () => {
           </div>
         )}
       </div>
+
+      {/* Notify Me Modal */}
+      <NotifyMeModal
+        product={product}
+        isOpen={isNotifyOpen}
+        onClose={() => setIsNotifyOpen(false)}
+      />
     </div>
   );
 };
