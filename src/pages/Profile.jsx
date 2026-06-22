@@ -272,8 +272,12 @@ export default function ProfilePage() {
                       </p>
                     </div>
                     <div className="p-4 bg-luxury-50 rounded-xl border border-luxury-100/50">
-                      <p className="text-xs font-bold text-luxury-400 uppercase tracking-wider">Customer Reference ID</p>
-                      <p className="mt-1 text-sm font-mono text-luxury-900">{user.uid}</p>
+                      <p className="text-xs font-bold text-luxury-400 uppercase tracking-wider">Member Since</p>
+                      <p className="mt-1 text-sm font-bold text-luxury-900">
+                        {user.metadata?.creationTime
+                          ? new Date(user.metadata.creationTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+                          : '—'}
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -23,6 +23,7 @@ const Navbar = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [scrolled, setScrolled] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   // Detect if currently on admin panel routes for dynamic menu label
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -30,6 +31,10 @@ const Navbar = () => {
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
+      // Close profile dropdown when scrolling
+      setIsProfileDropdownOpen(false);
+      // Close search popup when scrolling
+      setSearchOpen(false);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -91,6 +96,24 @@ const Navbar = () => {
               />
               <span className="hidden md:block font-serif text-xl md:text-2xl font-bold text-luxury-800">Panstellia</span>
             </Link>
+
+            {/* Mobile Navigation Icons (Home & Shop) */}
+            <div className="flex md:hidden items-center space-x-1">
+              <Link 
+                to="/" 
+                className="p-2 text-luxury-600 hover:text-gold-600 transition-colors"
+                aria-label="Home"
+              >
+                <Home className="w-5 h-5" />
+              </Link>
+              <Link 
+                to="/products" 
+                className="p-2 text-luxury-600 hover:text-gold-600 transition-colors"
+                aria-label="Shop"
+              >
+                <Store className="w-5 h-5" />
+              </Link>
+            </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-3">
@@ -156,7 +179,7 @@ const Navbar = () => {
 
             {/* Search & Icons */}
             <div className="flex items-center space-x-2 md:space-x-4">
-              {/* Expandable Search Input (Desktop/Mobile) */}
+              {/* Expandable Search Input (Desktop & Mobile) */}
               <div className="flex items-center">
                 <button 
                   onClick={() => setSearchOpen(!searchOpen)}
@@ -167,24 +190,40 @@ const Navbar = () => {
                   <Search className="w-5 h-5" />
                 </button>
                 
-                <motion.form 
-                  onSubmit={handleSearch}
-                  initial={{ width: 0 }}
-                  animate={{ width: searchOpen ? 160 : 0 }}
-                  className="overflow-hidden flex items-center"
-                >
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full text-xs px-2.5 py-1 border border-luxury-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gold-500 bg-white"
-                  />
-                </motion.form>
+                {/* Search Popup */}
+                {searchOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40"
+                      onClick={() => {
+                        setSearchOpen(false);
+                        setSearchQuery('');
+                        setSearchResults([]);
+                      }}
+                    />
+                    <motion.form 
+                      onSubmit={handleSearch}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="fixed left-4 right-4 sm:left-auto sm:right-6 lg:right-8 top-20 md:top-16 w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl rounded-xl border border-luxury-100 p-4 z-50"
+                    >
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => handleSearchInput(e.target.value)}
+                        placeholder="Search products..."
+                        className="w-full text-sm px-3 py-2 border border-luxury-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gold-500 bg-white"
+                        autoFocus
+                      />
+                    </motion.form>
+                  </>
+                )}
 
                 {/* Autocomplete Card */}
                 {searchOpen && searchResults.length > 0 && (
-                  <div className="absolute right-4 sm:right-6 lg:right-8 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl rounded-xl border border-luxury-100 p-2 z-50">
+                  <div className="fixed left-4 right-4 sm:left-auto sm:right-6 lg:right-8 top-32 md:top-28 w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl rounded-xl border border-luxury-100 p-2 z-50">
                     {searchResults.map(product => (
                       <Link
                         key={product.id}
@@ -232,8 +271,11 @@ const Navbar = () => {
 
               {/* User Menu */}
               {user ? (
-                <div className="relative group">
-                  <button className="relative p-2 text-luxury-600 hover:text-gold-600 transition-colors">
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                    className="relative p-2 text-luxury-600 hover:text-gold-600 transition-colors"
+                  >
                     <User className="w-5 h-5" />
                     {/* Admin badge indicator */}
                     {isAdmin && (
@@ -242,52 +284,73 @@ const Navbar = () => {
                       </span>
                     )}
                   </button>
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-luxury-100">
-                    <div className="py-2">
-                      {/* User info header */}
-                      <div className="px-4 py-2.5 border-b border-luxury-100">
-                        <p className="text-xs text-luxury-500 truncate">{user.email}</p>
-                        {isAdmin && (
-                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-gold-50 border border-gold-200 rounded-full text-[10px] font-bold text-gold-700 uppercase tracking-wider">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
-                            Administrator
-                          </span>
-                        )}
+                  {isProfileDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40"
+                        onClick={() => setIsProfileDropdownOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl z-50 border border-luxury-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="py-2">
+                          {/* User info header */}
+                          <div className="px-4 py-2.5 border-b border-luxury-100">
+                            <p className="text-xs text-luxury-500 truncate">{user.email}</p>
+                            {isAdmin && (
+                              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-gold-50 border border-gold-200 rounded-full text-[10px] font-bold text-gold-700 uppercase tracking-wider">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+                                Administrator
+                              </span>
+                            )}
+                          </div>
+                          <Link 
+                            to="/profile" 
+                            onClick={() => setIsProfileDropdownOpen(false)}
+                            className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors"
+                          >
+                            My Profile
+                          </Link>
+                          <Link 
+                            to="/orders" 
+                            onClick={() => setIsProfileDropdownOpen(false)}
+                            className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors"
+                          >
+                            My Orders
+                          </Link>
+                          {isAdmin && (
+                            isAdminRoute ? (
+                              <Link
+                                to="/"
+                                onClick={() => setIsProfileDropdownOpen(false)}
+                                className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors flex items-center gap-2"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Official Platform
+                              </Link>
+                            ) : (
+                              <Link
+                                to="/admin"
+                                onClick={() => setIsProfileDropdownOpen(false)}
+                                className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors flex items-center gap-2"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+                                Admin Panel
+                              </Link>
+                            )
+                          )}
+                          <button 
+                            onClick={() => {
+                              setIsProfileDropdownOpen(false);
+                              handleLogout();
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Logout
+                          </button>
+                        </div>
                       </div>
-                      <Link to="/profile" className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors">
-                        My Profile
-                      </Link>
-                      <Link to="/orders" className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors">
-                        My Orders
-                      </Link>
-                      {isAdmin && (
-                        isAdminRoute ? (
-                          <Link
-                            to="/"
-                            className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors flex items-center gap-2"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Official Platform
-                          </Link>
-                        ) : (
-                          <Link
-                            to="/admin"
-                            className="block px-4 py-2.5 text-sm text-luxury-700 hover:bg-luxury-50 transition-colors flex items-center gap-2"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
-                            Admin Panel
-                          </Link>
-                        )
-                      )}
-                      <button 
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Logout
-                      </button>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <Link to="/login" className="p-2 text-luxury-600 hover:text-gold-600 transition-colors">
