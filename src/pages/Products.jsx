@@ -18,7 +18,9 @@ const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, loading } = useProducts();
 
-  const visibleProducts = products.filter((p) => (p.productStatus || 'available') === 'available');
+  const visibleProducts = useMemo(() => {
+    return products.filter((p) => (p.productStatus || 'available') === 'available');
+  }, [products]);
 
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
