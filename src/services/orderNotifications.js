@@ -221,6 +221,8 @@ export const formatOrderDataForEmail = (orderInfo) => {
     total,
     tax,
     shipping: shippingCost,
+    couponCode,
+    couponDiscount,
   } = orderInfo;
 
   const now = new Date();
@@ -248,9 +250,11 @@ export const formatOrderDataForEmail = (orderInfo) => {
       quantity: item.quantity,
       price: item.price,
     })),
-    subtotal: total - (tax || 0) - (shippingCost || 0),
+    subtotal: total - (tax || 0) - (shippingCost || 0) + (couponDiscount || 0),
     tax: tax || 0,
     shipping: shippingCost || 0,
+    couponCode: couponCode || null,
+    couponDiscount: couponDiscount || 0,
     totalAmount: total,
     productName: cartItems.map((item) => item.name).join(', '),
     quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),

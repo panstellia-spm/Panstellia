@@ -1,5 +1,6 @@
 const cors = require("cors");
 const admin = require("firebase-admin");
+const { FieldValue } = require("firebase-admin/firestore");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 
@@ -410,8 +411,10 @@ async function createOrderHandler(req, res) {
         subtotal: toNumber(totals.subtotal),
         shipping: toNumber(totals.shipping),
         tax: toNumber(totals.tax),
-        total: amountNum / 100,
+        total: totals.total ? toNumber(totals.total) : amountNum / 100,
         amount: amountNum,
+        amountPaid: amountNum / 100,
+        isPartialPayment: notes.is_partial === "true",
         currency,
         paymentMethod: "razorpay",
         paymentStatus: "Pending",
@@ -424,8 +427,8 @@ async function createOrderHandler(req, res) {
         landmark: addressInfo.landmark || "",
         country: addressInfo.country || "",
         addressLabel: addressInfo.addressLabel || "",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
 
       transaction.set(orderRef, commonOrderData);
@@ -506,7 +509,7 @@ async function verifyPaymentHandler(req, res) {
           status: "payment_failed",
           razorpayPaymentId: razorpay_payment_id,
           failureReason: "Signature mismatch",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
         await pendingPayment.ref.update(failedUpdate);
 
@@ -614,7 +617,7 @@ async function verifyPaymentHandler(req, res) {
             newValue: newStock,
             adminId: authUser.uid,
             adminName: authUser.name || authUser.email || 'System (Purchase)',
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            timestamp: FieldValue.serverTimestamp(),
             reason: `Razorpay Order #${pData.orderId} Completed`,
           });
 
@@ -633,13 +636,14 @@ async function verifyPaymentHandler(req, res) {
         }
       }
 
+      const isPartial = pData.isPartialPayment === true;
       const paidUpdate = {
-        paymentStatus: "Paid",
+        paymentStatus: isPartial ? "Partially Paid" : "Paid",
         status: "processing",
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
-        paidAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        paidAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
 
       transaction.update(paymentDocRef, paidUpdate);
@@ -728,7 +732,7 @@ async function markPaymentFailedHandler(req, res) {
           status: "payment_failed",
           razorpayPaymentId: razorpay_payment_id || null,
           failureReason: String(reason).slice(0, 300),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
 
         transaction.update(paymentDocRef, failedUpdate);

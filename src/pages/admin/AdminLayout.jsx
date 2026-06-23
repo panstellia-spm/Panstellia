@@ -22,6 +22,9 @@ import {
   Clock,
   TrendingUp,
   Zap,
+  Sparkles,
+  Gift,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import GlobalSearch from '../../components/admin/GlobalSearch';
@@ -32,38 +35,50 @@ const NAV_GROUPS = [
   {
     label: 'Overview',
     items: [
-      { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+      { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: ['super_admin', 'admin', 'content_manager', 'inventory_manager', 'marketing_manager', 'customer_support', 'viewer'] },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
-      { to: '/admin/fulfillment', label: 'Fulfillment', icon: Zap },
-      { to: '/admin/shipping', label: 'Shipping', icon: Truck },
-      { to: '/admin/delayed', label: 'Delayed Orders', icon: Clock, alert: true },
-      { to: '/admin/inventory', label: 'Inventory', icon: Warehouse },
+      { to: '/admin/orders', label: 'Orders', icon: ShoppingBag, roles: ['super_admin', 'admin', 'customer_support'] },
+      { to: '/admin/fulfillment', label: 'Fulfillment', icon: Zap, roles: ['super_admin', 'admin', 'inventory_manager', 'customer_support'] },
+      { to: '/admin/shipping', label: 'Shipping', icon: Truck, roles: ['super_admin', 'admin', 'inventory_manager', 'customer_support'] },
+      { to: '/admin/delayed', label: 'Delayed Orders', icon: Clock, alert: true, roles: ['super_admin', 'admin', 'inventory_manager', 'customer_support'] },
+      { to: '/admin/inventory', label: 'Inventory', icon: Warehouse, roles: ['super_admin', 'admin', 'inventory_manager'] },
     ],
   },
   {
     label: 'Catalog',
     items: [
-      { to: '/admin/products', label: 'Products', icon: Package },
+      { to: '/admin/products', label: 'Products', icon: Package, roles: ['super_admin', 'admin', 'content_manager', 'inventory_manager'] },
+      { to: '/admin/collections', label: 'Collections & Filters', icon: Sparkles, roles: ['super_admin', 'admin', 'content_manager'] },
+    ],
+  },
+  {
+    label: 'Builders',
+    items: [
+      { to: '/admin/homepage', label: 'Homepage Builder', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'content_manager'] },
+      { to: '/admin/landing-pages', label: 'Landing Pages', icon: Crown, roles: ['super_admin', 'admin', 'content_manager', 'marketing_manager'] },
+      { to: '/admin/offers', label: 'Offers & Coupons', icon: Gift, roles: ['super_admin', 'admin', 'marketing_manager'] },
+      { to: '/admin/reviews', label: 'Review Moderation', icon: Star, roles: ['super_admin', 'admin', 'content_manager', 'customer_support'] },
     ],
   },
   {
     label: 'Intelligence',
     items: [
-      { to: '/admin/customers', label: 'Customers', icon: Users },
-      { to: '/admin/order-analytics', label: 'Order Analytics', icon: TrendingUp },
-      { to: '/admin/revenue', label: 'Revenue', icon: DollarSign },
-      { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
+      { to: '/admin/customers', label: 'Customers', icon: Users, roles: ['super_admin', 'admin', 'customer_support'] },
+      { to: '/admin/order-analytics', label: 'Order Analytics', icon: TrendingUp, roles: ['super_admin', 'admin', 'viewer'] },
+      { to: '/admin/revenue', label: 'Revenue', icon: DollarSign, roles: ['super_admin', 'admin', 'viewer'] },
+      { to: '/admin/reports', label: 'Reports', icon: BarChart3, roles: ['super_admin', 'admin', 'viewer'] },
     ],
   },
   {
     label: 'System',
     items: [
-      { to: '/admin/logs', label: 'Activity Logs', icon: Activity },
+      { to: '/admin/settings', label: 'CMS & Payments', icon: Settings, roles: ['super_admin', 'admin'] },
+      { to: '/admin/roles', label: 'User Roles', icon: Users, roles: ['super_admin'] },
+      { to: '/admin/logs', label: 'Activity Logs', icon: Activity, roles: ['super_admin', 'admin'] },
     ],
   },
 ];
@@ -120,7 +135,7 @@ function SidebarNavItem({ item, collapsed }) {
 export default function AdminLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission, role, userData } = useAuth();
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState([]);
@@ -230,21 +245,25 @@ export default function AdminLayout({ children }) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-hide">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
-            {!collapsed && (
-              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-luxury-400">
-                {group.label}
-              </p>
-            )}
-            {collapsed && <div className="my-2 border-t border-luxury-200/60" />}
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <SidebarNavItem key={item.to} item={item} collapsed={collapsed} />
-              ))}
+        {NAV_GROUPS.map((group) => {
+          const visibleItems = group.items.filter(item => hasPermission(item.roles));
+          if (visibleItems.length === 0) return null;
+          return (
+            <div key={group.label}>
+              {!collapsed && (
+                <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-luxury-400">
+                  {group.label}
+                </p>
+              )}
+              {collapsed && <div className="my-2 border-t border-luxury-200/60" />}
+              <div className="space-y-0.5">
+                {visibleItems.map((item) => (
+                  <SidebarNavItem key={item.to} item={item} collapsed={collapsed} />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* User Footer */}
@@ -252,12 +271,12 @@ export default function AdminLayout({ children }) {
         {!collapsed && (
           <div className="flex items-center gap-2.5 px-2 py-2 mb-2 rounded-xl bg-luxury-50">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-              {(user?.email?.[0] || 'A').toUpperCase()}
+              {(userData?.name?.[0] || user?.email?.[0] || 'A').toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <p className="text-xs font-semibold text-luxury-900 truncate">Admin</p>
-                <span className="flex-shrink-0 px-1.5 py-0.5 bg-gold-100 border border-gold-200 rounded text-[9px] font-bold text-gold-700 uppercase tracking-wider">Role</span>
+                <p className="text-xs font-semibold text-luxury-900 truncate">{userData?.name || 'Admin'}</p>
+                <span className="flex-shrink-0 px-1.5 py-0.5 bg-gold-100 border border-gold-200 rounded text-[9px] font-bold text-gold-700 uppercase tracking-wider">{String(role || 'admin').replace('_', ' ')}</span>
               </div>
               <p className="text-xs text-luxury-500 truncate">{user?.email}</p>
             </div>
@@ -276,11 +295,11 @@ export default function AdminLayout({ children }) {
   );
 
   return (
-    <div className="min-h-screen bg-luxury-50 flex">
+    <div className="h-screen bg-luxury-50 flex overflow-hidden">
       {/* Desktop Sidebar */}
       <aside className={`
         hidden lg:flex flex-col flex-shrink-0 bg-white border-r border-luxury-200
-        shadow-sm transition-all duration-300 ease-in-out
+        shadow-sm transition-all duration-300 ease-in-out h-screen overflow-hidden
         ${collapsed ? 'w-16' : 'w-60'}
       `}>
         <SidebarContent />
@@ -309,7 +328,7 @@ export default function AdminLayout({ children }) {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden h-screen">
         {/* Top Header Bar */}
         <header className="h-14 bg-white border-b border-luxury-200 flex items-center gap-4 px-4 lg:px-6 flex-shrink-0 shadow-sm">
           {/* Mobile menu button */}
@@ -428,7 +447,7 @@ export default function AdminLayout({ children }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6" style={{ scrollBehavior: 'smooth' }}>
           {children}
         </main>
       </div>

@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Heart, User, Menu, X, Search, LogOut, Home, Store, Gem, CircleDot, Crown, Sparkles, Diamond } from 'lucide-react';
+import { 
+  ShoppingBag, Heart, User, Menu, X, Search, LogOut, Home, Store, 
+  Gem, CircleDot, Crown, Sparkles, Diamond, Gift, BadgePercent, Star, Shield 
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useProducts } from '../../context/ProductContext';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import CartDrawer from '../UI/CartDrawer';
+import { db } from '../../services/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const Navbar = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -68,17 +73,57 @@ const Navbar = () => {
     }
   };
 
+  const [dbNavItems, setDbNavItems] = useState([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'system_settings', 'cms'), (snapshot) => {
+      if (snapshot.exists() && snapshot.data().navigation) {
+        setDbNavItems(snapshot.data().navigation);
+      }
+    }, (err) => console.error("Error reading nav links:", err));
+    return () => unsub();
+  }, []);
+
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const currentCategory = new URLSearchParams(location.search).get('category');
-  const navItems = [
-    { to: '/', label: 'Home', icon: Home, isActive: location.pathname === '/' },
-    { to: '/products', label: 'Shop', icon: Store, isActive: location.pathname === '/products' && !currentCategory },
-    { to: '/products?category=Gold', label: getCategoryLabel('Gold'), icon: Gem, isActive: location.pathname === '/products' && currentCategory === 'Gold' },
-    { to: '/products?category=Silver', label: getCategoryLabel('Silver'), icon: CircleDot, isActive: location.pathname === '/products' && currentCategory === 'Silver' },
-    { to: '/products?category=Lux Wear', label: getCategoryLabel('Lux Wear'), icon: Crown, isActive: location.pathname === '/products' && currentCategory === 'Lux Wear' },
-    { to: '/category/elegant-spark', label: getCategoryLabel('Elegant Spark'), icon: Sparkles, isActive: location.pathname === '/category/elegant-spark' },
-    { to: '/products?category=Party Wear', label: getCategoryLabel('Party Wear'), icon: Diamond, isActive: location.pathname === '/products' && (currentCategory === 'Party Wear' || currentCategory === 'Piercings') }
-  ];
+
+  const ICON_MAP = {
+    Home, Store, Gem, CircleDot, Crown, Sparkles, Diamond, Gift, BadgePercent, Star, Shield
+  };
+
+  const navItems = dbNavItems.length > 0 
+    ? dbNavItems.map(item => {
+        const IconComponent = ICON_MAP[item.icon] || Gem;
+        const toUrl = item.to;
+        let isActive = false;
+        if (toUrl === '/') {
+          isActive = location.pathname === '/';
+        } else if (toUrl === '/products') {
+          isActive = location.pathname === '/products' && !currentCategory;
+        } else {
+          const targetCat = new URLSearchParams(toUrl.split('?')[1]).get('category');
+          if (targetCat) {
+            isActive = location.pathname === '/products' && currentCategory === targetCat;
+          } else {
+            isActive = location.pathname === toUrl;
+          }
+        }
+        return {
+          to: toUrl,
+          label: item.label,
+          icon: IconComponent,
+          isActive
+        };
+      })
+    : [
+        { to: '/', label: 'Home', icon: Home, isActive: location.pathname === '/' },
+        { to: '/products', label: 'Shop', icon: Store, isActive: location.pathname === '/products' && !currentCategory },
+        { to: '/products?category=Gold', label: getCategoryLabel('Gold'), icon: Gem, isActive: location.pathname === '/products' && currentCategory === 'Gold' },
+        { to: '/products?category=Silver', label: getCategoryLabel('Silver'), icon: CircleDot, isActive: location.pathname === '/products' && currentCategory === 'Silver' },
+        { to: '/products?category=Lux Wear', label: getCategoryLabel('Lux Wear'), icon: Crown, isActive: location.pathname === '/products' && currentCategory === 'Lux Wear' },
+        { to: '/category/elegant-spark', label: getCategoryLabel('Elegant Spark'), icon: Sparkles, isActive: location.pathname === '/category/elegant-spark' },
+        { to: '/products?category=Piercings', label: getCategoryLabel('Piercings'), icon: Diamond, isActive: location.pathname === '/products' && currentCategory === 'Piercings' }
+      ];
 
   return (
     <>

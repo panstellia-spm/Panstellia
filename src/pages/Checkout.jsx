@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { createRazorpayOrder, verifyPayment, openCheckout, markPaymentFailed } from '../services/payment';
 import { db } from '../services/firebase';
-import { collection, addDoc, serverTimestamp, doc, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, runTransaction, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
 import { sendOrderNotifications, formatOrderDataForEmail } from '../services/orderNotifications';
 
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -20,6 +20,165 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('razorpay');
   const [selectedAddressId, setSelectedAddressId] = useState(null);
+  
+  const [usePartialPayment, setUsePartialPayment] = useState(false);
+
+  // Coupon State
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  const finalTotal = Math.max(0, subtotal + shipping + tax - couponDiscount);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCodeInput.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    setCouponLoading(true);
+    try {
+      const code = couponCodeInput.trim().toUpperCase();
+      const docRef = doc(db, 'offers', code);
+      const snap = await getDoc(docRef);
+      
+      if (!snap.exists()) {
+        toast.error("Invalid coupon code");
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponLoading(false);
+        return;
+      }
+      
+      const coupon = snap.data();
+      
+      if (coupon.archived) {
+        toast.error("Coupon is invalid or archived");
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponLoading(false);
+        return;
+      }
+      
+      if (!coupon.enabled) {
+        toast.error("Coupon is currently disabled");
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponLoading(false);
+        return;
+      }
+      
+      // Expiry check
+      if (coupon.endDate && new Date(coupon.endDate) < new Date()) {
+        toast.error("Coupon has expired");
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponLoading(false);
+        return;
+      }
+      
+      // Start date check
+      if (coupon.startDate && new Date(coupon.startDate) > new Date()) {
+        toast.error("Coupon is not active yet");
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponLoading(false);
+        return;
+      }
+      
+      // Uses limit check
+      const currentUses = Number(coupon.currentUses || 0);
+      const maxUses = Number(coupon.maxUses || 100);
+      if (currentUses >= maxUses) {
+        toast.error("Coupon usage limit has been reached");
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponLoading(false);
+        return;
+      }
+      
+      // Min cart value check
+      if (subtotal < (coupon.minCartValue || 0)) {
+        toast.error(`Minimum order amount of ₹${coupon.minCartValue} required to apply this coupon.`);
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponLoading(false);
+        return;
+      }
+      
+      // Calculate discount
+      let discount = 0;
+      if (coupon.type === 'percentage') {
+        discount = Math.round((subtotal * (coupon.value || 0)) / 100);
+      } else if (coupon.type === 'flat') {
+        discount = Number(coupon.value || 0);
+      } else if (coupon.type === 'buy_x_get_y') {
+        const buyQty = Number(coupon.buyQty || 2);
+        const getQty = Number(coupon.getQty || 1);
+        const totalQty = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+        
+        if (totalQty < buyQty) {
+          toast.error(`Buy ${buyQty} items to get ${getQty} free. Your cart has only ${totalQty} items.`);
+          setAppliedCoupon(null);
+          setCouponDiscount(0);
+          setCouponLoading(false);
+          return;
+        }
+        
+        const itemPrices = [];
+        cartItems.forEach(item => {
+          for (let i = 0; i < item.quantity; i++) {
+            itemPrices.push(Number(item.price));
+          }
+        });
+        itemPrices.sort((a, b) => a - b);
+        
+        const freeItemsCount = Math.min(getQty, itemPrices.length);
+        for (let i = 0; i < freeItemsCount; i++) {
+          discount += itemPrices[i];
+        }
+      }
+      
+      discount = Math.min(discount, subtotal);
+      
+      setAppliedCoupon({ ...coupon, code });
+      setCouponDiscount(discount);
+      toast.success(`Coupon "${code}" applied successfully!`);
+    } catch (err) {
+      console.error("Error applying coupon:", err);
+      toast.error(err.message || "Failed to apply coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+  
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponCodeInput("");
+    toast.info("Coupon removed");
+  };
+  const [paymentConfig, setPaymentConfig] = useState({
+    cod: { enabled: true, minOrderValue: 0, maxOrderValue: 50000 },
+    razorpay: { enabled: true, minOrderValue: 0 },
+    upi: { enabled: true, minOrderValue: 0 },
+    partial: { enabled: false, minOrderValue: 10000, partialPercentage: 30 }
+  });
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'system_settings', 'payments'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setPaymentConfig(data);
+        if (data.razorpay?.enabled) {
+          setSelectedPaymentMethod('razorpay');
+        } else if (data.cod?.enabled) {
+          setSelectedPaymentMethod('cod');
+        }
+      }
+    }, (err) => console.error("Error reading payments settings:", err));
+    return () => unsub();
+  }, []);
   
   const [formData, setFormData] = useState({
     name: user?.displayName || '',
@@ -293,7 +452,12 @@ const CheckoutPage = () => {
               customerName: formData.name,
               phone: formData.phone,
               email: formData.email,
-              total,
+              subtotal,
+              shipping,
+              tax,
+              couponCode: appliedCoupon?.code || null,
+              couponDiscount: couponDiscount || 0,
+              total: finalTotal,
               items: cartItemsSnapshot,
               status: 'processing',
               createdAt: new Date().toISOString(),
@@ -311,18 +475,35 @@ const CheckoutPage = () => {
 
             transaction.set(paymentDocRef, {
               ...commonOrderData,
-              amount: total * 100, // paise
+              amount: finalTotal * 100, // paise
               customerOrderId: orderId,
               orderDocId: orderDocRef.id,
             });
 
             transaction.set(orderDocRef, commonOrderData);
 
+            // Update coupon uses if applied
+            if (appliedCoupon) {
+              const couponRef = doc(db, 'offers', appliedCoupon.code);
+              const couponSnap = await transaction.get(couponRef);
+              if (couponSnap.exists()) {
+                const cData = couponSnap.data();
+                const curUses = Number(cData.currentUses || 0);
+                const mUses = Number(cData.maxUses || 100);
+                if (curUses >= mUses) {
+                  throw new Error("Coupon usage limit has been reached since you applied it.");
+                }
+                transaction.update(couponRef, {
+                  currentUses: curUses + 1
+                });
+              }
+            }
+
             // Order notification write inside transaction
             const orderNotifRef = doc(db, 'admin_notifications', `order-${orderId}`);
             transaction.set(orderNotifRef, {
               title: 'New Order Placed',
-              message: `Order #${orderId} was placed by ${formData.name} for ₹${total.toLocaleString()}`,
+              message: `Order #${orderId} was placed by ${formData.name} for ₹${finalTotal.toLocaleString()}`,
               type: 'order',
               targetId: orderDocRef.id,
               read: false,
@@ -351,9 +532,11 @@ const CheckoutPage = () => {
               shippingState: formData.state,
               shippingPincode: formData.pincode,
               cartItems: cartItemsSnapshot,
-              total,
-              tax: 0,
-              shipping: 0,
+              total: finalTotal,
+              tax,
+              shipping,
+              couponCode: appliedCoupon?.code || null,
+              couponDiscount: couponDiscount || 0,
             });
 
             const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@panstellia.com';
@@ -379,7 +562,7 @@ const CheckoutPage = () => {
             state: {
               orderId,
               items: cartItems,
-              total,
+              total: finalTotal,
             },
           });
         } catch (e) {
@@ -393,8 +576,34 @@ const CheckoutPage = () => {
         return;
       }
 
+      // Validate payment setup and limits first
+      if (selectedPaymentMethod === 'cod') {
+        if (!paymentConfig.cod?.enabled) {
+          throw new Error('Cash on Delivery is currently disabled.');
+        }
+        if (finalTotal < (paymentConfig.cod?.minOrderValue || 0)) {
+          throw new Error(`Minimum order value for Cash on Delivery is ₹${paymentConfig.cod.minOrderValue}`);
+        }
+        if (finalTotal > (paymentConfig.cod?.maxOrderValue || 50000)) {
+          throw new Error(`Maximum order value for Cash on Delivery is ₹${paymentConfig.cod.maxOrderValue}`);
+        }
+      } else if (selectedPaymentMethod === 'razorpay') {
+        if (!paymentConfig.razorpay?.enabled) {
+          throw new Error('Razorpay payment gateway is currently disabled.');
+        }
+        if (finalTotal < (paymentConfig.razorpay?.minOrderValue || 0)) {
+          throw new Error(`Minimum order value for Razorpay payment is ₹${paymentConfig.razorpay.minOrderValue}`);
+        }
+      }
+
       // Razorpay flow
-      const amountInPaise = Math.round(total * 100);
+      const isPartialEligible = paymentConfig.partial?.enabled && finalTotal >= (paymentConfig.partial?.minOrderValue || 10000);
+      const isPartial = usePartialPayment && isPartialEligible;
+      const actualAmount = isPartial 
+        ? Math.round((finalTotal * (paymentConfig.partial.partialPercentage || 30)) / 100) 
+        : finalTotal;
+
+      const amountInPaise = Math.round(actualAmount * 100);
       const authToken = await user.getIdToken();
 
       if (amountInPaise < 100) {
@@ -458,6 +667,7 @@ const CheckoutPage = () => {
           userId: user.uid,
           customerEmail: formData.email,
           customerName: formData.name,
+          is_partial: isPartial ? "true" : "false",
         },
         customer: {
           name: formData.name,
@@ -469,7 +679,9 @@ const CheckoutPage = () => {
           subtotal,
           shipping,
           tax,
-          total,
+          total: finalTotal,
+          couponCode: appliedCoupon?.code || null,
+          couponDiscount: couponDiscount || 0,
         },
         shippingAddress: {
           address: formData.address,
@@ -483,7 +695,20 @@ const CheckoutPage = () => {
         },
       });
 
-      const { order_id, order_number, local_order_id } = orderData;
+      const { order_id, order_number, local_order_id, payment_record_id } = orderData;
+
+      // Update coupon details client-side (to bypass Spark plan Cloud Function deploy limitation)
+      if (appliedCoupon && local_order_id) {
+        try {
+          const orderDocRef = doc(db, 'orders', local_order_id);
+          await updateDoc(orderDocRef, {
+            couponCode: appliedCoupon.code,
+            couponDiscount: couponDiscount,
+          });
+        } catch (couponDbErr) {
+          console.error("Failed to update order document with coupon code:", couponDbErr);
+        }
+      }
 
       const markCurrentPaymentFailed = async (reason, paymentId) => {
         try {
@@ -576,11 +801,23 @@ const CheckoutPage = () => {
                 }
               }
 
+              // Update coupon uses inside transaction if applied
+              if (appliedCoupon) {
+                const couponRef = doc(db, 'offers', appliedCoupon.code);
+                const couponSnap = await transaction.get(couponRef);
+                if (couponSnap.exists()) {
+                  const cData = couponSnap.data();
+                  transaction.update(couponRef, {
+                    currentUses: Number(cData.currentUses || 0) + 1
+                  });
+                }
+              }
+
               // Order notification write inside transaction
               const orderNotifRef = doc(db, 'admin_notifications', `order-${razorpayOrderId}`);
               transaction.set(orderNotifRef, {
                 title: 'New Order Placed',
-                message: `Order #${razorpayOrderId} was placed by ${formData.name} for ₹${total.toLocaleString()}`,
+                message: `Order #${razorpayOrderId} was placed by ${formData.name} for ₹${finalTotal.toLocaleString()}`,
                 type: 'order',
                 targetId: local_order_id || '',
                 read: false,
@@ -622,9 +859,11 @@ const CheckoutPage = () => {
                   shippingState: formData.state,
                   shippingPincode: formData.pincode,
                   cartItems: cartItemsSnapshot,
-                  total,
+                  total: finalTotal,
                   tax,
                   shipping,
+                  couponCode: appliedCoupon?.code || null,
+                  couponDiscount: couponDiscount || 0,
                 });
 
                 const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@panstellia.com';
@@ -646,7 +885,7 @@ const CheckoutPage = () => {
                 state: {
                   orderId: verificationResult.order_number || order_number || response.razorpay_order_id,
                   items: cartItemsSnapshot,
-                  total,
+                  total: finalTotal,
                 },
               });
             } else {
@@ -1005,41 +1244,80 @@ const CheckoutPage = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Razorpay Card */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMethod('razorpay')}
-                    className={`rounded-xl p-4 flex items-center border-2 transition-all text-left ${
-                      selectedPaymentMethod === 'razorpay' 
-                        ? 'border-gold-500 bg-gold-50/10' 
-                        : 'border-luxury-100 bg-white hover:border-luxury-300'
-                    }`}
-                  >
-                    <CreditCard className="w-8 h-8 text-gold-600 mr-3 flex-shrink-0" />
-                    <div>
-                      <p className="font-bold text-sm text-luxury-900">Pay with Razorpay</p>
-                      <p className="text-xs text-luxury-500 mt-0.5">Pay securely with cards, UPI, wallets</p>
-                    </div>
-                  </button>
+                  {paymentConfig.razorpay?.enabled && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPaymentMethod('razorpay')}
+                      className={`rounded-xl p-4 flex items-center border-2 transition-all text-left ${
+                        selectedPaymentMethod === 'razorpay' 
+                          ? 'border-gold-500 bg-gold-50/10' 
+                          : 'border-luxury-100 bg-white hover:border-luxury-300'
+                      }`}
+                    >
+                      <CreditCard className="w-8 h-8 text-gold-600 mr-3 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-sm text-luxury-900">Pay with Razorpay</p>
+                        <p className="text-xs text-luxury-500 mt-0.5">Pay securely with cards, UPI, wallets</p>
+                        {paymentConfig.razorpay?.minOrderValue > 0 && (
+                          <p className="text-[10px] text-gold-650 font-bold mt-1">Min: ₹{paymentConfig.razorpay.minOrderValue}</p>
+                        )}
+                      </div>
+                    </button>
+                  )}
 
                   {/* COD Card */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMethod('cod')}
-                    className={`rounded-xl p-4 flex items-center border-2 transition-all text-left ${
-                      selectedPaymentMethod === 'cod' 
-                        ? 'border-gold-500 bg-gold-50/10' 
-                        : 'border-luxury-100 bg-white hover:border-luxury-300'
-                    }`}
-                  >
-                    <Truck className="w-8 h-8 text-gold-600 mr-3 flex-shrink-0" />
-                    <div>
-                      <p className="font-bold text-sm text-luxury-900">Cash on Delivery</p>
-                      <p className="text-xs text-luxury-500 mt-0.5">Pay when your order arrives</p>
+                  {paymentConfig.cod?.enabled && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPaymentMethod('cod')}
+                      className={`rounded-xl p-4 flex items-center border-2 transition-all text-left ${
+                        selectedPaymentMethod === 'cod' 
+                          ? 'border-gold-500 bg-gold-50/10' 
+                          : 'border-luxury-100 bg-white hover:border-luxury-300'
+                      }`}
+                    >
+                      <Truck className="w-8 h-8 text-gold-600 mr-3 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-sm text-luxury-900">Cash on Delivery</p>
+                        <p className="text-xs text-luxury-500 mt-0.5">Pay when your order arrives</p>
+                        <div className="flex gap-2 mt-1">
+                          {paymentConfig.cod?.minOrderValue > 0 && (
+                            <span className="text-[10px] text-gold-650 font-bold">Min: ₹{paymentConfig.cod.minOrderValue}</span>
+                          )}
+                          {paymentConfig.cod?.maxOrderValue < 50000 && (
+                            <span className="text-[10px] text-red-500 font-bold">Max: ₹{paymentConfig.cod.maxOrderValue}</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  )}
+
+                  {!paymentConfig.razorpay?.enabled && !paymentConfig.cod?.enabled && (
+                    <div className="col-span-2 p-4 bg-red-50 border border-red-200 rounded-xl text-center text-red-700 text-sm font-semibold">
+                      Online checkouts are temporarily disabled. Please contact support.
                     </div>
-                  </button>
+                  )}
                 </div>
                 
-                <div className="mt-4 text-xs text-luxury-500 font-medium">
+                     {selectedPaymentMethod === 'razorpay' && paymentConfig.partial?.enabled && finalTotal >= (paymentConfig.partial?.minOrderValue || 10000) && (
+                  <div className="mt-4 p-4 rounded-xl border border-gold-200 bg-gold-50/5 flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="partialPay"
+                      checked={usePartialPayment}
+                      onChange={(e) => setUsePartialPayment(e.target.checked)}
+                      className="w-4 h-4 mt-1 accent-gold-500 cursor-pointer"
+                    />
+                    <label htmlFor="partialPay" className="cursor-pointer select-none">
+                      <p className="text-sm font-bold text-luxury-900">Enable Partial Payment ({paymentConfig.partial.partialPercentage}% Deposit)</p>
+                      <p className="text-xs text-luxury-600 mt-0.5 leading-relaxed">
+                        Pay ₹{Math.round((finalTotal * paymentConfig.partial.partialPercentage) / 100).toLocaleString()} now, and the remaining ₹{Math.round(finalTotal - (finalTotal * paymentConfig.partial.partialPercentage) / 100).toLocaleString()} on delivery!
+                      </p>
+                    </label>
+                  </div>
+                )}
+                
+                <div className="mt-4 text-xs text-luxury-500 font-medium leading-relaxed">
                   {selectedPaymentMethod === 'cod' ? (
                     <span>COD orders will show as <span className="font-bold text-luxury-700">Pending</span> until payment is received.</span>
                   ) : (
@@ -1050,7 +1328,7 @@ const CheckoutPage = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (!paymentConfig.razorpay?.enabled && !paymentConfig.cod?.enabled)}
                 className="mt-6 w-full btn-primary py-3 flex items-center justify-center font-bold tracking-wider text-sm shadow-md"
               >
                 {loading ? (
@@ -1058,8 +1336,10 @@ const CheckoutPage = () => {
                 ) : (
                   <>
                     {selectedPaymentMethod === 'cod'
-                      ? `Place COD Order ₹${total.toLocaleString()}`
-                      : `Pay ₹${total.toLocaleString()}`}
+                      ? `Place COD Order ₹${finalTotal.toLocaleString()}`
+                      : usePartialPayment && paymentConfig.partial?.enabled && finalTotal >= (paymentConfig.partial?.minOrderValue || 10000)
+                        ? `Pay Deposit ₹${Math.round((finalTotal * paymentConfig.partial.partialPercentage) / 100).toLocaleString()}`
+                        : `Pay ₹${finalTotal.toLocaleString()}`}
                   </>
                 )}
               </button>
@@ -1096,6 +1376,44 @@ const CheckoutPage = () => {
                 </div>
               </div>
 
+              {/* Promo Code Input Section */}
+              <div className="pt-4 border-t border-luxury-150">
+                <p className="text-xs font-bold text-luxury-800 mb-2">Have a Promo Code?</p>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-luxury-50 border border-luxury-200 rounded-lg p-2.5">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-luxury-900 uppercase truncate">{appliedCoupon.code}</p>
+                      <p className="text-[10px] text-green-600 font-medium">₹{couponDiscount.toLocaleString()} Saved</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-xs font-bold text-red-600 hover:text-red-700 transition px-2 py-1"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter code (e.g. SAVE10)"
+                      value={couponCodeInput}
+                      onChange={(e) => setCouponCodeInput(e.target.value)}
+                      className="flex-1 text-xs border border-luxury-200 rounded-lg px-3 py-2 uppercase placeholder:normal-case focus:outline-none focus:border-gold-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading}
+                      className="bg-luxury-900 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-luxury-800 transition disabled:opacity-50"
+                    >
+                      {couponLoading ? "..." : "Apply"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-luxury-150 space-y-2.5">
                 <div className="flex justify-between text-xs text-luxury-600 font-medium">
                   <span>Subtotal</span>
@@ -1109,9 +1427,20 @@ const CheckoutPage = () => {
                   <span>Tax</span>
                   <span>₹{tax.toLocaleString()}</span>
                 </div>
+                
+                {/* Coupon discount display */}
+                {appliedCoupon && (
+                  <div className="flex justify-between text-xs font-semibold text-green-650 bg-green-50/50 p-2 rounded-lg border border-green-100">
+                    <span className="flex items-center gap-1 text-green-700">
+                      Discount ({appliedCoupon.code})
+                    </span>
+                    <span className="text-green-700">-₹{couponDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-base font-bold text-luxury-900 pt-3 border-t border-luxury-150">
                   <span>Total</span>
-                  <span>₹{total.toLocaleString()}</span>
+                  <span>₹{finalTotal.toLocaleString()}</span>
                 </div>
               </div>
 

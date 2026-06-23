@@ -6,6 +6,43 @@ import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/UI/ProductCard';
 import SEOHelmet from '../utils/seoHelmet';
 import { getCategoryLabel, categoryLabelMap } from '../utils/categoryLabels';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
+
+const DEFAULT_FILTERS_FALLBACK = [
+  {
+    id: "material",
+    name: "Material",
+    options: ["Gold", "Silver", "Lux Wear", "Party Wear", "Elegant Spark"],
+    enabled: true,
+    order: 0,
+    categories: ["All"]
+  },
+  {
+    id: "platingType",
+    name: "Plating Type",
+    options: ["Gold Plated", "Rhodium Plated", "Rose Gold Plated", "None"],
+    enabled: true,
+    order: 1,
+    categories: ["All", "Gold", "Silver"]
+  },
+  {
+    id: "stoneType",
+    name: "Stone Type",
+    options: ["VVS Diamond", "Cubic Zirconia", "Emerald", "Ruby", "None"],
+    enabled: true,
+    order: 2,
+    categories: ["All", "Elegant Spark"]
+  },
+  {
+    id: "gender",
+    name: "Gender",
+    options: ["Women", "Unisex", "Men"],
+    enabled: true,
+    order: 3,
+    categories: ["All"]
+  }
+];
 
 const ProductsPage = () => {
   const getCanonicalCategoryKeyFromQuery = (queryCategory) => {
@@ -18,10 +55,9 @@ const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, loading } = useProducts();
 
-  const visibleProducts = useMemo(() => 
-    products.filter((p) => (p.productStatus || 'available') === 'available'),
-    [products]
-  );
+  const visibleProducts = useMemo(() => {
+    return products.filter((p) => (p.productStatus || 'available') === 'available');
+  }, [products]);
 
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -34,7 +70,7 @@ const ProductsPage = () => {
 
   // Filters state: category is an array (multi-select). Empty array means all categories
   const [filters, setFilters] = useState({
-    category: categoryQuery ? categoryQuery.split(',').map(getCanonicalCategoryKeyFromQuery) : [],
+    category: categoryQuery ? categoryQuery.split(',') : [],
     minPrice: minPriceQuery || '',
     maxPrice: maxPriceQuery || '',
     sortBy: sortByQuery || 'newest',
@@ -43,13 +79,41 @@ const ProductsPage = () => {
       outOfStock: false,
       discounted: false
     },
-    collections: {
-      trending: false,
-      bestseller: false,
-      newArrival: false
-    },
     discountMin: '' // numeric threshold for discount filter (e.g., 10, 20)
   });
+
+  const [filtersConfig, setFiltersConfig] = useState(DEFAULT_FILTERS_FALLBACK);
+  const [selectedCustomFilters, setSelectedCustomFilters] = useState({});
+
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const ref = doc(db, 'system_settings', 'filters');
+        const snap = await getDoc(ref);
+        if (snap.exists() && snap.data().list) {
+          const sortedList = [...snap.data().list].sort((a, b) => (a.order || 0) - (b.order || 0));
+          setFiltersConfig(sortedList);
+        }
+      } catch (error) {
+        console.error("Error fetching filters config:", error);
+      }
+    };
+    fetchFilters();
+  }, []);
+
+  const shouldShowFilter = (filter) => {
+    if (!filter.enabled) return false;
+    if (!filter.categories || filter.categories.includes('All')) return true;
+    if (filters.category.length === 0) return true;
+    return filter.categories.some(cat => filters.category.includes(cat));
+  };
+
+  const getCustomOptionCount = (filterId, option) => {
+    return visibleProducts.filter(p => {
+      const val = p[filterId] || 'None';
+      return val.toLowerCase() === option.toLowerCase();
+    }).length;
+  };
 
   // Derive categories dynamically from available products so counts can be shown
   const categories = useMemo(() => {
@@ -94,7 +158,7 @@ const ProductsPage = () => {
   // Sync URL query params into filters state
   useEffect(() => {
     setFilters((current) => {
-      const nextCategory = categoryQuery ? categoryQuery.split(',').map(getCanonicalCategoryKeyFromQuery) : [];
+      const nextCategory = categoryQuery ? categoryQuery.split(',') : [];
       const next = {
         ...current,
         category: nextCategory,
@@ -136,6 +200,17 @@ const ProductsPage = () => {
       result = result.filter((p) => filters.category.includes(p.category));
     }
 
+    // Custom filters filtering
+    Object.keys(selectedCustomFilters).forEach((filterId) => {
+      const selectedOpts = selectedCustomFilters[filterId];
+      if (selectedOpts && selectedOpts.length > 0) {
+        result = result.filter((p) => {
+          const prodVal = p[filterId] || 'None';
+          return selectedOpts.some(opt => String(prodVal).toLowerCase() === String(opt).toLowerCase());
+        });
+      }
+    });
+
     // Price range
     if (filters.minPrice) {
       result = result.filter((p) => p.price >= Number(filters.minPrice));
@@ -152,18 +227,6 @@ const ProductsPage = () => {
         if (availability.inStock && p.inStock) ok = true;
         if (availability.outOfStock && !p.inStock) ok = true;
         if (availability.discounted && p.originalPrice && p.originalPrice > p.price) ok = true;
-        return ok;
-      });
-    }
-
-    // Collections filters (OR between selected collections)
-    const { collections } = filters;
-    if (collections && (collections.trending || collections.bestseller || collections.newArrival)) {
-      result = result.filter((p) => {
-        let ok = false;
-        if (collections.trending && p.isTrending) ok = true;
-        if (collections.bestseller && p.isBestseller) ok = true;
-        if (collections.newArrival && p.isNewArrival) ok = true;
         return ok;
       });
     }
@@ -220,16 +283,14 @@ const ProductsPage = () => {
         });
         break;
     }
-
     setFilteredProducts(sorted);
-  }, [filters, searchQuery, visibleProducts]);
+  }, [products, filters, searchQuery, visibleProducts, selectedCustomFilters]);
 
   const handleFilterChange = (key, value) => {
+    // Support nested updates for availability and arrays for category
     let newFilters = { ...filters };
     if (key === 'availability') {
       newFilters = { ...filters, availability: { ...filters.availability, ...value } };
-    } else if (key === 'collections') {
-      newFilters = { ...filters, collections: { ...filters.collections, ...value } };
     } else if (key === 'category') {
       // value expected to be the new category array
       newFilters = { ...filters, category: Array.isArray(value) ? value : [] };
@@ -264,20 +325,20 @@ const ProductsPage = () => {
       maxPrice: '',
       sortBy: 'newest',
       availability: { inStock: false, outOfStock: false, discounted: false },
-      collections: { trending: false, bestseller: false, newArrival: false },
       discountMin: ''
     });
+    setSelectedCustomFilters({});
     setSearchParams(searchQuery ? { search: searchQuery } : {}, { replace: true, state: { preventScroll: true } });
   };
 
+  const customFiltersCount = Object.values(selectedCustomFilters).filter(opts => opts && opts.length > 0).length;
   const activeFiltersCount = [
     filters.category && filters.category.length > 0,
     filters.minPrice !== '' && filters.minPrice !== null,
     filters.maxPrice !== '' && filters.maxPrice !== null,
     filters.discountMin !== '' && filters.discountMin !== null,
-    filters.availability && (filters.availability.inStock || filters.availability.outOfStock || filters.availability.discounted),
-    filters.collections && (filters.collections.trending || filters.collections.bestseller || filters.collections.newArrival)
-  ].filter(Boolean).length;
+    filters.availability && (filters.availability.inStock || filters.availability.outOfStock || filters.availability.discounted)
+  ].filter(Boolean).length + customFiltersCount;
 
   // Stagger grid variants
   const gridContainerVariants = {
@@ -329,24 +390,34 @@ const ProductsPage = () => {
         <h4 className="text-xs font-semibold text-luxury-800 uppercase tracking-wider mb-2">Quick Filters</h4>
         <div className="flex flex-wrap gap-2">
           {[
-            { key: 'trending', label: 'Trending', isActive: filters.collections?.trending },
-            { key: 'newArrival', label: 'New Arrivals', isActive: filters.collections?.newArrival },
-            { key: 'bestseller', label: 'Best Sellers', isActive: filters.collections?.bestseller },
+            { key: 'trending', label: 'Trending', isActive: filters.sortBy === 'trending' },
+            { key: 'new-arrivals', label: 'New Arrivals', isActive: filters.sortBy === 'newest' },
+            { key: 'best-sellers', label: 'Best Sellers', isActive: filters.sortBy === 'best-selling' },
             { key: 'under-200', label: 'Under ₹200', isActive: filters.maxPrice === '200' && !filters.minPrice }
           ].map((q) => (
             <button
               key={q.key}
               type="button"
               onClick={() => {
-                if (q.key === 'under-200') {
-                  if (q.isActive) {
+                if (q.isActive) {
+                  // Toggle off
+                  if (q.key === 'under-200') {
                     handleFilterChange('maxPrice', '');
                   } else {
-                    handleFilterChange('minPrice', '');
-                    handleFilterChange('maxPrice', '200');
+                    handleFilterChange('sortBy', 'newest');
                   }
                 } else {
-                  handleFilterChange('collections', { [q.key]: !q.isActive });
+                  // Toggle on
+                  if (q.key === 'under-200') {
+                    handleFilterChange('minPrice', '');
+                    handleFilterChange('maxPrice', '200');
+                  } else if (q.key === 'trending') {
+                    handleFilterChange('sortBy', 'trending');
+                  } else if (q.key === 'best-sellers') {
+                    handleFilterChange('sortBy', 'best-selling');
+                  } else if (q.key === 'new-arrivals') {
+                    handleFilterChange('sortBy', 'newest');
+                  }
                 }
               }}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${q.isActive
@@ -397,6 +468,47 @@ const ProductsPage = () => {
           })}
         </div>
       </div>
+
+      {/* Custom Dynamic Filters */}
+      {filtersConfig.filter(f => f.id !== 'material' && f.id !== 'category' && shouldShowFilter(f)).map((filter) => {
+        return (
+          <div key={filter.id} className="mb-6">
+            <h3 className="text-xs font-bold text-luxury-800 uppercase tracking-wider mb-3">{filter.name}</h3>
+            <div className="grid grid-cols-1 gap-2">
+              {filter.options.map((option) => {
+                const isActive = selectedCustomFilters[filter.id]?.includes(option);
+                const count = getCustomOptionCount(filter.id, option);
+                return (
+                  <label key={option} className="flex items-center justify-between gap-2 text-sm px-3 py-2 rounded-lg border border-luxury-100 bg-white hover:shadow-sm transition-all cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isActive || false}
+                        onChange={(e) => {
+                          const currentOpts = selectedCustomFilters[filter.id] || [];
+                          let nextOpts;
+                          if (e.target.checked) {
+                            nextOpts = [...currentOpts, option];
+                          } else {
+                            nextOpts = currentOpts.filter(o => o !== option);
+                          }
+                          setSelectedCustomFilters({
+                            ...selectedCustomFilters,
+                            [filter.id]: nextOpts
+                          });
+                        }}
+                        aria-label={`Filter by ${option}`}
+                      />
+                      <span className="text-luxury-700">{option}</span>
+                    </div>
+                    <span className="text-luxury-400 text-xs">{count}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Price Range Slider (dual) */}
       <div className="mb-6">
@@ -510,7 +622,7 @@ const ProductsPage = () => {
         canonical={`https://panstellia.com/products${(filters.category && filters.category.length === 1) ? `?category=${filters.category[0]}` : ''}`}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 md:mt-8">
         {/* Breadcrumb Trail */}
         <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-luxury-400 mb-6">
           <Link to="/" className="hover:text-gold-500 transition-colors">Home</Link>
@@ -652,6 +764,26 @@ const ProductsPage = () => {
                   <span className="text-luxury-400">✕</span>
                 </button>
               ))}
+
+              {Object.entries(selectedCustomFilters).flatMap(([filterId, options]) => {
+                const filterName = filtersConfig.find(f => f.id === filterId)?.name || filterId;
+                return (options || []).map((opt) => (
+                  <button
+                    key={`${filterId}-${opt}`}
+                    onClick={() => {
+                      const nextOpts = (selectedCustomFilters[filterId] || []).filter(x => x !== opt);
+                      setSelectedCustomFilters({
+                        ...selectedCustomFilters,
+                        [filterId]: nextOpts
+                      });
+                    }}
+                    className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
+                  >
+                    <span>{filterName}: {opt}</span>
+                    <span className="text-luxury-400">✕</span>
+                  </button>
+                ));
+              })}
 
               {/* Price Range Chips */}
               {filters.minPrice && filters.maxPrice ? (

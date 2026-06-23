@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState('user');
   const [isAdmin, setIsAdmin] = useState(false);
   // Tracks when auth state is in transition (login/logout/refresh).
   // AdminRoute waits for this to be false before making access decisions,
@@ -35,7 +36,13 @@ export const AuthProvider = ({ children }) => {
   const [roleLoading, setRoleLoading] = useState(true);
 
   // Check for admin emails
-  const adminEmails = ['support@panstellia.com']; // Add your admin email here
+  const adminEmails = ['support@panstellia.com', 'admin@panstellia.com']; // Add your admin email here
+
+  const hasPermission = (allowedRoles) => {
+    if (!user) return false;
+    if (adminEmails.includes(user.email)) return true;
+    return allowedRoles.includes(role);
+  };
 
   useEffect(() => {
     let unsubscribeUserSnapshot = null;
@@ -54,25 +61,35 @@ export const AuthProvider = ({ children }) => {
         // Set up real-time listener for user data in Firestore
         const userDocRef = doc(db, 'users', currentUser.uid);
         unsubscribeUserSnapshot = onSnapshot(userDocRef, (docSnap) => {
+          const isEmailAdmin = adminEmails.includes(currentUser.email);
           if (docSnap.exists()) {
-            setUserData(docSnap.data());
+            const data = docSnap.data();
+            setUserData(data);
+            const userRole = data.role || (data.isAdmin ? 'admin' : 'user');
+            setRole(userRole);
+            setIsAdmin(isEmailAdmin || userRole !== 'user');
           } else {
             setUserData(null);
+            setRole(isEmailAdmin ? 'admin' : 'user');
+            setIsAdmin(isEmailAdmin);
           }
+          setRoleLoading(false);
+          setLoading(false);
         }, (error) => {
           console.error("Error listening to user document changes:", error);
+          const isEmailAdmin = adminEmails.includes(currentUser.email);
+          setRole(isEmailAdmin ? 'admin' : 'user');
+          setIsAdmin(isEmailAdmin);
+          setRoleLoading(false);
+          setLoading(false);
         });
-
-        // Set admin status — works regardless of whether Firestore doc exists
-        setIsAdmin(adminEmails.includes(currentUser.email));
       } else {
         setUserData(null);
+        setRole('user');
         setIsAdmin(false);
+        setRoleLoading(false);
+        setLoading(false);
       }
-      
-      // Role is now definitively resolved — guards can proceed
-      setRoleLoading(false);
-      setLoading(false);
     });
 
     return () => {
@@ -259,7 +276,9 @@ export const AuthProvider = ({ children }) => {
     userData,
     loading,
     roleLoading,
+    role,
     isAdmin,
+    hasPermission,
     signup,
     login,
     signInWithGoogle,

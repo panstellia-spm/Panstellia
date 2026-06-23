@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { detectDelay, normalizeStatus } from '../../services/orderStatus';
+import { initializeDatabase } from '../../utils/dbSeeder';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -160,6 +161,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAdmin) return;
     fetchData();
+    initializeDatabase().then(res => {
+      if (res.success) {
+        console.log("Database seeded successfully if empty.");
+      }
+    });
   }, [isAdmin]);
 
   const fetchData = async () => {

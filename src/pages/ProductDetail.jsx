@@ -30,11 +30,8 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
-<<<<<<< HEAD
   const [isAdded, setIsAdded] = useState(false);
-=======
   const [isBuyNowAdding, setIsBuyNowAdding] = useState(false);
->>>>>>> a3b2c50eda9f3760192d5aec58af1eb3cf3269e0
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
 
   // Gallery zoom & Lightbox state

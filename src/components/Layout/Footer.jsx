@@ -1,9 +1,86 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Mail, Phone, MapPin, Plus, Minus, ChevronDown, Linkedin } from 'lucide-react';
 import { getCategoryLabel } from '../../utils/categoryLabels';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
+import { db } from '../../services/firebase';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+
+const defaultFaqs = [
+  {
+    id: 1,
+    category: 'Product',
+    question: 'What materials are used in Panstellia necklaces?',
+    answer: 'Our necklaces are crafted from premium materials including 925 sterling silver, brass with 18k gold plating, and other high-quality alloys. Each piece is designed to last and maintain its elegance over time with proper care.'
+  },
+  {
+    id: 2,
+    category: 'Product',
+    question: 'Are the necklaces hypoallergenic?',
+    answer: 'Many of our pieces are hypoallergenic, especially those made from 925 sterling silver. However, we recommend checking the product description for specific material composition. If you have sensitive skin, please contact us for guidance.'
+  },
+  {
+    id: 3,
+    category: 'Delivery',
+    question: 'What is the average delivery time?',
+    answer: 'Standard delivery typically takes 5-7 business days within India. Express delivery options are available for faster shipping. Delivery times may vary based on your location and current order volume.'
+  },
+  {
+    id: 4,
+    category: 'Delivery',
+    question: 'Do you provide tracking information?',
+    answer: 'Yes! Once your order ships, you will receive a tracking number via email. You can use this to monitor your package status in real-time through our courier partner\'s website.'
+  },
+  {
+    id: 5,
+    category: 'Delivery',
+    question: 'What is the shipping cost?',
+    answer: 'Free shipping is available on orders above ₹500. Orders below this amount have a flat shipping charge of ₹50. We offer nationwide delivery within India.'
+  },
+  {
+    id: 6,
+    category: 'Return',
+    question: 'What is your return policy?',
+    answer: 'We offer a 30-day return policy from the date of purchase. Items must be unused, in original packaging, and in perfect condition. Please initiate returns through our website or contact our support team.'
+  },
+  {
+    id: 7,
+    category: 'Return',
+    question: 'How do I process a return?',
+    answer: 'To process a return, go to "My Orders," select the item, and click "Return Item." Follow the instructions to get a prepaid return label. Once we receive and verify the item, a refund will be issued within 5-7 business days.'
+  },
+  {
+    id: 8,
+    category: 'Return',
+    question: 'Can I exchange items?',
+    answer: 'Yes, we offer exchanges for items within 30 days of purchase. You can select a different item of equal or higher value. If the new item costs more, you\'ll only pay the difference.'
+  },
+  {
+    id: 9,
+    category: 'General',
+    question: 'How can I care for my necklace?',
+    answer: 'Store your necklace in a cool, dry place away from humidity. Avoid direct sunlight and harsh chemicals. Clean gently with a soft cloth. For detailed care instructions, check the care card included with your order.'
+  },
+  {
+    id: 10,
+    category: 'General',
+    question: 'Do you offer gift wrapping?',
+    answer: 'Absolutely! Premium gift wrapping is available at checkout for a small fee. Your necklace will arrive beautifully packaged, perfect for gifting to your loved ones.'
+  },
+  {
+    id: 11,
+    category: 'General',
+    question: 'What payment methods do you accept?',
+    answer: 'We accept all major payment methods including Credit/Debit Cards (Visa, Mastercard), UPI, Net Banking, Wallets, and Cash on Delivery (COD) for eligible orders.'
+  },
+  {
+    id: 12,
+    category: 'General',
+    question: 'Is my personal information secure?',
+    answer: 'Yes, we use industry-standard SSL encryption to protect your personal and payment information. Your data is securely stored and never shared with third parties without your consent.'
+  }
+];
 
 const Footer = () => {
   const [openSection, setOpenSection] = useState({
@@ -14,81 +91,30 @@ const Footer = () => {
   });
   const [expandedFAQ, setExpandedFAQ] = useState(null);
   const [email, setEmail] = useState('');
+  const [cms, setCms] = useState({
+    contact: {
+      email: "support@panstellia.com",
+      phone: "+91 78100 32622, +91 90802 32622",
+      address: "9A, Indhira Nagar, Neyveli, Cuddalore, TamilNadu, India",
+      instagram: "https://www.instagram.com/panstellia",
+      facebook: "https://www.facebook.com/people/Panstellia-PS/61581753914404/"
+    },
+    about: {
+      story: "Discover exquisite necklace jewelry for every occasion. From Elite Series elegance to piercing glamour, we bring you the finest pieces."
+    },
+    faqs: defaultFaqs
+  });
 
-  const faqs = [
-    {
-      id: 1,
-      category: 'Product',
-      question: 'What materials are used in Panstellia necklaces?',
-      answer: 'Our necklaces are crafted from premium materials including 925 sterling silver, brass with 18k gold plating, and other high-quality alloys. Each piece is designed to last and maintain its elegance over time with proper care.'
-    },
-    {
-      id: 2,
-      category: 'Product',
-      question: 'Are the necklaces hypoallergenic?',
-      answer: 'Many of our pieces are hypoallergenic, especially those made from 925 sterling silver. However, we recommend checking the product description for specific material composition. If you have sensitive skin, please contact us for guidance.'
-    },
-    {
-      id: 3,
-      category: 'Delivery',
-      question: 'What is the average delivery time?',
-      answer: 'Standard delivery typically takes 5-7 business days within India. Express delivery options are available for faster shipping. Delivery times may vary based on your location and current order volume.'
-    },
-    {
-      id: 4,
-      category: 'Delivery',
-      question: 'Do you provide tracking information?',
-      answer: 'Yes! Once your order ships, you will receive a tracking number via email. You can use this to monitor your package status in real-time through our courier partner\'s website.'
-    },
-    {
-      id: 5,
-      category: 'Delivery',
-      question: 'What is the shipping cost?',
-      answer: 'Free shipping is available on orders above ₹500. Orders below this amount have a flat shipping charge of ₹50. We offer nationwide delivery within India.'
-    },
-    {
-      id: 6,
-      category: 'Return',
-      question: 'What is your return policy?',
-      answer: 'We offer a 30-day return policy from the date of purchase. Items must be unused, in original packaging, and in perfect condition. Please initiate returns through our website or contact our support team.'
-    },
-    {
-      id: 7,
-      category: 'Return',
-      question: 'How do I process a return?',
-      answer: 'To process a return, go to "My Orders," select the item, and click "Return Item." Follow the instructions to get a prepaid return label. Once we receive and verify the item, a refund will be issued within 5-7 business days.'
-    },
-    {
-      id: 8,
-      category: 'Return',
-      question: 'Can I exchange items?',
-      answer: 'Yes, we offer exchanges for items within 30 days of purchase. You can select a different item of equal or higher value. If the new item costs more, you\'ll only pay the difference.'
-    },
-    {
-      id: 9,
-      category: 'General',
-      question: 'How can I care for my necklace?',
-      answer: 'Store your necklace in a cool, dry place away from humidity. Avoid direct sunlight and harsh chemicals. Clean gently with a soft cloth. For detailed care instructions, check the care card included with your order.'
-    },
-    {
-      id: 10,
-      category: 'General',
-      question: 'Do you offer gift wrapping?',
-      answer: 'Absolutely! Premium gift wrapping is available at checkout for a small fee. Your necklace will arrive beautifully packaged, perfect for gifting to your loved ones.'
-    },
-    {
-      id: 11,
-      category: 'General',
-      question: 'What payment methods do you accept?',
-      answer: 'We accept all major payment methods including Credit/Debit Cards (Visa, Mastercard), UPI, Net Banking, Wallets, and Cash on Delivery (COD) for eligible orders.'
-    },
-    {
-      id: 12,
-      category: 'General',
-      question: 'Is my personal information secure?',
-      answer: 'Yes, we use industry-standard SSL encryption to protect your personal and payment information. Your data is securely stored and never shared with third parties without your consent.'
-    }
-  ];
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'system_settings', 'cms'), (snapshot) => {
+      if (snapshot.exists()) {
+        setCms(snapshot.data());
+      }
+    }, (err) => {
+      console.error("Error reading CMS settings in footer:", err);
+    });
+    return () => unsub();
+  }, []);
 
   const toggleSection = (section) => {
     setOpenSection(prev => ({
@@ -119,17 +145,17 @@ const Footer = () => {
           <div className="flex flex-col justify-start">
             <img src="/favicon.svg" alt="Panstellia" className="h-12 w-auto mb-4 self-start" />
             <p className="text-luxury-300 text-sm leading-relaxed">
-              Discover exquisite necklace jewelry for every occasion. From Elite Series elegance to piercing glamour, we bring you the finest pieces.
+              {cms.about?.story || "Discover exquisite necklace jewelry for every occasion. From Elite Series elegance to piercing glamour, we bring you the finest pieces."}
             </p>
             <div className="flex space-x-4 mt-5">
-              <a href="https://www.instagram.com/panstellia" target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Instagram">
+              <a href={cms.contact?.instagram || "https://www.instagram.com/panstellia"} target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Instagram">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="https://www.facebook.com/people/Panstellia-PS/61581753914404/" target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Facebook">
+              <a href={cms.contact?.facebook || "https://www.facebook.com/people/Panstellia-PS/61581753914404/"} target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Facebook">
                 <Facebook className="w-5 h-5" />
               </a>
               {/* Pinterest SVG Icon */}
-              <a href="https://www.pinterest.com/panstellia" target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Pinterest">
+              <a href={cms.contact?.pinterest || "https://www.pinterest.com/panstellia"} target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on Pinterest">
                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.08 3.16 9.4 7.63 11.16-.1-.95-.2-2.4.04-3.43.22-.93 1.4-5.93 1.4-5.93s-.36-.72-.36-1.77c0-1.66.96-2.9 2.17-2.9 1.02 0 1.51.77 1.51 1.69 0 1.03-.65 2.57-.99 4-.28 1.19.6 2.16 1.77 2.16 2.12 0 3.76-2.24 3.76-5.47 0-2.86-2.06-4.86-5-4.86-3.4 0-5.4 2.56-5.4 5.2 0 1.03.4 2.13.9 2.73.1.12.11.23.08.35-.1.39-.3.1.37.13-.1.04-.13-.08-.13-.08a3.72 3.72 0 0 1-.95-2.27c0-3.69 2.68-7.07 7.72-7.07 4.05 0 7.2 2.89 7.2 6.74 0 4.02-2.54 7.26-6.07 7.26-1.18 0-2.3-.61-2.68-1.34l-.73 2.79c-.26 1.02-.98 2.3-1.46 3.08A12 12 0 1 0 12 0z"/>
                 </svg>
@@ -287,28 +313,32 @@ const Footer = () => {
                   <li className="flex items-start">
                     <MapPin className="w-4 h-4 mr-2.5 mt-0.5 text-gold-500 flex-shrink-0" />
                     <a
-                      href="https://www.google.com/maps/search/?api=1&query=9A+Indhira+Nagar+Neyveli+Cuddalore+TamilNadu+India"
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cms.contact?.address || "9A Indhira Nagar Neyveli Cuddalore TamilNadu India")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-luxury-300 hover:text-gold-400 transition-colors underline-offset-2 hover:underline"
                     >
-                      9A, Indhira Nagar, Neyveli, Cuddalore, TamilNadu, India
+                      {cms.contact?.address || "9A, Indhira Nagar, Neyveli, Cuddalore, TamilNadu, India"}
                     </a>
                   </li>
                   <li className="flex items-center">
                     <Phone className="w-4 h-4 mr-2.5 text-gold-500 flex-shrink-0" />
                     <span className="flex flex-wrap gap-x-1 text-luxury-300">
-                      <a href="tel:+917810032622" className="hover:text-gold-400 transition-colors underline-offset-2 hover:underline">+91 78100 32622</a>,
-                      <a href="tel:+919080232622" className="hover:text-gold-400 transition-colors underline-offset-2 hover:underline">+91 90802 32622</a>
+                      {(cms.contact?.phone || "+91 78100 32622, +91 90802 32622").split(',').map((p, idx) => (
+                        <span key={idx}>
+                          {idx > 0 && ", "}
+                          <a href={`tel:${p.trim()}`} className="hover:text-gold-400 transition-colors underline-offset-2 hover:underline">{p.trim()}</a>
+                        </span>
+                      ))}
                     </span>
                   </li>
                   <li className="flex items-center">
                     <Mail className="w-4 h-4 mr-2.5 text-gold-500 flex-shrink-0" />
                     <a
-                      href="mailto:support@panstellia.com"
+                      href={`mailto:${cms.contact?.email || "support@panstellia.com"}`}
                       className="text-luxury-300 hover:text-gold-400 transition-colors underline-offset-2 hover:underline"
                     >
-                      support@panstellia.com
+                      {cms.contact?.email || "support@panstellia.com"}
                     </a>
                   </li>
                 </ul>
@@ -334,54 +364,58 @@ const Footer = () => {
                 
                 {/* FAQ List */}
                 <div className="space-y-4">
-                  {faqs.map((faq) => (
-                    <motion.div
-                      key={faq.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="bg-luxury-800 rounded-lg border border-luxury-700 overflow-hidden hover:border-gold-500/30 transition-colors"
-                    >
-                      <button
-                        onClick={() => toggleFAQ(faq.id)}
-                        className="w-full p-4 flex justify-between items-center text-left hover:bg-luxury-750 transition-colors"
+                  {(cms.faqs || defaultFaqs).map((faq, index) => {
+                    const faqId = faq.id || index + 1;
+                    const category = faq.category || 'General';
+                    return (
+                      <motion.div
+                        key={faqId}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-luxury-800 rounded-lg border border-luxury-700 overflow-hidden hover:border-gold-500/30 transition-colors"
                       >
-                        <div className="flex-1 pr-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-semibold text-gold-400 uppercase tracking-wider">
-                              {faq.category}
-                            </span>
-                          </div>
-                          <p className="text-white font-medium text-sm">
-                            {faq.question}
-                          </p>
-                        </div>
-                        <motion.div
-                          animate={{ rotate: expandedFAQ === faq.id ? 180 : 0 }}
-                          transition={{ duration: 0.3 }}
-                          className="flex-shrink-0 text-gold-500"
+                        <button
+                          onClick={() => toggleFAQ(faqId)}
+                          className="w-full p-4 flex justify-between items-center text-left hover:bg-luxury-750 transition-colors"
                         >
-                          <ChevronDown className="w-5 h-5" />
-                        </motion.div>
-                      </button>
-
-                      <AnimatePresence>
-                        {expandedFAQ === faq.id && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="border-t border-luxury-700 bg-luxury-850"
-                          >
-                            <p className="p-4 text-luxury-200 text-sm leading-relaxed">
-                              {faq.answer}
+                          <div className="flex-1 pr-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-semibold text-gold-400 uppercase tracking-wider">
+                                {category}
+                              </span>
+                            </div>
+                            <p className="text-white font-medium text-sm">
+                              {faq.question}
                             </p>
+                          </div>
+                          <motion.div
+                            animate={{ rotate: expandedFAQ === faqId ? 180 : 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="flex-shrink-0 text-gold-500"
+                          >
+                            <ChevronDown className="w-5 h-5" />
                           </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  ))}
+                        </button>
+
+                        <AnimatePresence>
+                          {expandedFAQ === faqId && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="border-t border-luxury-700 bg-luxury-850"
+                            >
+                              <p className="p-4 text-luxury-200 text-sm leading-relaxed">
+                                {faq.answer}
+                              </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    );
+                  })}
                 </div>
 
                 <div className="mt-6 p-4 bg-gold-500/10 border border-gold-500/30 rounded-lg text-center">
