@@ -11,7 +11,7 @@ import OptimizedImage from '../components/UI/OptimizedImage';
 import ClientReviews from '../components/UI/ClientReviews';
 import CustomerFeedback from '../components/UI/CustomerFeedback';
 import SEOHelmet from '../utils/seoHelmet';
-import { getOrganizationSchema } from '../utils/structuredData';
+import { getOrganizationSchema, getSiteNavigationSchema, getWebSiteSchema } from '../utils/structuredData';
 import { getCategoryLabel } from '../utils/categoryLabels';
 import { toast } from 'react-toastify';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -293,6 +293,12 @@ const HomePage = () => {
       </section>
     );
   };
+
+  const seoStructuredData = [
+    getWebSiteSchema(),
+    getOrganizationSchema(),
+    getSiteNavigationSchema()
+  ];
 
   const renderFeaturesSection = (sec) => {
     const items = sec.items || [];
