@@ -7,8 +7,7 @@ const ClientReviews = () => {
   const [autoPlay, setAutoPlay] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
+  const touchStartRef = useRef(0);
   const containerRef = useRef(null);
 
   const reviews = [
@@ -17,45 +16,49 @@ const ClientReviews = () => {
       rating: 5,
       text: '"The elegance and craftsmanship of Panstellia necklaces are unmatched! Every piece is a masterpiece that adds instant sophistication to any outfit. Absolutely stunning!"',
       avatar: '✨',
-      name: 'SOPHIA MARTINEZ',
+      name: 'Meenakshi',
       role: 'Luxury Enthusiast'
     },
     {
       id: 2,
-      rating: 5,
+      rating: 3,
       text: '"I am completely mesmerized by the intricate designs and premium quality. The packaging was luxurious and the customer service team was incredibly helpful and responsive."',
       avatar: '💎',
-      name: 'EMMA WILSON',
+      name: 'Lakshmi',
       role: 'Fashion Designer'
     },
     {
       id: 3,
-      rating: 5,
+      rating: 4,
       text: '"These necklaces are worth every single penny! The attention to detail is remarkable, and the materials feel authentic and precious. Perfect for special occasions!"',
       avatar: '👑',
-      name: 'OLIVIA CHEN',
+      name: 'Ananya',
       role: 'Style Influencer'
     },
     {
       id: 4,
-      rating: 4,
+      rating: 3,
       text: '"Beautiful collection with exceptional designs. The customer experience was wonderful and delivery was prompt. My only wish is for more variety in the collection!"',
       avatar: '🌟',
-      name: 'JESSICA TAYLOR',
+      name: 'Riya',
       role: 'Jewelry Collector'
     },
     {
       id: 5,
-      rating: 5,
+      rating: 4,
       text: '"Panstellia necklaces have become my go-to for making a statement. The quality is premium, the designs are timeless, and I receive compliments every time I wear them!"',
       avatar: '🎀',
-      name: 'RACHEL ANDERSON',
+      name: 'Jonali',
       role: 'Professional & Mother'
     }
   ];
 
   const itemsPerView = isMobile ? 1 : 3;
-  const totalSlides = reviews.length - itemsPerView + 1;
+  const totalSlides = Math.max(1, reviews.length - itemsPerView + 1);
+
+  useEffect(() => {
+    setCurrentIndex((prev) => Math.min(prev, Math.max(0, reviews.length - itemsPerView)));
+  }, [itemsPerView]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -90,34 +93,46 @@ const ClientReviews = () => {
     setAutoPlay(true);
     setCurrentIndex(index);
   };
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-  const handleTouchStart = (e) => {
-    setTouchStart(e.targetTouches[0].clientX);
-  };
+    const handleTouchStart = (e) => {
+      touchStartRef.current = e.targetTouches[0].clientX;
+    };
 
-  const handleTouchEnd = (e) => {
-    setTouchEnd(e.changedTouches[0].clientX);
-    handleSwipe();
-  };
+    const handleTouchEnd = (e) => {
+      const endPos = e.changedTouches[0].clientX;
+      const startPos = touchStartRef.current;
+      if (!startPos) return;
 
-  const handleSwipe = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
+      const distance = startPos - endPos;
+      if (Math.abs(distance) > 30) {
+        if (distance > 0) {
+          handleNext();
+        } else {
+          handlePrev();
+        }
+      }
 
-    if (isLeftSwipe) {
-      handleNext();
-    } else if (isRightSwipe) {
-      handlePrev();
-    }
-  };
+      touchStartRef.current = 0;
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, false);
+    container.addEventListener('touchend', handleTouchEnd, false);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, []);
 
   const getVisibleReviews = () => {
-    const startIdx = currentIndex * itemsPerView;
+    const startIdx = currentIndex;
     return reviews.slice(startIdx, startIdx + itemsPerView);
   };
+
+  const visibleReviews = getVisibleReviews();
 
   return (
     <section className="py-12 sm:py-16 md:py-20 bg-white overflow-hidden">
@@ -151,21 +166,21 @@ const ClientReviews = () => {
           <div 
             ref={containerRef}
             className="overflow-hidden flex-1 max-w-4xl w-full"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
           >
             <motion.div
-              className="flex gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0"
-              animate={{ x: -currentIndex * (100 / itemsPerView) + '%' }}
-              transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+              key={currentIndex}
+              className="flex gap-4 sm:gap-6 md:gap-8"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
             >
-              {reviews.map((review) => (
+              {visibleReviews.map((review) => (
                 <motion.div
                   key={review.id}
-                  className={isMobile ? 'w-full flex-shrink-0' : 'w-1/3 flex-shrink-0'}
+                  className={isMobile ? 'w-full flex-shrink-0' : 'flex-1 min-w-0'}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.4 }}
                 >
                   <motion.div
                     className="bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-md hover:shadow-xl transition-all duration-300 border border-luxury-100 flex flex-col min-h-[auto] sm:h-full"

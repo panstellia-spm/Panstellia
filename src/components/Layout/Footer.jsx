@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Instagram, Facebook, Mail, Phone, MapPin, Plus, Minus, ChevronDown } from 'lucide-react';
+import { Instagram, Facebook, Mail, Phone, MapPin, Plus, Minus, ChevronDown, Linkedin } from 'lucide-react';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -134,6 +134,9 @@ const Footer = () => {
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.08 3.16 9.4 7.63 11.16-.1-.95-.2-2.4.04-3.43.22-.93 1.4-5.93 1.4-5.93s-.36-.72-.36-1.77c0-1.66.96-2.9 2.17-2.9 1.02 0 1.51.77 1.51 1.69 0 1.03-.65 2.57-.99 4-.28 1.19.6 2.16 1.77 2.16 2.12 0 3.76-2.24 3.76-5.47 0-2.86-2.06-4.86-5-4.86-3.4 0-5.4 2.56-5.4 5.2 0 1.03.4 2.13.9 2.73.1.12.11.23.08.35-.1.39-.3.1.37.13-.1.04-.13-.08-.13-.08a3.72 3.72 0 0 1-.95-2.27c0-3.69 2.68-7.07 7.72-7.07 4.05 0 7.2 2.89 7.2 6.74 0 4.02-2.54 7.26-6.07 7.26-1.18 0-2.3-.61-2.68-1.34l-.73 2.79c-.26 1.02-.98 2.3-1.46 3.08A12 12 0 1 0 12 0z"/>
                 </svg>
               </a>
+              <a href="https://www.linkedin.com/company/panstellia/" target="_blank" rel="noopener noreferrer" className="text-luxury-300 hover:text-gold-400 hover:scale-110 transition-all duration-200" aria-label="Follow us on LinkedIn">
+                <Linkedin className="w-5 h-5" />
+              </a>
             </div>
           </div>
 
@@ -187,6 +190,11 @@ const Footer = () => {
                 <li>
                   <Link to="/about-us" className="text-luxury-300 hover:text-gold-400 transition-colors">
                     About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/careers" className="text-luxury-300 hover:text-gold-400 transition-colors">
+                    Careers
                   </Link>
                 </li>
               </ul>

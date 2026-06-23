@@ -204,7 +204,7 @@ const ProductsPage = () => {
     }
 
     setFilteredProducts(sorted);
-  }, [products, filters, searchQuery, visibleProducts]);
+  }, [filters, searchQuery, visibleProducts]);
 
   const handleFilterChange = (key, value) => {
     // Support nested updates for availability and arrays for category
