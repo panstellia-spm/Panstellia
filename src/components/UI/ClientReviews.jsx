@@ -7,6 +7,8 @@ const ClientReviews = () => {
   const [autoPlay, setAutoPlay] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
   const containerRef = useRef(null);
 
   const reviews = [
@@ -89,13 +91,36 @@ const ClientReviews = () => {
     setCurrentIndex(index);
   };
 
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (e) => {
+    setTouchEnd(e.changedTouches[0].clientX);
+    handleSwipe();
+  };
+
+  const handleSwipe = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe) {
+      handleNext();
+    } else if (isRightSwipe) {
+      handlePrev();
+    }
+  };
+
   const getVisibleReviews = () => {
     const startIdx = currentIndex * itemsPerView;
     return reviews.slice(startIdx, startIdx + itemsPerView);
   };
 
   return (
-    <section className="py-12 sm:py-16 md:py-20 bg-white">
+    <section className="py-12 sm:py-16 md:py-20 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         {/* Section Title */}
         <div className="text-center mb-12 sm:mb-16">
@@ -107,7 +132,7 @@ const ClientReviews = () => {
 
         {/* Reviews Carousel Container */}
         <div 
-          className="flex items-center justify-center gap-4 sm:gap-6 md:gap-8"
+          className="flex items-stretch justify-center gap-2 sm:gap-4 md:gap-8"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -116,7 +141,7 @@ const ClientReviews = () => {
             onClick={handlePrev}
             whileHover={{ scale: 1.15 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2 sm:p-3 rounded-full bg-gold-500/20 hover:bg-gold-500/40 text-gold-600 transition-all duration-300 backdrop-blur-sm flex-shrink-0"
+            className="hidden sm:block p-2 sm:p-3 rounded-full bg-white hover:bg-luxury-50 text-gold-600 transition-all duration-300 shadow-md hover:shadow-lg flex-shrink-0"
             aria-label="Previous reviews"
           >
             <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
@@ -125,10 +150,12 @@ const ClientReviews = () => {
           {/* Reviews Carousel */}
           <div 
             ref={containerRef}
-            className="overflow-hidden flex-1 max-w-4xl"
+            className="overflow-hidden flex-1 max-w-4xl w-full"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
             <motion.div
-              className="flex gap-4 sm:gap-6 md:gap-8"
+              className="flex gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0"
               animate={{ x: -currentIndex * (100 / itemsPerView) + '%' }}
               transition={{ type: 'spring', stiffness: 100, damping: 20 }}
             >
@@ -141,7 +168,7 @@ const ClientReviews = () => {
                   transition={{ duration: 0.5 }}
                 >
                   <motion.div
-                    className="bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-md hover:shadow-xl transition-all duration-300 border border-luxury-100 flex flex-col h-full"
+                    className="bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-md hover:shadow-xl transition-all duration-300 border border-luxury-100 flex flex-col min-h-[auto] sm:h-full"
                     whileHover={{ y: -5 }}
                   >
                     {/* Star Rating */}
@@ -155,7 +182,7 @@ const ClientReviews = () => {
                     </div>
 
                     {/* Review Text */}
-                    <p className="text-luxury-700 text-xs sm:text-sm md:text-base leading-relaxed mb-4 sm:mb-6 flex-grow italic">
+                    <p className="text-luxury-700 text-xs sm:text-sm md:text-base leading-relaxed mb-4 sm:mb-6 flex-grow italic break-words">
                       {review.text}
                     </p>
 
@@ -166,11 +193,11 @@ const ClientReviews = () => {
                         {review.avatar}
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="font-serif font-bold text-luxury-900 text-xs sm:text-sm md:text-base truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-serif font-bold text-luxury-900 text-xs sm:text-sm md:text-base break-words">
                           {review.name}
                         </p>
-                        <p className="text-gold-500 text-xs md:text-sm font-medium truncate">
+                        <p className="text-gold-500 text-xs md:text-sm font-medium break-words">
                           {review.role}
                         </p>
                       </div>
@@ -186,7 +213,7 @@ const ClientReviews = () => {
             onClick={handleNext}
             whileHover={{ scale: 1.15 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2 sm:p-3 rounded-full bg-gold-500/20 hover:bg-gold-500/40 text-gold-600 transition-all duration-300 backdrop-blur-sm flex-shrink-0"
+            className="hidden sm:block p-2 sm:p-3 rounded-full bg-white hover:bg-luxury-50 text-gold-600 transition-all duration-300 shadow-md hover:shadow-lg flex-shrink-0"
             aria-label="Next reviews"
           >
             <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />

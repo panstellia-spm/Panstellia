@@ -161,6 +161,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── Back In Stock Notifications Collection ─────────────────────────────
+    match /back_in_stock_notifications/{notificationId} {
+      // Allow anyone to create requests and read to prevent duplicates
+      allow read, create: if true;
+      allow update, delete: if isAdminUser();
+    }
+
     // ─── Admin Notifications Collection ──────────────────────────────────────
     match /admin_notifications/{notificationId} {
       allow read, delete: if isAdminUser();

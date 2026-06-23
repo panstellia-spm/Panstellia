@@ -9,6 +9,7 @@ import {
   collection, doc, onSnapshot, runTransaction, writeBatch, query, orderBy, limit, getDocs
 } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
+import { triggerRestockNotifications } from '../../services/restockNotifications';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import { getDirectImageUrl } from '../../utils/imageUtils';
 import { toast } from 'react-toastify';
@@ -324,13 +325,17 @@ export default function AdminInventory() {
     }
 
     try {
+      let oldStockVal = 0;
+      let productData = null;
       await runTransaction(db, async (transaction) => {
         const prodRef = doc(db, 'products', pId);
         const prodSnap = await transaction.get(prodRef);
         if (!prodSnap.exists()) throw new Error("Product not found");
 
         const data = prodSnap.data();
-        const oldStock = Number(data.stockQuantity ?? 0);
+        oldStockVal = Number(data.stockQuantity ?? 0);
+        productData = data;
+        const oldStock = oldStockVal;
         const diff = targetVal - oldStock;
         
         const reservedQuantity = Number(data.reservedQuantity ?? 0);
@@ -369,6 +374,12 @@ export default function AdminInventory() {
         });
       });
 
+      if (oldStockVal <= 0 && targetVal > 0 && productData) {
+        triggerRestockNotifications(pId, { ...productData, stockQuantity: targetVal }).catch(err => {
+          console.error("Failed to trigger restock notifications:", err);
+        });
+      }
+
       toast.success("Stock level updated successfully");
       setEditingId(null);
     } catch (err) {
@@ -399,14 +410,19 @@ export default function AdminInventory() {
 
   const handleOneClickReorder = async (pId, suggestedQty) => {
     try {
+      let oldStockVal = 0;
+      let targetVal = 0;
+      let productData = null;
       await runTransaction(db, async (transaction) => {
         const prodRef = doc(db, 'products', pId);
         const prodSnap = await transaction.get(prodRef);
         if (!prodSnap.exists()) throw new Error("Product not found");
 
         const data = prodSnap.data();
-        const oldStock = Number(data.stockQuantity ?? 0);
-        const targetVal = oldStock + suggestedQty;
+        oldStockVal = Number(data.stockQuantity ?? 0);
+        targetVal = oldStockVal + suggestedQty;
+        productData = data;
+        const oldStock = oldStockVal;
         const reservedQuantity = Number(data.reservedQuantity ?? 0);
         const availableQuantity = targetVal - reservedQuantity;
 
@@ -441,6 +457,13 @@ export default function AdminInventory() {
           reason: 'Reorder Fulfillment',
         });
       });
+      
+      if (oldStockVal <= 0 && targetVal > 0 && productData) {
+        triggerRestockNotifications(pId, { ...productData, stockQuantity: targetVal }).catch(err => {
+          console.error("Failed to trigger restock notifications:", err);
+        });
+      }
+
       toast.success("Replenished stock successfully");
     } catch {
       toast.error("Failed to fulfill reorder");
@@ -460,6 +483,7 @@ export default function AdminInventory() {
         const rows = results.data;
         const batch = writeBatch(db);
         const errors = [];
+        const restockedProducts = [];
         let successCount = 0;
 
         // Perform validations and queue updates
@@ -483,6 +507,13 @@ export default function AdminInventory() {
           if (!match) {
             errors.push(`Row ${idx + 1} (${identifier}): Product not found in catalog`);
             continue;
+          }
+
+          if (match.stockQuantity <= 0 && newQty > 0) {
+            restockedProducts.push({
+              id: match.id,
+              data: { ...match, stockQuantity: newQty }
+            });
           }
 
           const prodRef = doc(db, 'products', match.id);
@@ -530,6 +561,12 @@ export default function AdminInventory() {
         if (successCount > 0) {
           await batch.commit();
           toast.success(`Successfully updated ${successCount} products`);
+          
+          restockedProducts.forEach(prod => {
+            triggerRestockNotifications(prod.id, prod.data).catch(err => {
+              console.error("Failed to trigger restock notifications from CSV import:", err);
+            });
+          });
         }
       }
     });
