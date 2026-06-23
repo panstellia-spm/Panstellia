@@ -3,13 +3,39 @@
  * Creates schema.org compliant structured data for better SEO
  */
 
+/**
+ * WebSite schema — enables Google Sitelinks Search Box and
+ * confirms the canonical URL of the site to Google.
+ * This is the single most important schema for SERP features.
+ */
+export const getWebSiteSchema = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Panstellia',
+  url: 'https://panstellia.com',
+  description: 'Luxury necklace jewelry collections — Gold, Silver, Elite Series, and more.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: 'https://panstellia.com/products?search={search_term_string}'
+    },
+    'query-input': 'required name=search_term_string'
+  }
+});
+
 export const getOrganizationSchema = () => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Panstellia',
   url: 'https://panstellia.com',
-  logo: 'https://panstellia.com/logo.svg',
-  description: 'Luxury necklace jewelry collections',
+  logo: {
+    '@type': 'ImageObject',
+    url: 'https://panstellia.com/favicon.svg',
+    width: 512,
+    height: 512
+  },
+  description: 'Luxury necklace jewelry collections — handcrafted gold, silver and premium pieces for every occasion.',
   sameAs: [
     'https://facebook.com/panstellia',
     'https://instagram.com/panstellia',
@@ -18,7 +44,8 @@ export const getOrganizationSchema = () => ({
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'Customer Service',
-    email: 'support@panstellia.com'
+    email: 'support@panstellia.com',
+    availableLanguage: 'English'
   }
 });
 

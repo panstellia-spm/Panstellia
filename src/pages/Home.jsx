@@ -8,7 +8,7 @@ import OptimizedImage from '../components/UI/OptimizedImage';
 import ClientReviews from '../components/UI/ClientReviews';
 import CustomerFeedback from '../components/UI/CustomerFeedback';
 import SEOHelmet from '../utils/seoHelmet';
-import { getOrganizationSchema, getSiteNavigationSchema } from '../utils/structuredData';
+import { getOrganizationSchema, getSiteNavigationSchema, getWebSiteSchema } from '../utils/structuredData';
 import { getCategoryLabel } from '../utils/categoryLabels';
 import { toast } from 'react-toastify';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -187,6 +187,7 @@ const HomePage = () => {
   const marqueeText = "⭐ 4.6/5 Rating  |  2,000+ Happy Customers  |  Free Shipping on ₹999+  |  easy 3 -4 days return  |  handcrafted in korea  |  ";
 
   const seoStructuredData = [
+    getWebSiteSchema(),
     getOrganizationSchema(),
     getSiteNavigationSchema()
   ];
