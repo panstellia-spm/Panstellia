@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   User, MapPin, Package, Heart, Plus, Edit3, Trash2, CheckCircle2, 
-  Map, Star, Phone, Mail, ChevronRight, ShoppingBag, X, Info
+  Map, Star, Phone, Mail, ChevronRight, ShoppingBag, X, Info, Check
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('profile'); // profile, addresses, orders, wishlist
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [addedItems, setAddedItems] = useState({});
 
   // Address Modal/Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -174,11 +175,25 @@ export default function ProfilePage() {
   };
 
   const handleAddToCart = async (product) => {
+    setAddedItems(prev => ({ ...prev, [product.id]: 'adding' }));
     try {
       await addToCart(product);
-      removeFromWishlist(product.id);
+      setAddedItems(prev => ({ ...prev, [product.id]: 'added' }));
       toast.success('Added to cart!', { position: 'bottom-right' });
+      setTimeout(() => {
+        removeFromWishlist(product.id);
+        setAddedItems(prev => {
+          const newState = { ...prev };
+          delete newState[product.id];
+          return newState;
+        });
+      }, 1500);
     } catch (error) {
+      setAddedItems(prev => {
+        const newState = { ...prev };
+        delete newState[product.id];
+        return newState;
+      });
       toast.error('Failed to add to cart');
     }
   };
@@ -527,10 +542,24 @@ export default function ProfilePage() {
                             <div className="mt-3.5 flex gap-2">
                               <button
                                 onClick={() => handleAddToCart(item)}
-                                className="flex-1 btn-primary text-[10px] py-1.5 flex items-center justify-center font-bold tracking-wide"
+                                disabled={addedItems[item.id]}
+                                className={`flex-1 text-[10px] py-1.5 flex items-center justify-center font-bold tracking-wide rounded-lg transition-all ${
+                                  addedItems[item.id] === 'added'
+                                    ? 'bg-green-500 text-white'
+                                    : 'btn-primary'
+                                }`}
                               >
-                                <ShoppingBag className="w-3.5 h-3.5 mr-1" />
-                                Add to Cart
+                                {addedItems[item.id] === 'added' ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 mr-1" />
+                                    Added!
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShoppingBag className="w-3.5 h-3.5 mr-1" />
+                                    {addedItems[item.id] === 'adding' ? 'Adding...' : 'Add to Cart'}
+                                  </>
+                                )}
                               </button>
                               <button
                                 onClick={() => {
