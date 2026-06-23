@@ -29,6 +29,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
 const AdminRouter = lazy(() => import('./pages/admin/index'));
 const AboutUsPage = lazy(() => import('./pages/AboutUs'));
+const CareersPage = lazy(() => import('./pages/Careers'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsConditionsPage = lazy(() => import('./pages/TermsConditions'));
 const ShippingPolicyPage = lazy(() => import('./pages/ShippingPolicy'));
@@ -101,6 +102,7 @@ function App() {
                         <Route path="cart" element={<CartPage />} />
                         <Route path="wishlist" element={<WishlistPage />} />
                         <Route path="about-us" element={<AboutUsPage />} />
+                        <Route path="careers" element={<CareersPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                         <Route path="terms" element={<TermsConditionsPage />} />
                         <Route path="shipping" element={<ShippingPolicyPage />} />
