@@ -6,6 +6,57 @@ import { triggerRestockNotifications } from '../services/restockNotifications';
 // Helper to get current timestamp
 const getTimestamp = () => new Date().toISOString();
 
+// Helper to normalize product data with default inventory fields and mock reviews/ratings
+const normalizeProduct = (p) => {
+  const stockQuantity = Number(p.stockQuantity ?? 0);
+  const reservedQuantity = Number(p.reservedQuantity ?? 0);
+  const availableQuantity = stockQuantity - reservedQuantity;
+  const reorderThreshold = Number(p.reorderThreshold ?? 5);
+  const price = Number(p.price ?? 0);
+  
+  let inventoryStatus = 'in_stock';
+  if (stockQuantity <= 0) {
+    inventoryStatus = 'out_of_stock';
+  } else if (stockQuantity <= reorderThreshold) {
+    inventoryStatus = 'low_stock';
+  }
+
+  // Generate stable mock rating and review count based on product ID/name if they aren't set
+  let reviews = Number(p.reviews ?? 0);
+  let ratings = Number(p.ratings ?? 0);
+  
+  if (!reviews || reviews === 0) {
+    const charSum = (p.id || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    reviews = 10 + (charSum % 40); // 10 to 49 reviews (all below 50)
+  }
+  
+  if (!ratings || ratings === 0) {
+    const charSum = (p.name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    ratings = 4.0 + ((charSum % 9) / 10); // 4.0 to 4.8
+  }
+
+  return {
+    ...p,
+    productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
+    stockQuantity,
+    reservedQuantity,
+    availableQuantity,
+    reorderThreshold,
+    reorderQuantity: Number(p.reorderQuantity ?? 10),
+    inventoryStatus,
+    inventoryValue: price * stockQuantity,
+    skuCode: p.skuCode || '',
+    serialNumber: p.serialNumber || '',
+    metalType: p.metalType || p.category || '',
+    stoneType: p.stoneType || p.primaryStone || '',
+    weight: p.weight || '',
+    certificationNumber: p.certificationNumber || '',
+    collectionName: p.collectionName || '',
+    reviews,
+    ratings,
+  };
+};
+
 const ProductContext = createContext();
 
 export const useProducts = () => {
@@ -38,41 +89,6 @@ export const ProductProvider = ({ children }) => {
           ...doc.data(),
         }));
 
-        // Helper to normalize product data with default inventory fields
-        const normalizeProduct = (p) => {
-          const stockQuantity = Number(p.stockQuantity ?? 0);
-          const reservedQuantity = Number(p.reservedQuantity ?? 0);
-          const availableQuantity = stockQuantity - reservedQuantity;
-          const reorderThreshold = Number(p.reorderThreshold ?? 5);
-          const price = Number(p.price ?? 0);
-          
-          let inventoryStatus = 'in_stock';
-          if (stockQuantity <= 0) {
-            inventoryStatus = 'out_of_stock';
-          } else if (stockQuantity <= reorderThreshold) {
-            inventoryStatus = 'low_stock';
-          }
-
-          return {
-            ...p,
-            productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
-            stockQuantity,
-            reservedQuantity,
-            availableQuantity,
-            reorderThreshold,
-            reorderQuantity: Number(p.reorderQuantity ?? 10),
-            inventoryStatus,
-            inventoryValue: price * stockQuantity,
-            skuCode: p.skuCode || '',
-            serialNumber: p.serialNumber || '',
-            metalType: p.metalType || p.category || '',
-            stoneType: p.stoneType || p.primaryStone || '',
-            weight: p.weight || '',
-            certificationNumber: p.certificationNumber || '',
-            collectionName: p.collectionName || '',
-          };
-        };
-
         const normalized = productsData.map(normalizeProduct);
         setProducts(normalized);
       } else {
@@ -97,41 +113,6 @@ export const ProductProvider = ({ children }) => {
         createdAt: getTimestamp(),
       };
 
-      // Normalize helper
-      const normalizeProduct = (p) => {
-        const stockQuantity = Number(p.stockQuantity ?? 0);
-        const reservedQuantity = Number(p.reservedQuantity ?? 0);
-        const availableQuantity = stockQuantity - reservedQuantity;
-        const reorderThreshold = Number(p.reorderThreshold ?? 5);
-        const price = Number(p.price ?? 0);
-        
-        let inventoryStatus = 'in_stock';
-        if (stockQuantity <= 0) {
-          inventoryStatus = 'out_of_stock';
-        } else if (stockQuantity <= reorderThreshold) {
-          inventoryStatus = 'low_stock';
-        }
-
-        return {
-          ...p,
-          productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
-          stockQuantity,
-          reservedQuantity,
-          availableQuantity,
-          reorderThreshold,
-          reorderQuantity: Number(p.reorderQuantity ?? 10),
-          inventoryStatus,
-          inventoryValue: price * stockQuantity,
-          skuCode: p.skuCode || '',
-          serialNumber: p.serialNumber || '',
-          metalType: p.metalType || p.category || '',
-          stoneType: p.stoneType || p.primaryStone || '',
-          weight: p.weight || '',
-          certificationNumber: p.certificationNumber || '',
-          collectionName: p.collectionName || '',
-        };
-      };
-
       const normalized = normalizeProduct(newProduct);
       await setDoc(doc(db, 'products', product.id), normalized);
 
@@ -144,40 +125,6 @@ export const ProductProvider = ({ children }) => {
 
   const updateProduct = async (id, productData) => {
     try {
-      const normalizeProduct = (p) => {
-        const stockQuantity = Number(p.stockQuantity ?? 0);
-        const reservedQuantity = Number(p.reservedQuantity ?? 0);
-        const availableQuantity = stockQuantity - reservedQuantity;
-        const reorderThreshold = Number(p.reorderThreshold ?? 5);
-        const price = Number(p.price ?? 0);
-        
-        let inventoryStatus = 'in_stock';
-        if (stockQuantity <= 0) {
-          inventoryStatus = 'out_of_stock';
-        } else if (stockQuantity <= reorderThreshold) {
-          inventoryStatus = 'low_stock';
-        }
-
-        return {
-          ...p,
-          productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
-          stockQuantity,
-          reservedQuantity,
-          availableQuantity,
-          reorderThreshold,
-          reorderQuantity: Number(p.reorderQuantity ?? 10),
-          inventoryStatus,
-          inventoryValue: price * stockQuantity,
-          skuCode: p.skuCode || '',
-          serialNumber: p.serialNumber || '',
-          metalType: p.metalType || p.category || '',
-          stoneType: p.stoneType || p.primaryStone || '',
-          weight: p.weight || '',
-          certificationNumber: p.certificationNumber || '',
-          collectionName: p.collectionName || '',
-        };
-      };
-
       const existingProduct = products.find(p => p.id === id) || {};
       const updatedData = {
         ...productData,
