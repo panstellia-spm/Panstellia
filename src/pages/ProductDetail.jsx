@@ -25,6 +25,7 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
 
   const [openAccordion, setOpenAccordion] = useState(0); // Default to first open
@@ -107,6 +108,8 @@ const ProductDetailPage = () => {
     setIsAdding(true);
     try {
       await addToCart(product, quantity);
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 2000);
       toast.success(`${product.name} added to cart!`, {
         position: 'bottom-right'
       });
@@ -451,11 +454,24 @@ const ProductDetailPage = () => {
                 ) : (
                   <button
                     onClick={handleAddToCart}
-                    disabled={isAdding}
-                    className="flex-1 btn-primary py-3 flex items-center justify-center font-bold tracking-wide shadow-md"
+                    disabled={isAdding || isAdded}
+                    className={`flex-1 py-3 flex items-center justify-center font-bold tracking-wide shadow-md rounded-lg transition-all ${
+                      isAdded
+                        ? 'bg-green-500 text-white'
+                        : 'btn-primary'
+                    }`}
                   >
-                    <ShoppingBag className="w-4.5 h-4.5 mr-2" />
-                    {isAdding ? 'Adding...' : 'Add to Cart'}
+                    {isAdded ? (
+                      <>
+                        <Check className="w-4.5 h-4.5 mr-2" />
+                        Added!
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-4.5 h-4.5 mr-2" />
+                        {isAdding ? 'Adding...' : 'Add to Cart'}
+                      </>
+                    )}
                   </button>
                 )}
 

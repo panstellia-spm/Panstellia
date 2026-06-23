@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShoppingBag, Heart, Star, ChevronLeft, ChevronRight, Eye, Bell } from 'lucide-react';
+import { X, ShoppingBag, Heart, Star, ChevronLeft, ChevronRight, Eye, Bell, Check } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
@@ -14,6 +14,7 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
 
   const imageUrls = useMemo(() => (product ? getProductImageUrls(product) : []), [product]);
@@ -25,6 +26,8 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
     setIsAdding(true);
     try {
       await addToCart(product);
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 2000);
       toast.success(`${product.name} added to cart!`, {
         position: 'bottom-right',
       });
@@ -209,11 +212,23 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
               {product.inStock ? (
                 <button
                   onClick={handleAddToCart}
-                  disabled={isAdding}
-                  className="flex-1 btn-primary flex items-center justify-center gap-2 text-sm py-2.5"
+                  disabled={isAdding || isAdded}
+                  className={`flex-1 flex items-center justify-center gap-2 text-sm py-2.5 rounded-lg transition-all ${
+                    isAdded
+                      ? 'bg-green-500 text-white'
+                      : 'btn-primary'
+                  }`}
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  {isAdding ? 'Adding...' : 'Add to Cart'}
+                  {isAdded ? (
+                    <>
+                      <Check className="w-4 h-4" /> Added!
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      {isAdding ? 'Adding...' : 'Add to Cart'}
+                    </>
+                  )}
                 </button>
               ) : (
                 <button

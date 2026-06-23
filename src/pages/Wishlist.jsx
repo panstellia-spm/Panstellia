@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Heart, ShoppingBag, ArrowRight, Check } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
 import { toast } from 'react-toastify';
@@ -7,18 +7,36 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
 import { getCategoryLabel } from '../utils/categoryLabels';
 
+import { useState } from 'react';
+
 const WishlistPage = () => {
   const { wishlistItems, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
 
+  const [addedItems, setAddedItems] = useState({});
+
   const handleAddToCart = async (product) => {
+    setAddedItems(prev => ({ ...prev, [product.id]: 'adding' }));
     try {
       await addToCart(product);
-      removeFromWishlist(product.id);
+      setAddedItems(prev => ({ ...prev, [product.id]: 'added' }));
       toast.success('Added to cart!', {
         position: 'bottom-right'
       });
+      setTimeout(() => {
+        removeFromWishlist(product.id);
+        setAddedItems(prev => {
+          const newState = { ...prev };
+          delete newState[product.id];
+          return newState;
+        });
+      }, 1500);
     } catch (error) {
+      setAddedItems(prev => {
+        const newState = { ...prev };
+        delete newState[product.id];
+        return newState;
+      });
       toast.error('Failed to add to cart', {
         position: 'bottom-right'
       });
@@ -92,10 +110,24 @@ const WishlistPage = () => {
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={() => handleAddToCart(item)}
-                    className="flex-1 btn-primary text-sm py-2 flex items-center justify-center"
+                    disabled={addedItems[item.id]}
+                    className={`flex-1 text-sm py-2 flex items-center justify-center rounded-lg transition-all ${
+                      addedItems[item.id] === 'added'
+                        ? 'bg-green-500 text-white'
+                        : 'btn-primary'
+                    }`}
                   >
-                    <ShoppingBag className="w-4 h-4 mr-1" />
-                    Add to Cart
+                    {addedItems[item.id] === 'added' ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1" />
+                        Added!
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-4 h-4 mr-1" />
+                        {addedItems[item.id] === 'adding' ? 'Adding...' : 'Add to Cart'}
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => handleRemove(item.id)}

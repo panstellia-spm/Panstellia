@@ -15,6 +15,7 @@ const ProductCard = ({ product, priority = false }) => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [isAdding, setIsAdding] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -26,6 +27,8 @@ const ProductCard = ({ product, priority = false }) => {
     setIsAdding(true);
     try {
       await addToCart(product);
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 2000);
       toast.success(`${product.name} added to cart!`, {
         position: 'bottom-right'
       });
@@ -259,12 +262,24 @@ const ProductCard = ({ product, priority = false }) => {
                   e.stopPropagation();
                   handleAddToCart();
                 }}
-                disabled={isAdding}
+                disabled={isAdding || isAdded}
                 type="button"
-                className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-white py-2.5 rounded-lg font-semibold flex items-center justify-center hover:from-gold-600 hover:to-gold-700 transition-all disabled:opacity-50 text-xs shadow-sm hover:shadow-md active:scale-[0.98]"
+                className={`w-full py-2.5 rounded-lg font-semibold flex items-center justify-center transition-all text-xs shadow-sm hover:shadow-md active:scale-[0.98] ${
+                  isAdded 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gradient-to-r from-gold-500 to-gold-600 text-white hover:from-gold-600 hover:to-gold-700 disabled:opacity-50'
+                }`}
               >
-                <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-                {isAdding ? 'Adding...' : 'Add to Cart'}
+                {isAdded ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 mr-1.5" /> Added!
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
+                    {isAdding ? 'Adding...' : 'Add to Cart'}
+                  </>
+                )}
               </button>
             ) : (
               <button
