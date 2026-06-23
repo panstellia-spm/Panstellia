@@ -22,6 +22,48 @@ export const getOrganizationSchema = () => ({
   }
 });
 
+export const getSiteNavigationSchema = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  'itemListElement': [
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 1,
+      'name': 'Shop All Collections',
+      'description': 'Browse our complete range of exquisite necklace jewelry',
+      'url': 'https://panstellia.com/products'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 2,
+      'name': 'Elite Series',
+      'description': 'Discover our premium, handcrafted Elite Series jewelry',
+      'url': 'https://panstellia.com/products?category=Lux%20Wear'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 3,
+      'name': 'About Us',
+      'description': 'Learn about Panstellia’s brand, heritage, and story',
+      'url': 'https://panstellia.com/about-us'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 4,
+      'name': 'New Arrivals',
+      'description': 'Explore our latest jewelry additions and trending pieces',
+      'url': 'https://panstellia.com/products'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 5,
+      'name': 'Careers',
+      'description': 'Join the Panstellia team and craft brilliance with us',
+      'url': 'https://panstellia.com/careers'
+    }
+  ]
+});
+
 export const getProductSchema = (product) => ({
   '@context': 'https://schema.org',
   '@type': 'Product',

@@ -8,7 +8,7 @@ import OptimizedImage from '../components/UI/OptimizedImage';
 import ClientReviews from '../components/UI/ClientReviews';
 import CustomerFeedback from '../components/UI/CustomerFeedback';
 import SEOHelmet from '../utils/seoHelmet';
-import { getOrganizationSchema } from '../utils/structuredData';
+import { getOrganizationSchema, getSiteNavigationSchema } from '../utils/structuredData';
 import { getCategoryLabel } from '../utils/categoryLabels';
 import { toast } from 'react-toastify';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -186,6 +186,11 @@ const HomePage = () => {
 
   const marqueeText = "⭐ 4.6/5 Rating  |  2,000+ Happy Customers  |  Free Shipping on ₹999+  |  easy 3 -4 days return  |  handcrafted in korea  |  ";
 
+  const seoStructuredData = [
+    getOrganizationSchema(),
+    getSiteNavigationSchema()
+  ];
+
   return (
     <div className="min-h-screen bg-luxury-50">
       <SEOHelmet 
@@ -193,7 +198,7 @@ const HomePage = () => {
         description="Discover exquisite necklace jewelry collections from Panstellia. Premium Luxe Ring, Royal Braces, Elite Series, and Piercings pieces for weddings, parties, and everyday elegance."
         keywords="luxury necklaces, luxe ring necklaces, royal braces necklaces, elite series jewelry, piercing jewelry, handcrafted necklaces, jewelry store"
         canonical="https://panstellia.com"
-        structuredData={getOrganizationSchema()}
+        structuredData={seoStructuredData}
         preloadImages={[heroImages[0]]}
       />
       
