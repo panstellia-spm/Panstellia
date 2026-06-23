@@ -37,6 +37,7 @@ const ElegantSparkPage = lazy(() => import('./pages/ElegantSpark'));
 const TrackOrderPage = lazy(() => import('./pages/TrackOrder'));
 // Added by teammate — custom 404 page
 const NotFoundPage = lazy(() => import('./pages/NotFound'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 import { useAuth } from './context/AuthContext';
 
@@ -106,6 +107,8 @@ function App() {
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                         <Route path="terms" element={<TermsConditionsPage />} />
                         <Route path="shipping" element={<ShippingPolicyPage />} />
+                        <Route path="c/:slug" element={<LandingPage />} />
+                        <Route path="landing/:slug" element={<LandingPage />} />
 
                         {/* Protected Routes (any logged-in user) */}
                         <Route

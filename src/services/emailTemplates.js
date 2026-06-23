@@ -46,7 +46,16 @@ export const generateAdminOrderHTML = (orderData) => {
     orderDate,
     orderId,
     items = [],
+    couponCode,
+    couponDiscount,
   } = orderData;
+
+  const couponHTML = couponDiscount && couponCode ? `
+    <tr>
+      <td colspan="3" style="padding: 8px 12px; text-align: right; font-size: 13px; color: #666; border-bottom: 1px solid #e0e0e0;">Discount (${couponCode}):</td>
+      <td style="padding: 8px 12px; text-align: right; font-size: 13px; color: #2e7d32; font-weight: 600; border-bottom: 1px solid #e0e0e0;">-${formatPrice(couponDiscount)}</td>
+    </tr>
+  ` : '';
 
   const itemsHTML = items
     .map(
@@ -210,6 +219,7 @@ export const generateAdminOrderHTML = (orderData) => {
               </thead>
               <tbody>
                 ${itemsHTML}
+                ${couponHTML}
                 <tr class="total-row">
                   <td colspan="3" style="padding: 12px; text-align: right;">Total Amount:</td>
                   <td style="padding: 12px; text-align: right; color: #db912d;">${formatPrice(
@@ -262,7 +272,16 @@ export const generateCustomerOrderHTML = (orderData) => {
     orderDate,
     orderId,
     items = [],
+    couponCode,
+    couponDiscount,
   } = orderData;
+
+  const couponHTML = couponDiscount && couponCode ? `
+    <tr>
+      <td colspan="3" style="padding: 8px 12px; text-align: right; font-size: 13px; color: #666; border-bottom: 1px solid #e0e0e0;">Discount (${couponCode}):</td>
+      <td style="padding: 8px 12px; text-align: right; font-size: 13px; color: #2e7d32; font-weight: 600; border-bottom: 1px solid #e0e0e0;">-${formatPrice(couponDiscount)}</td>
+    </tr>
+  ` : '';
 
   const itemsHTML = items
     .map(
@@ -434,6 +453,7 @@ export const generateCustomerOrderHTML = (orderData) => {
               </thead>
               <tbody>
                 ${itemsHTML}
+                ${couponHTML}
                 <tr class="total-row">
                   <td colspan="3" style="padding: 12px; text-align: right;">Order Total:</td>
                   <td style="padding: 12px; text-align: right; color: #db912d;">${formatPrice(

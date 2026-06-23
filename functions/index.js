@@ -411,8 +411,10 @@ async function createOrderHandler(req, res) {
         subtotal: toNumber(totals.subtotal),
         shipping: toNumber(totals.shipping),
         tax: toNumber(totals.tax),
-        total: amountNum / 100,
+        total: totals.total ? toNumber(totals.total) : amountNum / 100,
         amount: amountNum,
+        amountPaid: amountNum / 100,
+        isPartialPayment: notes.is_partial === "true",
         currency,
         paymentMethod: "razorpay",
         paymentStatus: "Pending",
@@ -634,8 +636,9 @@ async function verifyPaymentHandler(req, res) {
         }
       }
 
+      const isPartial = pData.isPartialPayment === true;
       const paidUpdate = {
-        paymentStatus: "Paid",
+        paymentStatus: isPartial ? "Partially Paid" : "Paid",
         status: "processing",
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
