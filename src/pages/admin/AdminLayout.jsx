@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink, useLocation, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -24,8 +24,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import GlobalSearch from '../../components/admin/GlobalSearch';
+import { db } from '../../services/firebase';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
 
 const NAV_GROUPS = [
   {
@@ -121,6 +122,86 @@ export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [notifications, setNotifications] = useState([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const popoverRef = useRef(null);
+
+  // Click outside dropdown handler
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Listen to admin notifications real-time
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'admin_notifications'),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = [];
+      snapshot.forEach((doc) => {
+        notifs.push({ id: doc.id, ...doc.data() });
+      });
+      setNotifications(notifs);
+    }, (error) => {
+      console.error('Error fetching admin notifications:', error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleNotificationClick = async (notif) => {
+    setDropdownOpen(false);
+    if (!notif.read) {
+      try {
+        await updateDoc(doc(db, 'admin_notifications', notif.id), { read: true });
+      } catch (err) {
+        console.error('Failed to mark notification as read:', err);
+      }
+    }
+    if (notif.type === 'order') {
+      navigate('/admin/orders');
+    } else if (notif.type === 'inventory') {
+      navigate('/admin/inventory');
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const batch = writeBatch(db);
+      notifications.filter(n => !n.read).forEach(n => {
+        const ref = doc(db, 'admin_notifications', n.id);
+        batch.update(ref, { read: true });
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  };
+
+  const formatRelativeTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -252,13 +333,90 @@ export default function AdminLayout({ children }) {
 
           {/* Right side actions */}
           <div className="ml-auto flex items-center gap-2">
-            <button
-              title="Alerts"
-              className="relative p-2 rounded-xl text-luxury-500 hover:text-luxury-800 hover:bg-luxury-100 transition-colors"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
-            </button>
+            {/* Notification Bell & Dropdown */}
+            <div className="relative" ref={popoverRef}>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                title="Notifications"
+                className="relative p-2 rounded-xl text-luxury-500 hover:text-luxury-800 hover:bg-luxury-100 transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white border border-luxury-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                  {/* Popover Header */}
+                  <div className="flex items-center justify-between px-4 py-3 bg-luxury-50/50 border-b border-luxury-200">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-luxury-800 text-sm">Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold bg-gold-100 border border-gold-200 text-gold-700 rounded-full">
+                          {unreadCount} new
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Popover List */}
+                  <div className="max-h-[360px] overflow-y-auto divide-y divide-luxury-100">
+                    {notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                        <div className="w-10 h-10 rounded-full bg-luxury-50 flex items-center justify-center mb-2 text-luxury-400">
+                          <Bell className="w-5 h-5" />
+                        </div>
+                        <p className="text-xs font-medium text-luxury-600">No notifications yet</p>
+                        <p className="text-[11px] text-luxury-400 mt-0.5">Alerts for orders & stock levels appear here.</p>
+                      </div>
+                    ) : (
+                      notifications.map((notif) => {
+                        const Icon = notif.type === 'order' ? ShoppingBag : notif.type === 'inventory' ? AlertTriangle : Bell;
+                        const iconColor = notif.type === 'order' ? 'text-gold-600 bg-gold-50' : notif.type === 'inventory' ? 'text-amber-600 bg-amber-50' : 'text-luxury-500 bg-luxury-50';
+                        
+                        return (
+                          <div
+                            key={notif.id}
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`flex gap-3 px-4 py-3 hover:bg-luxury-50/50 cursor-pointer transition-colors ${
+                              !notif.read ? 'bg-gold-50/20 border-l-2 border-gold-500' : ''
+                            }`}
+                          >
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${iconColor}`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <p className={`text-xs truncate ${!notif.read ? 'font-bold text-luxury-900' : 'font-semibold text-luxury-800'}`}>
+                                  {notif.title}
+                                </p>
+                                <span className="text-[10px] text-luxury-400 flex-shrink-0">
+                                  {formatRelativeTime(notif.createdAt)}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-luxury-500 mt-0.5 line-clamp-2 leading-relaxed">
+                                {notif.message}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <Link
               to="/"
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-luxury-600 border border-luxury-200 hover:bg-luxury-50 transition-colors"

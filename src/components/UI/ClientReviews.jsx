@@ -17,39 +17,39 @@ const ClientReviews = () => {
       rating: 5,
       text: '"The elegance and craftsmanship of Panstellia necklaces are unmatched! Every piece is a masterpiece that adds instant sophistication to any outfit. Absolutely stunning!"',
       avatar: '✨',
-      name: 'SOPHIA MARTINEZ',
+      name: 'Meenakshi',
       role: 'Luxury Enthusiast'
     },
     {
       id: 2,
-      rating: 5,
+      rating: 3,
       text: '"I am completely mesmerized by the intricate designs and premium quality. The packaging was luxurious and the customer service team was incredibly helpful and responsive."',
       avatar: '💎',
-      name: 'EMMA WILSON',
+      name: 'Lakshmi',
       role: 'Fashion Designer'
     },
     {
       id: 3,
-      rating: 5,
+      rating: 4,
       text: '"These necklaces are worth every single penny! The attention to detail is remarkable, and the materials feel authentic and precious. Perfect for special occasions!"',
       avatar: '👑',
-      name: 'OLIVIA CHEN',
+      name: 'Ananya',
       role: 'Style Influencer'
     },
     {
       id: 4,
-      rating: 4,
+      rating: 3,
       text: '"Beautiful collection with exceptional designs. The customer experience was wonderful and delivery was prompt. My only wish is for more variety in the collection!"',
       avatar: '🌟',
-      name: 'JESSICA TAYLOR',
+      name: 'Riya',
       role: 'Jewelry Collector'
     },
     {
       id: 5,
-      rating: 5,
+      rating: 4,
       text: '"Panstellia necklaces have become my go-to for making a statement. The quality is premium, the designs are timeless, and I receive compliments every time I wear them!"',
       avatar: '🎀',
-      name: 'RACHEL ANDERSON',
+      name: 'Jonali',
       role: 'Professional & Mother'
     }
   ];

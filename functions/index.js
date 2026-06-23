@@ -617,6 +617,19 @@ async function verifyPaymentHandler(req, res) {
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             reason: `Razorpay Order #${pData.orderId} Completed`,
           });
+
+          // Low stock alert write inside transaction
+          if (newStock <= Number(prodData.reorderThreshold ?? 5)) {
+            const notifRef = db.collection("admin_notifications").doc(`lowstock-${item.id}-${pData.orderId}`);
+            transaction.set(notifRef, {
+              title: "Low Stock Alert",
+              message: `Product "${item.name}" is low in stock (${newStock} left)`,
+              type: "inventory",
+              targetId: item.id,
+              read: false,
+              createdAt: new Date().toISOString(),
+            });
+          }
         }
       }
 
@@ -632,6 +645,17 @@ async function verifyPaymentHandler(req, res) {
       transaction.update(paymentDocRef, paidUpdate);
       if (pData.orderDocId) {
         transaction.update(db.collection("orders").doc(pData.orderDocId), paidUpdate);
+
+        // Order notification write inside transaction
+        const orderNotifRef = db.collection("admin_notifications").doc(`order-${pData.orderId}`);
+        transaction.set(orderNotifRef, {
+          title: "New Order Placed",
+          message: `Order #${pData.orderId} was placed by ${pData.customerName || "Customer"} for ₹${(Number(pData.total) || 0).toLocaleString()}`,
+          type: "order",
+          targetId: pData.orderDocId,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
       }
 
       return {

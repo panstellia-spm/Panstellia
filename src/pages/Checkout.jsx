@@ -268,6 +268,19 @@ const CheckoutPage = () => {
                 timestamp: new Date().toISOString(),
                 reason: `COD Order #${orderId}`,
               });
+
+              // Low stock alert write inside transaction
+              if (newStock <= Number(pData.reorderThreshold ?? 5)) {
+                const notifRef = doc(db, 'admin_notifications', `lowstock-${item.id}-${orderId}`);
+                transaction.set(notifRef, {
+                  title: 'Low Stock Alert',
+                  message: `Product "${item.name}" is low in stock (${newStock} left)`,
+                  type: 'inventory',
+                  targetId: item.id,
+                  read: false,
+                  createdAt: new Date().toISOString(),
+                });
+              }
             }
 
             // 4. Save order and payment records
@@ -304,6 +317,17 @@ const CheckoutPage = () => {
             });
 
             transaction.set(orderDocRef, commonOrderData);
+
+            // Order notification write inside transaction
+            const orderNotifRef = doc(db, 'admin_notifications', `order-${orderId}`);
+            transaction.set(orderNotifRef, {
+              title: 'New Order Placed',
+              message: `Order #${orderId} was placed by ${formData.name} for ₹${total.toLocaleString()}`,
+              type: 'order',
+              targetId: orderDocRef.id,
+              read: false,
+              createdAt: new Date().toISOString(),
+            });
           });
 
           // Send order confirmation and admin notification emails
@@ -459,7 +483,7 @@ const CheckoutPage = () => {
         },
       });
 
-      const { order_id, order_number } = orderData;
+      const { order_id, order_number, local_order_id } = orderData;
 
       const markCurrentPaymentFailed = async (reason, paymentId) => {
         try {
@@ -490,6 +514,7 @@ const CheckoutPage = () => {
         },
         onSuccess: async (response) => {
           try {
+            const razorpayOrderId = order_number || response.razorpay_order_id;
             // Deduct stock client-side first
             await runTransaction(db, async (transaction) => {
               for (const item of cartItemsSnapshot) {
@@ -533,10 +558,34 @@ const CheckoutPage = () => {
                     adminId: user.uid,
                     adminName: user.displayName || user.email || 'Customer (Purchase)',
                     timestamp: new Date().toISOString(),
-                    reason: `Razorpay Order #${order_number || response.razorpay_order_id}`,
+                    reason: `Razorpay Order #${razorpayOrderId}`,
                   });
+
+                  // Low stock alert write inside transaction
+                  if (newStock <= Number(pData.reorderThreshold ?? 5)) {
+                    const notifRef = doc(db, 'admin_notifications', `lowstock-${item.id}-${razorpayOrderId}`);
+                    transaction.set(notifRef, {
+                      title: 'Low Stock Alert',
+                      message: `Product "${item.name}" is low in stock (${newStock} left)`,
+                      type: 'inventory',
+                      targetId: item.id,
+                      read: false,
+                      createdAt: new Date().toISOString(),
+                    });
+                  }
                 }
               }
+
+              // Order notification write inside transaction
+              const orderNotifRef = doc(db, 'admin_notifications', `order-${razorpayOrderId}`);
+              transaction.set(orderNotifRef, {
+                title: 'New Order Placed',
+                message: `Order #${razorpayOrderId} was placed by ${formData.name} for ₹${total.toLocaleString()}`,
+                type: 'order',
+                targetId: local_order_id || '',
+                read: false,
+                createdAt: new Date().toISOString(),
+              });
             });
 
             // Call verifyPayment in backend to finalize the Firestore order status to processing
