@@ -77,7 +77,7 @@ const Navbar = () => {
     { to: '/products?category=Silver', label: getCategoryLabel('Silver'), icon: CircleDot, isActive: location.pathname === '/products' && currentCategory === 'Silver' },
     { to: '/products?category=Lux Wear', label: getCategoryLabel('Lux Wear'), icon: Crown, isActive: location.pathname === '/products' && currentCategory === 'Lux Wear' },
     { to: '/category/elegant-spark', label: getCategoryLabel('Elegant Spark'), icon: Sparkles, isActive: location.pathname === '/category/elegant-spark' },
-    { to: '/products?category=Piercings', label: getCategoryLabel('Piercings'), icon: Diamond, isActive: location.pathname === '/products' && currentCategory === 'Piercings' }
+    { to: '/products?category=Party Wear', label: getCategoryLabel('Party Wear'), icon: Diamond, isActive: location.pathname === '/products' && (currentCategory === 'Party Wear' || currentCategory === 'Piercings') }
   ];
 
   return (

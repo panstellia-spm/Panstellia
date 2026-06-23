@@ -70,6 +70,9 @@ const AdminPage = () => {
     category: 'Gold',
     featured: false,
     inStock: true,
+    isTrending: false,
+    isBestseller: false,
+    isNewArrival: false,
 
     // Admin controlled product arrival stage / availability state.
     productStatus: 'available',
@@ -261,6 +264,9 @@ const AdminPage = () => {
         category: 'Gold',
         featured: false,
         inStock: true,
+        isTrending: false,
+        isBestseller: false,
+        isNewArrival: false,
         productStatus: 'available',
 
         // Specifications
@@ -312,6 +318,9 @@ const AdminPage = () => {
       category: product.category || 'Gold',
       featured: product.featured || false,
       inStock: product.inStock ?? true,
+      isTrending: product.isTrending || false,
+      isBestseller: product.isBestseller || false,
+      isNewArrival: product.isNewArrival || false,
       productStatus: product.productStatus ?? 'available',
 
       // Specifications
@@ -530,6 +539,9 @@ const AdminPage = () => {
                         category: 'Gold',
                         featured: false,
                         inStock: true,
+                        isTrending: false,
+                        isBestseller: false,
+                        isNewArrival: false,
                         productStatus: 'available',
 
                         // Specifications
@@ -698,7 +710,7 @@ const AdminPage = () => {
                           </select>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-wrap items-center gap-4">
                           <label className="flex items-center">
                             <input
                               type="checkbox"
@@ -718,6 +730,36 @@ const AdminPage = () => {
                               className="mr-2"
                             />
                             In Stock
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              name="isTrending"
+                              checked={productForm.isTrending}
+                              onChange={handleInputChange}
+                              className="mr-2"
+                            />
+                            Trending
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              name="isBestseller"
+                              checked={productForm.isBestseller}
+                              onChange={handleInputChange}
+                              className="mr-2"
+                            />
+                            Bestseller
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              name="isNewArrival"
+                              checked={productForm.isNewArrival}
+                              onChange={handleInputChange}
+                              className="mr-2"
+                            />
+                            New Arrival
                           </label>
                         </div>
 

@@ -34,7 +34,7 @@ const ProductsPage = () => {
 
   // Filters state: category is an array (multi-select). Empty array means all categories
   const [filters, setFilters] = useState({
-    category: categoryQuery ? categoryQuery.split(',') : [],
+    category: categoryQuery ? categoryQuery.split(',').map(getCanonicalCategoryKeyFromQuery) : [],
     minPrice: minPriceQuery || '',
     maxPrice: maxPriceQuery || '',
     sortBy: sortByQuery || 'newest',
@@ -42,6 +42,11 @@ const ProductsPage = () => {
       inStock: false,
       outOfStock: false,
       discounted: false
+    },
+    collections: {
+      trending: false,
+      bestseller: false,
+      newArrival: false
     },
     discountMin: '' // numeric threshold for discount filter (e.g., 10, 20)
   });
@@ -89,7 +94,7 @@ const ProductsPage = () => {
   // Sync URL query params into filters state
   useEffect(() => {
     setFilters((current) => {
-      const nextCategory = categoryQuery ? categoryQuery.split(',') : [];
+      const nextCategory = categoryQuery ? categoryQuery.split(',').map(getCanonicalCategoryKeyFromQuery) : [];
       const next = {
         ...current,
         category: nextCategory,
@@ -151,6 +156,18 @@ const ProductsPage = () => {
       });
     }
 
+    // Collections filters (OR between selected collections)
+    const { collections } = filters;
+    if (collections && (collections.trending || collections.bestseller || collections.newArrival)) {
+      result = result.filter((p) => {
+        let ok = false;
+        if (collections.trending && p.isTrending) ok = true;
+        if (collections.bestseller && p.isBestseller) ok = true;
+        if (collections.newArrival && p.isNewArrival) ok = true;
+        return ok;
+      });
+    }
+
     // Discount threshold (single selection)
     if (filters.discountMin) {
       const minDisc = Number(filters.discountMin);
@@ -208,10 +225,11 @@ const ProductsPage = () => {
   }, [filters, searchQuery, visibleProducts]);
 
   const handleFilterChange = (key, value) => {
-    // Support nested updates for availability and arrays for category
     let newFilters = { ...filters };
     if (key === 'availability') {
       newFilters = { ...filters, availability: { ...filters.availability, ...value } };
+    } else if (key === 'collections') {
+      newFilters = { ...filters, collections: { ...filters.collections, ...value } };
     } else if (key === 'category') {
       // value expected to be the new category array
       newFilters = { ...filters, category: Array.isArray(value) ? value : [] };
@@ -246,6 +264,7 @@ const ProductsPage = () => {
       maxPrice: '',
       sortBy: 'newest',
       availability: { inStock: false, outOfStock: false, discounted: false },
+      collections: { trending: false, bestseller: false, newArrival: false },
       discountMin: ''
     });
     setSearchParams(searchQuery ? { search: searchQuery } : {}, { replace: true, state: { preventScroll: true } });
@@ -256,7 +275,8 @@ const ProductsPage = () => {
     filters.minPrice !== '' && filters.minPrice !== null,
     filters.maxPrice !== '' && filters.maxPrice !== null,
     filters.discountMin !== '' && filters.discountMin !== null,
-    filters.availability && (filters.availability.inStock || filters.availability.outOfStock || filters.availability.discounted)
+    filters.availability && (filters.availability.inStock || filters.availability.outOfStock || filters.availability.discounted),
+    filters.collections && (filters.collections.trending || filters.collections.bestseller || filters.collections.newArrival)
   ].filter(Boolean).length;
 
   // Stagger grid variants
@@ -309,34 +329,24 @@ const ProductsPage = () => {
         <h4 className="text-xs font-semibold text-luxury-800 uppercase tracking-wider mb-2">Quick Filters</h4>
         <div className="flex flex-wrap gap-2">
           {[
-            { key: 'trending', label: 'Trending', isActive: filters.sortBy === 'trending' },
-            { key: 'new-arrivals', label: 'New Arrivals', isActive: filters.sortBy === 'newest' },
-            { key: 'best-sellers', label: 'Best Sellers', isActive: filters.sortBy === 'best-selling' },
+            { key: 'trending', label: 'Trending', isActive: filters.collections?.trending },
+            { key: 'newArrival', label: 'New Arrivals', isActive: filters.collections?.newArrival },
+            { key: 'bestseller', label: 'Best Sellers', isActive: filters.collections?.bestseller },
             { key: 'under-200', label: 'Under ₹200', isActive: filters.maxPrice === '200' && !filters.minPrice }
           ].map((q) => (
             <button
               key={q.key}
               type="button"
               onClick={() => {
-                if (q.isActive) {
-                  // Toggle off
-                  if (q.key === 'under-200') {
+                if (q.key === 'under-200') {
+                  if (q.isActive) {
                     handleFilterChange('maxPrice', '');
                   } else {
-                    handleFilterChange('sortBy', 'newest');
-                  }
-                } else {
-                  // Toggle on
-                  if (q.key === 'under-200') {
                     handleFilterChange('minPrice', '');
                     handleFilterChange('maxPrice', '200');
-                  } else if (q.key === 'trending') {
-                    handleFilterChange('sortBy', 'trending');
-                  } else if (q.key === 'best-sellers') {
-                    handleFilterChange('sortBy', 'best-selling');
-                  } else if (q.key === 'new-arrivals') {
-                    handleFilterChange('sortBy', 'newest');
                   }
+                } else {
+                  handleFilterChange('collections', { [q.key]: !q.isActive });
                 }
               }}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${q.isActive
