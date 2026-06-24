@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { detectDelay, normalizeStatus } from '../../services/orderStatus';
 import { initializeDatabase } from '../../utils/dbSeeder';
+import { getOptimizedImageUrl } from '../../utils/imageUtils';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -526,7 +527,7 @@ export default function AdminDashboard() {
               {inventoryRisk.map(p => (
                 <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-luxury-50 border border-luxury-100">
                   {p.image && (
-                    <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg flex-shrink-0 bg-luxury-100" onError={e => { e.target.style.display = 'none'; }} />
+                    <img src={getOptimizedImageUrl(p.image, { width: 100, quality: 60 })} alt={p.name} className="w-10 h-10 object-cover rounded-lg flex-shrink-0 bg-luxury-100" onError={e => { e.target.style.display = 'none'; }} />
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-luxury-900 truncate">{p.name}</p>

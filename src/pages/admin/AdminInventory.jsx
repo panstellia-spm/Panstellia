@@ -14,10 +14,7 @@ import { getCategoryLabel } from '../../utils/categoryLabels';
 import { getDirectImageUrl } from '../../utils/imageUtils';
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
-import {
-  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend
-} from 'recharts';
+
 
 // Luxury Gold Palette matching Panstellia branding
 const COLORS = ['#d4af37', '#aa7c11', '#db912d', '#f3e5ab', '#8a7322', '#c5a059'];
@@ -715,16 +712,31 @@ export default function AdminInventory() {
                     <h2 className="text-base font-bold text-luxury-900">Capital Value by Collection</h2>
                     <p className="text-xs text-luxury-500">Breakdown of inventory asset value across collections</p>
                   </div>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartsData.barData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="name" stroke="#a3a3a3" fontSize={11} />
-                        <YAxis stroke="#a3a3a3" fontSize={11} tickFormatter={(v) => `₹${v/1000}k`} />
-                        <Tooltip formatter={(value) => [`₹${value.toLocaleString('en-IN')}`, 'Inventory Value']} />
-                        <Bar dataKey="value" fill="#d4af37" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="h-64 flex items-end justify-between gap-3 pt-6 pb-2">
+                    {chartsData.barData.length === 0 ? (
+                      <p className="text-xs text-luxury-400 w-full text-center pb-24">No data available</p>
+                    ) : (
+                      chartsData.barData.map((d, index) => {
+                        const maxVal = Math.max(...chartsData.barData.map(item => item.value), 1);
+                        const pct = (d.value / maxVal) * 100;
+                        return (
+                          <div key={index} className="flex-1 flex flex-col items-center group h-full justify-end relative">
+                            {/* Value tooltip on hover */}
+                            <div className="absolute bottom-full mb-1.5 hidden group-hover:block bg-luxury-900 text-white text-[10px] px-2.5 py-1 rounded-lg shadow-xl z-20 whitespace-nowrap transition-all">
+                              ₹{d.value.toLocaleString('en-IN')}
+                            </div>
+                            {/* Bar column */}
+                            <div 
+                              className="w-full bg-gradient-to-t from-gold-600 to-gold-400 rounded-t-lg transition-all duration-300 hover:from-gold-500 hover:to-gold-300 shadow-sm"
+                              style={{ height: `${Math.max(4, pct * 0.75)}%` }}
+                            />
+                            {/* Labels */}
+                            <p className="text-[10px] text-luxury-600 truncate max-w-full mt-2 font-medium">{d.name}</p>
+                            <p className="text-[9px] text-luxury-400 font-bold">₹{(d.value / 1000).toFixed(1)}k</p>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -734,26 +746,52 @@ export default function AdminInventory() {
                     <h2 className="text-base font-bold text-luxury-900">Stock Count Distribution</h2>
                     <p className="text-xs text-luxury-500">Share of physical products by jewelry type</p>
                   </div>
-                  <div className="h-64 flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={chartsData.pieData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          fill="#8884d8"
-                          label={(entry) => `${entry.name} (${entry.value})`}
-                        >
-                          {chartsData.pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
+                  <div className="h-64 flex flex-col justify-center space-y-4">
+                    {chartsData.pieData.length === 0 ? (
+                      <p className="text-xs text-luxury-400 text-center">No data available</p>
+                    ) : (
+                      <>
+                        {/* Segmented bar breakdown */}
+                        <div className="w-full h-4 rounded-full overflow-hidden flex bg-luxury-100 shadow-inner">
+                          {chartsData.pieData.map((d, index) => {
+                            const totalStock = chartsData.pieData.reduce((acc, item) => acc + item.value, 0);
+                            const pct = totalStock > 0 ? (d.value / totalStock) * 100 : 0;
+                            if (pct <= 0) return null;
+                            return (
+                              <div
+                                key={index}
+                                className="h-full first:rounded-l-full last:rounded-r-full hover:brightness-110 transition-all cursor-help"
+                                style={{
+                                  width: `${pct}%`,
+                                  backgroundColor: COLORS[index % COLORS.length]
+                                }}
+                                title={`${d.name}: ${d.value} items (${pct.toFixed(1)}%)`}
+                              />
+                            );
+                          })}
+                        </div>
+
+                        {/* Breakdown/Legend List */}
+                        <div className="grid grid-cols-2 gap-3 max-h-[160px] overflow-y-auto pr-1">
+                          {chartsData.pieData.map((d, index) => {
+                            const totalStock = chartsData.pieData.reduce((acc, item) => acc + item.value, 0);
+                            const pct = totalStock > 0 ? (d.value / totalStock) * 100 : 0;
+                            return (
+                              <div key={index} className="flex items-center justify-between text-xs p-1.5 rounded-xl hover:bg-luxury-50 transition-colors border border-transparent hover:border-luxury-100">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div 
+                                    className="w-2.5 h-2.5 rounded-full shrink-0" 
+                                    style={{ backgroundColor: COLORS[index % COLORS.length] }} 
+                                  />
+                                  <span className="font-semibold text-luxury-700 truncate">{d.name}</span>
+                                </div>
+                                <span className="font-bold text-luxury-900 shrink-0">{d.value} ({pct.toFixed(0)}%)</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

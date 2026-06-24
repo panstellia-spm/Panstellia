@@ -13,6 +13,7 @@ import { getCategoryLabel } from '../../utils/categoryLabels';
 import CartDrawer from '../UI/CartDrawer';
 import { db } from '../../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { getOptimizedImageUrl } from '../../utils/imageUtils';
 
 const Navbar = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -279,7 +280,7 @@ const Navbar = () => {
                         }}
                         className="flex items-center gap-3 p-2 hover:bg-luxury-50 rounded-lg transition-colors"
                       >
-                        <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded bg-luxury-100 flex-shrink-0" />
+                        <img src={getOptimizedImageUrl(product.image, { width: 100, quality: 60 })} alt={product.name} className="w-10 h-10 object-cover rounded bg-luxury-100 flex-shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-xs text-luxury-800 truncate">{product.name}</p>
                           <p className="text-[11px] text-gold-600 font-semibold">₹{product.price.toLocaleString()}</p>
