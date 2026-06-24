@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getBlurPlaceholderUrl } from '../../utils/imageUtils';
+import { getBlurPlaceholderUrl, getOriginalUrl } from '../../utils/imageUtils';
 
 /**
  * OptimizedImage — drop-in <img> replacement with:
  *  - IntersectionObserver lazy loading (200px rootMargin)
  *  - Shimmer skeleton while loading
  *  - Blur-up reveal: tiny placeholder fades to full image
- *  - Smart error fallback: tries lh3.googleusercontent.com for Drive
+ *  - Smart error fallback: tries direct URL fallback and then lh3.googleusercontent.com for Drive
  *    images before showing branded "✦ Panstellia" box
  *  - Explicit width/height to prevent CLS
  */
@@ -27,6 +27,7 @@ const OptimizedImage = ({
   const [currentSrc, setCurrentSrc] = useState(src);
   const failCountRef = useRef(0);
   const imgRef = useRef(null);
+  const imageElRef = useRef(null);
 
   // IntersectionObserver — start loading 200px before visible
   useEffect(() => {
@@ -53,14 +54,32 @@ const OptimizedImage = ({
     failCountRef.current = 0;
   }, [src]);
 
-  // Smart error handler — tries lh3 fallback for Drive images
+  // Fix native browser image caching onLoad issue in React:
+  // If the image is already cached, complete will be true on mount or update,
+  // but the browser's load event won't fire again.
+  useEffect(() => {
+    if (imageElRef.current && imageElRef.current.complete && !isLoaded && !hasError) {
+      setIsLoaded(true);
+    }
+  });
+
+  // Smart error handler — tries direct URL fallback first, then Google Drive lh3 fallback
   const handleError = useCallback(() => {
     failCountRef.current += 1;
 
-    // First failure: try lh3.googleusercontent.com if it's a Drive image
+    // First failure: if it was a wsrv.nl proxied URL, fall back to the original direct URL!
     if (failCountRef.current === 1) {
-      // Extract Drive file ID from the wsrv.nl proxied URL
-      // The original Drive URL is encoded in the ?url= parameter
+      if (src && src.includes('wsrv.nl')) {
+        const originalUrl = getOriginalUrl(src);
+        if (originalUrl) {
+          setCurrentSrc(originalUrl);
+          return;
+        }
+      }
+    }
+
+    // Second failure: try Google Drive lh3 fallback
+    if (failCountRef.current === 2 || (failCountRef.current === 1 && (!src || !src.includes('wsrv.nl')))) {
       const decodedUrl = decodeURIComponent(src || '');
       const fileIdMatch =
         decodedUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
@@ -110,6 +129,7 @@ const OptimizedImage = ({
       {/* ── Real image ── */}
       {isInView && !hasError && (
         <img
+          ref={imageElRef}
           src={currentSrc || fallbackSrc || ''}
           alt={alt}
           loading={priority ? 'eager' : 'lazy'}

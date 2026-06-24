@@ -326,9 +326,72 @@ export async function initializeDatabase() {
       }
     }
 
+    // Seed or update "Shooting Star Drops" product
+    try {
+      const { collection, getDocs, doc: firestoreDoc, setDoc, updateDoc } = await import('firebase/firestore');
+      const prodSnap = await getDocs(collection(db, 'products'));
+      let targetProduct = null;
+      prodSnap.forEach((doc) => {
+        const data = doc.data();
+        if (data.name && data.name.trim().toLowerCase() === 'shooting star drops') {
+          targetProduct = { id: doc.id, ...data };
+        }
+      });
+
+      const newImages = [
+        "https://res.cloudinary.com/dpxh53g1c/image/upload/v1782278457/i5_mzxmfy.png",
+        "https://res.cloudinary.com/dpxh53g1c/image/upload/v1782278458/i9_ejsx4i.png",
+        "https://res.cloudinary.com/dpxh53g1c/image/upload/v1782278457/i8_z5du1c.png",
+        "https://res.cloudinary.com/dpxh53g1c/image/upload/v1782278457/i6_gzf49q.png"
+      ];
+
+      if (targetProduct) {
+        // Check if images need updating
+        const currentImages = Array.isArray(targetProduct.images) ? targetProduct.images : [];
+        const matches = currentImages.length === newImages.length &&
+          currentImages.every((val, index) => val === newImages[index]);
+        
+        if (!matches) {
+          const targetRef = firestoreDoc(db, 'products', targetProduct.id);
+          await updateDoc(targetRef, {
+            images: newImages,
+            image: newImages[0]
+          });
+          console.log('Successfully updated "Shooting Star Drops" product images in database!');
+        } else {
+          console.log('"Shooting Star Drops" product images are already up to date.');
+        }
+      } else {
+        // Seed new product if it doesn't exist
+        const targetRef = firestoreDoc(db, 'products', 'shooting_star_drops');
+        const newProduct = {
+          id: "shooting_star_drops",
+          name: "Shooting Star Drops",
+          description: "Elegant star drops piercings. Handcrafted luxury earrings featuring beautiful star designs and delicate details.",
+          price: 200,
+          originalPrice: 288,
+          image: newImages[0],
+          images: newImages,
+          category: "Piercings",
+          featured: true,
+          inStock: true,
+          productStatus: "available",
+          stockQuantity: 50,
+          reorderThreshold: 5,
+          reorderQuantity: 10,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(targetRef, newProduct);
+        console.log('Seeded new "Shooting Star Drops" product successfully in database!');
+      }
+    } catch (err) {
+      console.error('Failed to seed/update "Shooting Star Drops" product:', err);
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Database seeding failed:', error);
     return { success: false, error: error.message };
   }
 }
+
