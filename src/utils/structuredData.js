@@ -3,13 +3,39 @@
  * Creates schema.org compliant structured data for better SEO
  */
 
+/**
+ * WebSite schema — enables Google Sitelinks Search Box and
+ * confirms the canonical URL of the site to Google.
+ * This is the single most important schema for SERP features.
+ */
+export const getWebSiteSchema = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Panstellia',
+  url: 'https://panstellia.com',
+  description: 'Luxury necklace jewelry collections — Gold, Silver, Elite Series, and more.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: 'https://panstellia.com/products?search={search_term_string}'
+    },
+    'query-input': 'required name=search_term_string'
+  }
+});
+
 export const getOrganizationSchema = () => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Panstellia',
   url: 'https://panstellia.com',
-  logo: 'https://panstellia.com/logo.svg',
-  description: 'Luxury necklace jewelry collections',
+  logo: {
+    '@type': 'ImageObject',
+    url: 'https://panstellia.com/favicon.svg',
+    width: 512,
+    height: 512
+  },
+  description: 'Luxury necklace jewelry collections — handcrafted gold, silver and premium pieces for every occasion.',
   sameAs: [
     'https://facebook.com/panstellia',
     'https://instagram.com/panstellia',
@@ -18,7 +44,69 @@ export const getOrganizationSchema = () => ({
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'Customer Service',
-    email: 'support@panstellia.com'
+    email: 'support@panstellia.com',
+    availableLanguage: 'English'
+  }
+});
+
+export const getSiteNavigationSchema = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  'name': 'Panstellia Site Navigation',
+  'itemListElement': [
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 1,
+      'name': 'Shop',
+      'description': 'Browse our complete range of luxury necklace jewelry — Gold, Silver, Party Wear and more.',
+      'url': 'https://panstellia.com/products'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 2,
+      'name': 'Elite Series',
+      'description': 'Discover our premium, handcrafted Elite Series (Lux Wear) luxury jewelry collection.',
+      'url': 'https://panstellia.com/products?category=Lux%20Wear'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 3,
+      'name': 'About Us',
+      'description': 'Learn about Panstellia — our story, founder Cimeon Moses, and our brand values.',
+      'url': 'https://panstellia.com/about-us'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      'position': 4,
+      'name': 'Careers',
+      'description': 'Join the Panstellia team. Open roles in Neyveli and remote across design, content, and operations.',
+      'url': 'https://panstellia.com/careers'
+    }
+  ]
+});
+
+/**
+ * WebPage schema — emit on individual pages so Google
+ * can index each page as a distinct, named entity.
+ * breadcrumbName: short label shown in sitelinks (e.g. "About Us")
+ */
+export const getWebPageSchema = ({ name, description, url, breadcrumbName }) => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name,
+  description,
+  url,
+  breadcrumb: {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://panstellia.com' },
+      { '@type': 'ListItem', position: 2, name: breadcrumbName, item: url }
+    ]
+  },
+  isPartOf: {
+    '@type': 'WebSite',
+    name: 'Panstellia',
+    url: 'https://panstellia.com'
   }
 });
 

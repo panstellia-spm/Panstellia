@@ -1,5 +1,6 @@
 const cors = require("cors");
 const admin = require("firebase-admin");
+const { FieldValue } = require("firebase-admin/firestore");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 
@@ -22,6 +23,12 @@ try {
 const defaultAllowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "http://localhost:5175",
+  "http://127.0.0.1:5175",
+  "http://localhost:5176",
+  "http://127.0.0.1:5176",
   "https://panstellia.vercel.app",
   "https://panstellia.com",
   "https://www.panstellia.com",
@@ -217,6 +224,10 @@ function sanitizeAddress(address) {
     city: String(address?.city || "").slice(0, 120),
     state: String(address?.state || "").slice(0, 120),
     pincode: String(address?.pincode || "").slice(0, 20),
+    apartment: address?.apartment ? String(address.apartment).slice(0, 120) : "",
+    landmark: address?.landmark ? String(address.landmark).slice(0, 120) : "",
+    country: address?.country ? String(address.country).slice(0, 120) : "",
+    addressLabel: address?.addressLabel ? String(address.addressLabel).slice(0, 50) : "",
   };
 }
 
@@ -406,8 +417,12 @@ async function createOrderHandler(req, res) {
         subtotal: toNumber(totals.subtotal),
         shipping: toNumber(totals.shipping),
         tax: toNumber(totals.tax),
-        total: amountNum / 100,
+        couponCode: totals.couponCode || null,
+        couponDiscount: totals.couponDiscount ? toNumber(totals.couponDiscount) : 0,
+        total: totals.total ? toNumber(totals.total) : amountNum / 100,
         amount: amountNum,
+        amountPaid: amountNum / 100,
+        isPartialPayment: notes.is_partial === "true",
         currency,
         paymentMethod: "razorpay",
         paymentStatus: "Pending",
@@ -416,8 +431,12 @@ async function createOrderHandler(req, res) {
         city: addressInfo.city,
         state: addressInfo.state,
         pincode: addressInfo.pincode,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        apartment: addressInfo.apartment || "",
+        landmark: addressInfo.landmark || "",
+        country: addressInfo.country || "",
+        addressLabel: addressInfo.addressLabel || "",
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
 
       transaction.set(orderRef, commonOrderData);
@@ -498,7 +517,7 @@ async function verifyPaymentHandler(req, res) {
           status: "payment_failed",
           razorpayPaymentId: razorpay_payment_id,
           failureReason: "Signature mismatch",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
         await pendingPayment.ref.update(failedUpdate);
 
@@ -564,25 +583,31 @@ async function verifyPaymentHandler(req, res) {
         };
       }
 
-      // Deduct stock for each item
+      const productDocs = [];
       for (const item of pData.items) {
         const productRef = db.collection("products").doc(item.id);
         const productSnap = await transaction.get(productRef);
         if (productSnap.exists) {
-          const prodData = productSnap.data();
-          const oldStock = Number(prodData.stockQuantity ?? 0);
-          const oldReserved = Number(prodData.reservedQuantity ?? 0);
+          productDocs.push({ ref: productRef, snap: productSnap, item });
+        }
+      }
 
-          const newStock = Math.max(0, oldStock - item.quantity);
-          const newReserved = Math.max(0, oldReserved - item.quantity);
-          const newAvailable = newStock - newReserved;
+      // Deduct stock for each item
+      for (const { ref, snap, item } of productDocs) {
+        const prodData = snap.data();
+        const oldStock = Number(prodData.stockQuantity ?? 0);
+        const oldReserved = Number(prodData.reservedQuantity ?? 0);
 
-          let inventoryStatus = 'in_stock';
-          if (newStock <= 0) {
-            inventoryStatus = 'out_of_stock';
-          } else if (newStock <= Number(prodData.reorderThreshold ?? 5)) {
-            inventoryStatus = 'low_stock';
-          }
+        const newStock = Math.max(0, oldStock - item.quantity);
+        const newReserved = Math.max(0, oldReserved - item.quantity);
+        const newAvailable = newStock - newReserved;
+
+        let inventoryStatus = 'in_stock';
+        if (newStock <= 0) {
+          inventoryStatus = 'out_of_stock';
+        } else if (newStock <= Number(prodData.reorderThreshold ?? 5)) {
+          inventoryStatus = 'low_stock';
+        }
 
           transaction.update(productRef, {
             stockQuantity: newStock,
@@ -606,24 +631,49 @@ async function verifyPaymentHandler(req, res) {
             newValue: newStock,
             adminId: authUser.uid,
             adminName: authUser.name || authUser.email || 'System (Purchase)',
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            timestamp: FieldValue.serverTimestamp(),
             reason: `Razorpay Order #${pData.orderId} Completed`,
           });
+
+          // Low stock alert write inside transaction
+          if (newStock <= Number(prodData.reorderThreshold ?? 5)) {
+            const notifRef = db.collection("admin_notifications").doc(`lowstock-${item.id}-${pData.orderId}`);
+            transaction.set(notifRef, {
+              title: "Low Stock Alert",
+              message: `Product "${item.name}" is low in stock (${newStock} left)`,
+              type: "inventory",
+              targetId: item.id,
+              read: false,
+              createdAt: new Date().toISOString(),
+            });
+          }
         }
       }
 
+      const isPartial = pData.isPartialPayment === true;
       const paidUpdate = {
-        paymentStatus: "Paid",
+        paymentStatus: isPartial ? "Partially Paid" : "Paid",
         status: "processing",
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
-        paidAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        paidAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
 
       transaction.update(paymentDocRef, paidUpdate);
       if (pData.orderDocId) {
         transaction.update(db.collection("orders").doc(pData.orderDocId), paidUpdate);
+
+        // Order notification write inside transaction
+        const orderNotifRef = db.collection("admin_notifications").doc(`order-${pData.orderId}`);
+        transaction.set(orderNotifRef, {
+          title: "New Order Placed",
+          message: `Order #${pData.orderId} was placed by ${pData.customerName || "Customer"} for ₹${(Number(pData.total) || 0).toLocaleString()}`,
+          type: "order",
+          targetId: pData.orderDocId,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
       }
 
       return {
@@ -671,24 +721,29 @@ async function markPaymentFailedHandler(req, res) {
 
       // Only release if it was still in pending_payment status
       if (pData.status === "pending_payment") {
+        const productDocs = [];
         for (const item of pData.items) {
           const productRef = db.collection("products").doc(item.id);
           const productSnap = await transaction.get(productRef);
           if (productSnap.exists) {
-            const prodData = productSnap.data();
-            const oldStock = Number(prodData.stockQuantity ?? 0);
-            const oldReserved = Number(prodData.reservedQuantity ?? 0);
-
-            const newReserved = Math.max(0, oldReserved - item.quantity);
-            const newAvailable = oldStock - newReserved;
-
-            transaction.update(productRef, {
-              reservedQuantity: newReserved,
-              availableQuantity: newAvailable,
-              lastStockUpdate: new Date().toISOString(),
-              stockUpdatedBy: 'System (Failed Payment Release)',
-            });
+            productDocs.push({ ref: productRef, snap: productSnap, item });
           }
+        }
+
+        for (const { ref, snap, item } of productDocs) {
+          const prodData = snap.data();
+          const oldReserved = Number(prodData.reservedQuantity ?? 0);
+          const oldStock = Number(prodData.stockQuantity ?? 0);
+
+          const newReserved = Math.max(0, oldReserved - item.quantity);
+          const newAvailable = oldStock - newReserved;
+
+          transaction.update(ref, {
+            reservedQuantity: newReserved,
+            availableQuantity: newAvailable,
+            lastStockUpdate: new Date().toISOString(),
+            stockUpdatedBy: 'System (Failed Payment Release)',
+          });
         }
 
         const failedUpdate = {
@@ -696,7 +751,7 @@ async function markPaymentFailedHandler(req, res) {
           status: "payment_failed",
           razorpayPaymentId: razorpay_payment_id || null,
           failureReason: String(reason).slice(0, 300),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
 
         transaction.update(paymentDocRef, failedUpdate);

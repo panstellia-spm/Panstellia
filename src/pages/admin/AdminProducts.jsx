@@ -31,6 +31,7 @@ const EMPTY_FORM = {
   name: '', description: '', price: '', originalPrice: '',
   image: '', imageFile: null, imagesText: '', imagesFiles: [],
   category: 'Gold', featured: false, inStock: true, productStatus: 'available',
+  isTrending: false, isBestseller: false, isNewArrival: false,
   productName: '', productCategory: '', productType: '', skuCode: '', barcode: '',
   brandName: '', collectionName: '', gender: '', ageGroup: '', occasion: '', countryOfOrigin: '',
   baseMaterial: '', primaryStone: '', stoneType: '', stoneColor: '',
@@ -429,7 +430,7 @@ export default function AdminProducts() {
                     </select>
                   </FormField>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-wrap items-center gap-6 mt-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="featured" checked={form.featured} onChange={handleInputChange} className="w-4 h-4 accent-gold-500" />
                     <span className="text-sm font-medium text-luxury-700">Featured Product</span>
@@ -437,6 +438,18 @@ export default function AdminProducts() {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="inStock" checked={form.inStock} onChange={handleInputChange} className="w-4 h-4 accent-gold-500" />
                     <span className="text-sm font-medium text-luxury-700">In Stock</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="isTrending" checked={form.isTrending} onChange={handleInputChange} className="w-4 h-4 accent-gold-500" />
+                    <span className="text-sm font-medium text-luxury-700">Trending</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="isBestseller" checked={form.isBestseller} onChange={handleInputChange} className="w-4 h-4 accent-gold-500" />
+                    <span className="text-sm font-medium text-luxury-700">Bestseller</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="isNewArrival" checked={form.isNewArrival} onChange={handleInputChange} className="w-4 h-4 accent-gold-500" />
+                    <span className="text-sm font-medium text-luxury-700">New Arrival</span>
                   </label>
                 </div>
               </FormSection>

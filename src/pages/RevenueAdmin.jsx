@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, limit, orderBy, query, startAfter } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query, where, startAfter } from 'firebase/firestore';
 
 
 import { db } from '../services/firebase';
@@ -132,16 +132,30 @@ export default function RevenueAdmin() {
           return sum;
         }, 0);
 
-        // Today revenue
-        // Today/This Month are computed client-side from paid documents
-        // (Spark compatibility; requires fewer composite indexes).
+        // Fetch delivered paid orders and add to revenue
+        const ordersRef = collection(db, 'orders');
+        const deliveredQ = query(
+          ordersRef,
+          where('status', '==', 'delivered'),
+          limit(500)
+        );
+        const snapOrders = await getDocs(deliveredQ);
+        // Only count those where paymentStatus is Paid or Partially Paid (case-insensitive)
+        const deliveredOrders = snapOrders.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(o => {
+             const statusStr = (o.paymentStatus || '').toLowerCase();
+             return statusStr === 'paid' || statusStr === 'partially paid';
+          });
+        const deliveredRevenue = deliveredOrders.reduce((sum, o) => sum + Number(o.total || o.amount || 0), 0);
+        const totalRevenueWithOrders = totalRevenue + deliveredRevenue;
+
+        // Today revenue (payments only)
         const todayQ = query(
           paidRef,
           orderBy('createdAt', 'desc'),
           limit(500)
         );
-
-        // We still filter client-side for today/month boundaries since createdAt range queries may require composite indexes.
         const snapToday = await getDocs(todayQ);
         const paidDocs = snapToday.docs.map(d => ({ id: d.id, ...d.data() }));
         const todayRevenue = paidDocs.reduce((sum, p) => {
@@ -150,17 +164,21 @@ export default function RevenueAdmin() {
           return sum;
         }, 0);
 
+        // Month revenue (payments only)
         const monthRevenue = paidDocs.reduce((sum, p) => {
           const d = safeToDate(p.createdAt);
           if (d && isSameMonth(d, new Date())) return sum + Number(p.amount || 0);
           return sum;
         }, 0);
 
+        // Use totalRevenueWithOrders for summary
+        const finalTotalRevenue = totalRevenueWithOrders;
+
         const successRate = totalOrders > 0 ? Math.round((successfulPayments / totalOrders) * 100) : 0;
 
         if (!cancelled) {
           setSummary({
-            totalRevenue,
+            totalRevenue: finalTotalRevenue,
             todayRevenue,
             monthRevenue,
             totalOrders,

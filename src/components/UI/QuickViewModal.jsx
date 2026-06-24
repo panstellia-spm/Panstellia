@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShoppingBag, Heart, Star, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { X, ShoppingBag, Heart, Star, ChevronLeft, ChevronRight, Eye, Bell, Check } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
@@ -7,12 +7,15 @@ import { useWishlist } from '../../context/WishlistContext';
 import { getProductImageUrls } from '../../utils/imageUtils';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import { toast } from 'react-toastify';
+import NotifyMeModal from './NotifyMeModal';
 
 const QuickViewModal = ({ product, isOpen, onClose }) => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
+  const [isNotifyOpen, setIsNotifyOpen] = useState(false);
 
   const imageUrls = useMemo(() => (product ? getProductImageUrls(product) : []), [product]);
   const wishlisted = product ? isInWishlist(product.id) : false;
@@ -23,6 +26,8 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
     setIsAdding(true);
     try {
       await addToCart(product);
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 2000);
       toast.success(`${product.name} added to cart!`, {
         position: 'bottom-right',
       });
@@ -204,15 +209,37 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
             {/* Actions */}
             <div className="space-y-3 pt-4 border-t border-luxury-100">
               <div className="flex gap-2">
+              {product.inStock ? (
                 <button
                   onClick={handleAddToCart}
-                  disabled={isAdding}
+                  disabled={isAdding || isAdded}
+                  className={`flex-1 flex items-center justify-center gap-2 text-sm py-2.5 rounded-lg transition-all ${
+                    isAdded
+                      ? 'bg-green-500 text-white'
+                      : 'btn-primary'
+                  }`}
+                >
+                  {isAdded ? (
+                    <>
+                      <Check className="w-4 h-4" /> Added!
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      {isAdding ? 'Adding...' : 'Add to Cart'}
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsNotifyOpen(true)}
                   className="flex-1 btn-primary flex items-center justify-center gap-2 text-sm py-2.5"
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  {isAdding ? 'Adding...' : 'Add to Cart'}
+                  <Bell className="w-4 h-4" />
+                  Notify Me
                 </button>
-                <button
+              )}
+              <button
                   onClick={handleWishlist}
                   className={`p-2.5 rounded-lg border flex items-center justify-center transition-colors ${
                     wishlisted
@@ -237,6 +264,13 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
           </div>
         </motion.div>
       </div>
+
+      {/* Notify Me Modal layered above Quick View */}
+      <NotifyMeModal
+        product={product}
+        isOpen={isNotifyOpen}
+        onClose={() => setIsNotifyOpen(false)}
+      />
     </AnimatePresence>
   );
 };

@@ -52,11 +52,22 @@ export const SEOHelmet = ({
       <meta name="language" content="English" />
       <meta name="revisit-after" content="7 days" />
       
-      {/* Structured Data / JSON-LD */}
+      {/* Canonical URL for OG */}
+      {canonical && <meta property="og:url" content={canonical} />}
+
+      {/* Structured Data / JSON-LD — one <script> tag per schema object */}
       {structuredData && (
-        <script type="application/ld+json">
-          {JSON.stringify(structuredData)}
-        </script>
+        Array.isArray(structuredData)
+          ? structuredData.map((schema, i) => (
+              <script key={i} type="application/ld+json">
+                {JSON.stringify(schema)}
+              </script>
+            ))
+          : (
+              <script type="application/ld+json">
+                {JSON.stringify(structuredData)}
+              </script>
+            )
       )}
     </Helmet>
   );

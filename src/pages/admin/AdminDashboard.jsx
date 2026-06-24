@@ -10,6 +10,9 @@ import { useProducts } from '../../context/ProductContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { detectDelay, normalizeStatus } from '../../services/orderStatus';
+import { initializeDatabase } from '../../utils/dbSeeder';
+import { getOptimizedImageUrl } from '../../utils/imageUtils';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -159,6 +162,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAdmin) return;
     fetchData();
+    initializeDatabase().then(res => {
+      if (res.success) {
+        console.log("Database seeded successfully if empty.");
+      }
+    });
   }, [isAdmin]);
 
   const fetchData = async () => {
@@ -228,18 +236,49 @@ export default function AdminDashboard() {
     const outOfStock = products.filter(p => !p.inStock || p.productStatus === 'unavailable').length;
     const featuredOOS = products.filter(p => p.featured && (!p.inStock || p.productStatus === 'unavailable')).length;
 
-    // Revenue trend — last 7 days
+    let delayedOrdersCount = 0;
+    let readyToShipCount = 0;
+    let awaitingPackingCount = 0;
+    let activeFulfillmentCount = 0;
+
+    orders.forEach(o => {
+      const status = normalizeStatus(o.status);
+      if (!['delivered', 'cancelled', 'refunded'].includes(status)) {
+        activeFulfillmentCount++;
+        const delay = detectDelay(o);
+        if (delay.isDelayed) {
+          delayedOrdersCount++;
+        }
+        if (status === 'picked') {
+          awaitingPackingCount++;
+        }
+        if (status === 'packed') {
+          readyToShipCount++;
+        }
+      }
+    });
+    const onTimeCount = activeFulfillmentCount - delayedOrdersCount;
+    const healthScore = activeFulfillmentCount > 0
+      ? Math.round((onTimeCount / activeFulfillmentCount) * 100)
+      : 100;
+
     const revTrend = Array.from({ length: 7 }, (_, i) => {
       const day = new Date();
       day.setDate(day.getDate() - (6 - i));
       day.setHours(0, 0, 0, 0);
       const next = new Date(day); next.setDate(next.getDate() + 1);
-      return paidPayments
+      return payments
+        .filter(p => (p.paymentStatus || '').toLowerCase() === 'paid')
         .filter(p => { const d = safeToDate(p.createdAt); return d && d >= day && d < next; })
         .reduce((s, p) => s + Number(p.amount || 0), 0) / 100;
     });
 
-    return { totalRevenue, todayRevenue, monthRevenue, monthTrend, totalOrders, pendingOrders, todayOrders, avgOrderValue, outOfStock, featuredOOS, revTrend };
+    return { 
+      totalRevenue, todayRevenue, monthRevenue, monthTrend, 
+      totalOrders, pendingOrders, todayOrders, avgOrderValue, 
+      outOfStock, featuredOOS, revTrend,
+      delayedOrdersCount, readyToShipCount, awaitingPackingCount, healthScore
+    };
   }, [orders, payments, products]);
 
   // ─── Fulfillment queue (actionable orders) ─────────────────────────────────
@@ -384,6 +423,30 @@ export default function AdminDashboard() {
         </>)}
       </div>
 
+      {/* ── Fulfillment Performance Row ── */}
+      <div className="space-y-4">
+        <SectionHeader 
+          title="Fulfillment Operations" 
+          subtitle="Real-time monitoring of delivery timelines and warehouse packing queues" 
+          action={() => navigate('/admin/fulfillment')} 
+          actionLabel="Fulfillment Center" 
+        />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : (<>
+            <KPICard icon={Target} iconBg="bg-emerald-50" iconColor="text-emerald-600"
+              value={`${metrics.healthScore}%`} label="Fulfillment Health Score" sub="On-time dispatch rate" />
+            <KPICard icon={AlertTriangle} iconBg="bg-red-50" iconColor="text-red-600"
+              value={metrics.delayedOrdersCount} label="Delayed Orders" sub={metrics.delayedOrdersCount > 0 ? 'Requires immediate action' : 'All SLA targets met'} />
+            <KPICard icon={Package} iconBg="bg-indigo-50" iconColor="text-indigo-650"
+              value={metrics.readyToShipCount} label="Ready to Ship" sub="Packed & awaiting dispatch" />
+            <KPICard icon={Clock} iconBg="bg-amber-50" iconColor="text-amber-600"
+              value={metrics.awaitingPackingCount} label="Awaiting Packing" sub="Picked & ready to package" />
+          </>)}
+        </div>
+      </div>
+
       {/* ── Row 2: Fulfillment Queue + Inventory Risk ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
@@ -464,7 +527,7 @@ export default function AdminDashboard() {
               {inventoryRisk.map(p => (
                 <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-luxury-50 border border-luxury-100">
                   {p.image && (
-                    <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg flex-shrink-0 bg-luxury-100" onError={e => { e.target.style.display = 'none'; }} />
+                    <img src={getOptimizedImageUrl(p.image, { width: 100, quality: 60 })} alt={p.name} className="w-10 h-10 object-cover rounded-lg flex-shrink-0 bg-luxury-100" onError={e => { e.target.style.display = 'none'; }} />
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-luxury-900 truncate">{p.name}</p>

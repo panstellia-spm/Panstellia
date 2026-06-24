@@ -4,14 +4,7 @@ service cloud.firestore {
 
     // ─── Helper Functions ───────────────────────────────────────────────────
 
-    // Check if user is admin via Firestore user document
-    function isAdmin() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid))
-        .data.get('isAdmin', false) == true;
-    }
-
-    // Check if user email is in the admin whitelist (for Spark-tier compat)
+    // Check if user email is in the admin whitelist (for Spark-tier compatibility)
     function isAdminEmail() {
       return request.auth != null && request.auth.token.email in [
         'support@panstellia.com',
@@ -19,9 +12,26 @@ service cloud.firestore {
       ];
     }
 
-    // Combined admin check
+    // Get the user's role from their document, default to 'user'
+    function getRole() {
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user')
+        : 'user';
+    }
+
+    // Verify if user has one of the required roles (or is whitelisted admin)
+    function hasRole(roles) {
+      return request.auth != null && (
+        getRole() in roles || isAdminEmail()
+      );
+    }
+
+    // Checking legacy isAdmin flag or email for backward compatibility
     function isAdminUser() {
-      return isAdmin() || isAdminEmail();
+      return isAdminEmail() || 
+        (request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true) ||
+        hasRole(['super_admin', 'admin']);
     }
 
     // Check if requesting user owns the resource
@@ -31,27 +41,33 @@ service cloud.firestore {
 
     // ─── Users Collection ───────────────────────────────────────────────────
     match /users/{userId} {
-      // Users can read/update their own doc; admins can read all
-      allow read: if isOwner(userId) || isAdminUser();
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId) || isAdminUser();
-      // Create only if authenticated and owns the document
+      allow read: if isOwner(userId) || hasRole(['super_admin', 'admin', 'content_manager', 'inventory_manager', 'marketing_manager', 'customer_support', 'viewer']);
+      
+      // Enforce that only super_admin can modify the role field, and users cannot self-escalate
+      allow update: if isOwner(userId) && (
+        // Non-super-admins cannot alter their role
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin'])) ||
+        hasRole(['super_admin'])
+      );
+      
+      allow delete: if isOwner(userId) || hasRole(['super_admin']);
       allow create: if isOwner(userId) &&
-        request.resource.data.keys().hasAll(['email', 'createdAt']);
+        request.resource.data.keys().hasAll(['email', 'createdAt']) &&
+        // New users default to 'user' role
+        request.resource.data.get('role', 'user') == 'user';
     }
 
     // ─── Products Collection ────────────────────────────────────────────────
     match /products/{productId} {
-      // Anyone (including unauthenticated) can read products
-      allow read: if true;
-      // Only admins can create, update, delete products
-      allow write: if isAdminUser();
+      allow read: if true; // Public read
+      allow write: if hasRole(['super_admin', 'admin', 'content_manager', 'inventory_manager']);
       
-      // Customers can update stock fields during checkout
+      // Allow customers to decrement stock during checkout transactions
       allow update: if request.auth != null &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'stockQuantity', 'reservedQuantity', 'availableQuantity', 
-          'inventoryStatus', 'lastStockUpdate', 'stockUpdatedBy', 'inventoryValue'
+          'inventoryStatus', 'lastStockUpdate', 'stockUpdatedBy', 'inventoryValue',
+          'archived', 'archivedAt' // allow soft-delete updates if authorized
         ]) &&
         request.resource.data.price == resource.data.price &&
         request.resource.data.name == resource.data.name &&
@@ -62,36 +78,27 @@ service cloud.firestore {
 
     // ─── Orders Collection ──────────────────────────────────────────────────
     match /orders/{orderId} {
-      // Users can create their own orders
       allow create: if request.auth != null &&
         request.resource.data.userId == request.auth.uid;
-
-      // Users can read their own orders; admins can read all
       allow read: if request.auth != null &&
-        (resource.data.userId == request.auth.uid || isAdminUser());
-
-      // Only admins can update (status changes) or delete orders
-      allow update: if isAdminUser();
-      allow delete: if isAdminUser();
+        (resource.data.userId == request.auth.uid || hasRole(['super_admin', 'admin', 'customer_support', 'viewer']));
+      allow update: if hasRole(['super_admin', 'admin', 'customer_support']) ||
+        (isOwner(resource.data.userId) && resource.data.status == 'pending_payment' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['couponCode', 'couponDiscount']));
+      allow delete: if hasRole(['super_admin', 'admin']);
     }
 
     // ─── Payments Collection ────────────────────────────────────────────────
     match /payments/{paymentId} {
-      // Only admins can read all payments
-      allow read: if isAdminUser();
-
-      // Users can create their own payment records (client-side after Razorpay)
+      allow read: if hasRole(['super_admin', 'admin', 'viewer']);
       allow create: if request.auth != null &&
         request.resource.data.userId == request.auth.uid;
-
-      // No one can update or delete payment records for integrity
-      allow update, delete: if false;
+      allow update, delete: if false; // Immutable
     }
 
     // ─── Carts Collection ───────────────────────────────────────────────────
     match /carts/{userId} {
-      // Users own their cart; admins can read carts for analytics
-      allow read: if isOwner(userId) || isAdminUser();
+      allow read: if isOwner(userId) || hasRole(['super_admin', 'admin', 'customer_support', 'viewer']);
       allow write: if isOwner(userId);
     }
 
@@ -102,34 +109,114 @@ service cloud.firestore {
 
     // ─── Activity Logs Collection ─────────────────────────────────────────────
     match /activity_logs/{logId} {
-      // Only admins can read logs
-      allow read: if isAdminUser();
-      // Admins can create log entries (client-side logging)
-      allow create: if isAdminUser() &&
-        request.resource.data.keys().hasAll(['timestamp', 'module', 'action', 'description', 'status']);
-      // Logs are immutable — no updates or deletes
-      allow update, delete: if false;
+      allow read: if hasRole(['super_admin', 'admin']);
+      allow create: if hasRole(['super_admin', 'admin', 'content_manager', 'inventory_manager', 'marketing_manager', 'customer_support']);
+      allow update, delete: if false; // Immutable
     }
 
     // ─── Inventory Logs Collection ───────────────────────────────────────────
     match /inventory_logs/{logId} {
-      // Only admins can read inventory logs
-      allow read: if isAdminUser();
-      // Admins and authenticated checkouts can create logs
-      allow create: if request.auth != null &&
-        request.resource.data.keys().hasAll(['productId', 'productName', 'action', 'change', 'previousValue', 'newValue', 'adminId', 'timestamp']);
-      // Logs are immutable
-      allow update, delete: if false;
+      allow read: if hasRole(['super_admin', 'admin', 'inventory_manager', 'viewer']);
+      allow create: if request.auth != null; // Checkout or admin
+      allow update, delete: if false; // Immutable
     }
 
     // ─── Customer Feedback Collection ────────────────────────────────────────
     match /customerFeedback/{feedbackId} {
-      // Anyone can create feedback (no auth required)
-      allow create: if true;
-      // Only admins can read feedback
-      allow read: if isAdminUser();
-      // No updates or deletes allowed
+      allow create: if true; // Public contact form
+      allow read: if hasRole(['super_admin', 'admin', 'customer_support', 'viewer']);
+      allow update, delete: if false; // Immutable
+    }
+
+    // ─── Order Notes Collection ───────────────────────────────────────────────
+    match /order_notes/{noteId} {
+      allow read: if hasRole(['super_admin', 'admin', 'customer_support', 'viewer']);
+      allow create: if hasRole(['super_admin', 'admin', 'customer_support']);
+      allow update: if false;
+      allow delete: if hasRole(['super_admin', 'admin']);
+    }
+
+    // ─── Fulfillment Logs Collection ──────────────────────────────────────────
+    match /fulfillmentLogs/{logId} {
+      allow read: if hasRole(['super_admin', 'admin', 'inventory_manager', 'customer_support', 'viewer']);
+      allow create: if hasRole(['super_admin', 'admin', 'inventory_manager', 'customer_support']);
       allow update, delete: if false;
+    }
+
+    // ─── Shipments Collection ─────────────────────────────────────────────────
+    match /shipments/{shipmentId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || hasRole(['super_admin', 'admin', 'inventory_manager', 'customer_support', 'viewer']));
+      allow create: if hasRole(['super_admin', 'admin', 'inventory_manager', 'customer_support']);
+      allow update: if hasRole(['super_admin', 'admin', 'inventory_manager', 'customer_support']);
+      allow delete: if false;
+    }
+
+    // ─── Back In Stock Notifications Collection ─────────────────────────────
+    match /back_in_stock_notifications/{notificationId} {
+      allow read, create: if true;
+      allow update, delete: if hasRole(['super_admin', 'admin', 'inventory_manager']);
+    }
+
+    // ─── Admin Notifications Collection ──────────────────────────────────────
+    match /admin_notifications/{notificationId} {
+      allow read, delete: if hasRole(['super_admin', 'admin', 'inventory_manager', 'customer_support']);
+      allow create: if request.auth != null;
+      allow update: if hasRole(['super_admin', 'admin', 'inventory_manager', 'customer_support']) && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+
+    // ─── New Commerce Transformation Collections ─────────────────────────────
+
+    // System Settings (payments, CMS info, active filters)
+    match /system_settings/{settingId} {
+      allow read: if true; // Publicly readable for checkout/navbar
+      allow write: if hasRole(['super_admin', 'admin']);
+    }
+
+    // Settings history versions
+    match /settings_history/{historyId} {
+      allow read: if hasRole(['super_admin', 'admin']);
+      allow create: if hasRole(['super_admin', 'admin']);
+      allow update, delete: if false;
+    }
+
+    // Homepage layout documents (active, draft)
+    match /homepage_layout/{layoutId} {
+      allow read: if true; // Publicly readable
+      allow write: if hasRole(['super_admin', 'admin', 'content_manager']);
+    }
+
+    // Homepage layout history versions
+    match /homepage_history/{historyId} {
+      allow read: if hasRole(['super_admin', 'admin', 'content_manager']);
+      allow create: if hasRole(['super_admin', 'admin', 'content_manager']);
+      allow update, delete: if false;
+    }
+
+    // Landing Pages
+    match /landing_pages/{pageId} {
+      allow read: if true; // Publicly readable
+      allow write: if hasRole(['super_admin', 'admin', 'content_manager', 'marketing_manager']);
+    }
+
+    // Offers and coupons
+    match /offers/{offerId} {
+      allow read: if true; // Publicly readable for coupon validation
+      allow write: if hasRole(['super_admin', 'admin', 'marketing_manager']);
+    }
+
+    // Product reviews and moderation queue
+    match /reviews/{reviewId} {
+      allow read: if true; // Public read of approved reviews
+      allow create: if true; // Public write to submit reviews
+      allow update: if hasRole(['super_admin', 'admin', 'content_manager', 'customer_support']);
+      allow delete: if hasRole(['super_admin', 'admin']);
+    }
+
+    // Custom Collections metadata
+    match /collections_metadata/{collectionId} {
+      allow read: if true; // Public
+      allow write: if hasRole(['super_admin', 'admin', 'content_manager']);
     }
 
     // ─── Default: Deny Everything Else ──────────────────────────────────────

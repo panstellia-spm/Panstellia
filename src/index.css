@@ -5,12 +5,12 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {
     @apply font-sans bg-luxury-50 text-luxury-900 antialiased;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   h1,

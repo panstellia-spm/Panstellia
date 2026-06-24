@@ -27,6 +27,40 @@ const getDriveThumbnailUrl = (url, size = 800) => {
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=s${size}`;
 };
 
+// Helper to extract the original URL from a wsrv.nl URL if it's already proxied
+export const getOriginalUrl = (url) => {
+  if (!url) return '';
+  if (url.includes('wsrv.nl')) {
+    try {
+      const parsedUrl = new URL(url);
+      const original = parsedUrl.searchParams.get('url');
+      if (original) return decodeURIComponent(original);
+    } catch (e) {
+      const match = url.match(/[?&]url=([^&]+)/);
+      if (match) return decodeURIComponent(match[1]);
+    }
+  }
+  return url;
+};
+
+// Helper to transform Cloudinary URLs natively
+export const transformCloudinaryUrl = (url, { width, quality, blur } = {}) => {
+  if (!url || !url.includes('cloudinary.com')) return null;
+
+  const uploadIndex = url.indexOf('/upload/');
+  if (uploadIndex === -1) return url;
+
+  const insertPos = uploadIndex + '/upload/'.length;
+  const parts = [];
+  if (width) parts.push(`w_${width}`);
+  if (quality) parts.push(`q_${quality}`);
+  if (blur) parts.push(`e_blur:${Math.round(blur * 100)}`);
+  parts.push('f_auto');
+
+  const transformationStr = parts.join(',') + '/';
+  return url.slice(0, insertPos) + transformationStr + url.slice(insertPos);
+};
+
 // ─────────────────────────────────────────────
 // Legacy name kept for backward compatibility.
 // Now resolves Drive URLs to the working thumbnail endpoint
@@ -37,6 +71,10 @@ export const getDirectImageUrl = (url, { width = 800, quality = 82 } = {}) => {
 
   // Already a wsrv.nl URL — don't double-proxy
   if (url.includes('wsrv.nl')) return url;
+
+  // Use native Cloudinary optimization if applicable
+  const cloudinaryOptimized = transformCloudinaryUrl(url, { width, quality });
+  if (cloudinaryOptimized) return cloudinaryOptimized;
 
   // For Google Drive URLs, use thumbnail endpoint
   // (works reliably unlike uc?export=view which is blocked)
@@ -81,15 +119,22 @@ export const getProductImageUrls = (product, { width = 600, quality = 82 } = {})
 export const getBlurPlaceholderUrl = (url) => {
   if (!url) return '';
 
-  const resolved = url.includes('drive.google.com')
-    ? getDriveThumbnailUrl(url, 40)
-    : url;
+  const cleanUrl = getOriginalUrl(url);
+
+  // Use native Cloudinary optimization if applicable
+  const cloudinaryOptimized = transformCloudinaryUrl(cleanUrl, { width: 40, quality: 10, blur: 3 });
+  if (cloudinaryOptimized) return cloudinaryOptimized;
+
+  const resolved = cleanUrl.includes('drive.google.com')
+    ? getDriveThumbnailUrl(cleanUrl, 40)
+    : cleanUrl;
 
   return (
     `https://wsrv.nl/?url=${encodeURIComponent(resolved)}` +
     `&w=40&q=10&output=webp&blur=3&n=-1`
   );
 };
+
 
 // ─────────────────────────────────────────────
 // Validates if a URL is a valid image URL
