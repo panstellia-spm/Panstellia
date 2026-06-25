@@ -3,28 +3,13 @@
 
 import firebaseApp from './firebase';
 
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
+const rawKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
+const RAZORPAY_KEY_ID = rawKeyId.trim().replace(/^"|"$/g, '');
 
-const FIREBASE_PROJECT_ID =
-  import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseApp?.options?.projectId;
-const FIREBASE_FUNCTIONS_REGION =
-  import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION || 'asia-south1';
-
-const getDefaultFunctionUrl = (functionName) => {
-  if (!FIREBASE_PROJECT_ID) return '';
-  return `https://${FIREBASE_FUNCTIONS_REGION}-${FIREBASE_PROJECT_ID}.cloudfunctions.net/${functionName}`;
-};
-
-// These are REST endpoint URLs (NO secrets).
-const CREATE_ORDER_URL =
-  import.meta.env.VITE_FIREBASE_CREATE_ORDER_URL ||
-  getDefaultFunctionUrl('createOrder');
-const VERIFY_PAYMENT_URL =
-  import.meta.env.VITE_FIREBASE_VERIFY_PAYMENT_URL ||
-  getDefaultFunctionUrl('verifyPayment');
-const MARK_PAYMENT_FAILED_URL =
-  import.meta.env.VITE_FIREBASE_MARK_PAYMENT_FAILED_URL ||
-  getDefaultFunctionUrl('markPaymentFailed');
+// These are REST endpoint URLs pointing to Vercel Serverless Functions.
+const CREATE_ORDER_URL = '/api/createOrder';
+const VERIFY_PAYMENT_URL = '/api/verifyPayment';
+const MARK_PAYMENT_FAILED_URL = '/api/markPaymentFailed';
 
 
 
@@ -165,10 +150,16 @@ export const createRazorpayOrder = async (amountPaise, currency = 'INR', options
 
   const data = await response.json();
   if (!data?.order_id) throw new Error('Invalid order response');
-  if (data?.key_id && data.key_id !== RAZORPAY_KEY_ID) {
-    throw new Error(
-      'Razorpay key mismatch: Vercel VITE_RAZORPAY_KEY_ID must match Firebase Functions RAZORPAY_KEY_ID.'
-    );
+  
+  if (data?.key_id) {
+    const cleanBackendKey = String(data.key_id).trim().replace(/^"|"$/g, '');
+    if (cleanBackendKey !== RAZORPAY_KEY_ID) {
+      const mask = (k) => k ? `${k.substring(0, 8)}...${k.substring(k.length - 4)}` : 'undefined';
+      throw new Error(
+        `Razorpay key mismatch: Frontend key (${mask(RAZORPAY_KEY_ID)}) does not match Backend key (${mask(cleanBackendKey)}). ` +
+        `Please ensure VITE_RAZORPAY_KEY_ID and RAZORPAY_KEY_ID in Vercel settings are identical.`
+      );
+    }
   }
 
   return data;
