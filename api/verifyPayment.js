@@ -232,6 +232,20 @@ export default async function handler(req, res) {
       };
 
       transaction.update(paymentDocRef, paidUpdate);
+
+      // Update coupon uses if applied
+      if (pData.couponCode) {
+        const couponRef = db.collection("offers").doc(pData.couponCode);
+        const couponSnap = await transaction.get(couponRef);
+        if (couponSnap.exists) {
+          const cData = couponSnap.data();
+          const currentUses = Number(cData.currentUses || 0);
+          transaction.update(couponRef, {
+            currentUses: currentUses + 1,
+          });
+        }
+      }
+
       if (pData.orderDocId) {
         transaction.update(db.collection("orders").doc(pData.orderDocId), paidUpdate);
 
