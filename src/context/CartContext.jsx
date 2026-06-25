@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { doc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 
@@ -17,10 +17,64 @@ export const CartProvider = ({ children }) => {
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [shippingSettings, setShippingSettings] = useState({
+    shippingEnabled: true,
+    freeShippingEnabled: true,
+    shippingCharge: 99,
+    freeShippingThreshold: 999
+  });
+
+  // Load shipping settings from Firestore in real-time
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'shipping_settings', 'config'), async (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setShippingSettings({
+          shippingEnabled: data.shippingEnabled ?? true,
+          freeShippingEnabled: data.freeShippingEnabled ?? true,
+          shippingCharge: Number(data.shippingCharge ?? 99),
+          freeShippingThreshold: Number(data.freeShippingThreshold ?? 999)
+        });
+      } else {
+        // Automatically create default settings if none exist
+        try {
+          await setDoc(doc(db, 'shipping_settings', 'config'), {
+            shippingEnabled: true,
+            freeShippingEnabled: true,
+            shippingCharge: 99,
+            freeShippingThreshold: 999,
+            updatedBy: 'System (Auto-initialization)',
+            updatedAt: new Date().toISOString()
+          });
+        } catch (err) {
+          console.error('Failed to initialize default shipping settings:', err);
+        }
+      }
+    }, (error) => {
+      console.error('Error listening to shipping settings:', error);
+    });
+
+    return () => unsub();
+  }, []);
 
   // Calculate totals
   const subtotal = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const shipping = subtotal > 1000 ? 0 : 99;
+  
+  let shipping = 0;
+  if (shippingSettings.shippingEnabled) {
+    if (shippingSettings.freeShippingEnabled) {
+      if (shippingSettings.freeShippingThreshold === 0) {
+        shipping = 0;
+      } else {
+        shipping = subtotal >= shippingSettings.freeShippingThreshold ? 0 : shippingSettings.shippingCharge;
+      }
+    } else {
+      shipping = shippingSettings.shippingCharge;
+    }
+  } else {
+    shipping = 0;
+  }
+
   const tax = subtotal * 0.05; // 5% tax
   const total = subtotal + shipping + tax;
 
@@ -143,6 +197,7 @@ export const CartProvider = ({ children }) => {
     shipping,
     tax,
     total,
+    shippingSettings,
     addToCart,
     removeFromCart,
     updateQuantity,

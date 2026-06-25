@@ -23,7 +23,7 @@ const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getProductById, products } = useProducts();
-  const { addToCart } = useCart();
+  const { addToCart, shippingSettings } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   
   const [product, setProduct] = useState(null);
@@ -510,7 +510,18 @@ const ProductDetailPage = () => {
 
             {/* Tax and Tax Info */}
             <p className="text-xs font-semibold text-luxury-400 mt-1.5 italic">
-              * Inclusive of all taxes. Free shipping on orders above ₹999.
+              * Inclusive of all taxes.{' '}
+              {!shippingSettings.shippingEnabled ? (
+                'Free shipping available.'
+              ) : shippingSettings.freeShippingEnabled ? (
+                shippingSettings.freeShippingThreshold === 0 ? (
+                  'Free shipping on all orders!'
+                ) : (
+                  `Free shipping on orders above ₹${shippingSettings.freeShippingThreshold}.`
+                )
+              ) : (
+                `Standard shipping charge: ₹${shippingSettings.shippingCharge}.`
+              )}
             </p>
 
             {/* Stock, Availability & SKU */}

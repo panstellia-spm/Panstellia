@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, X, Truck, Clock, PackageCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import SEOHelmet from '../utils/seoHelmet';
+import { useCart } from '../context/CartContext';
 
 const ShippingPolicyPage = () => {
   const [isVisible, setIsVisible] = useState(true);
+  const { shippingSettings } = useCart();
 
   const handleClose = () => {
     setIsVisible(false);
@@ -72,8 +74,20 @@ const ShippingPolicyPage = () => {
               Free Shipping
             </h2>
             <div className="bg-gold-50 border border-gold-200 rounded-xl p-6 mb-8">
-              <p className="text-xl font-bold text-gold-700 mb-2">On orders above ₹1,000</p>
-              <p className="text-lg">Enjoy complimentary shipping across India for all orders over ₹1,000.</p>
+              <p className="text-xl font-bold text-gold-700 mb-2">
+                {!shippingSettings.shippingEnabled
+                  ? 'Free Shipping on all orders'
+                  : shippingSettings.freeShippingEnabled
+                  ? `On orders above ₹${shippingSettings.freeShippingThreshold.toLocaleString()}`
+                  : `Standard Shipping Charge: ₹${shippingSettings.shippingCharge}`}
+              </p>
+              <p className="text-lg">
+                {!shippingSettings.shippingEnabled
+                  ? 'Enjoy complimentary shipping across India for all orders.'
+                  : shippingSettings.freeShippingEnabled
+                  ? `Enjoy complimentary shipping across India for all orders over ₹${shippingSettings.freeShippingThreshold.toLocaleString()}.`
+                  : `Enjoy secure nationwide delivery with a flat shipping fee of ₹${shippingSettings.shippingCharge}.`}
+              </p>
             </div>
           </section>
 
@@ -84,7 +98,14 @@ const ShippingPolicyPage = () => {
                 <h3 className="font-semibold text-lg mb-3">Standard Delivery</h3>
                 <ul className="space-y-2 text-luxury-700">
                   <li className="flex items-center gap-2"><Clock className="w-5 h-5 text-gold-500" /> 3-5 business days</li>
-                  <li className="flex items-center gap-2"><PackageCheck className="w-5 h-5 text-gold-500" /> ₹80 or FREE over ₹1,000</li>
+                  <li className="flex items-center gap-2">
+                    <PackageCheck className="w-5 h-5 text-gold-500" />{' '}
+                    {!shippingSettings.shippingEnabled
+                      ? 'FREE shipping'
+                      : shippingSettings.freeShippingEnabled
+                      ? `₹${shippingSettings.shippingCharge} or FREE over ₹${shippingSettings.freeShippingThreshold.toLocaleString()}`
+                      : `₹${shippingSettings.shippingCharge} flat rate`}
+                  </li>
                 </ul>
               </div>
               <div className="bg-luxury-50 p-6 rounded-xl">

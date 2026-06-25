@@ -23,6 +23,7 @@ import AdminOffers from './AdminOffers';
 import AdminReviews from './AdminReviews';
 import AdminCollections from './AdminCollections';
 import AdminRoles from './AdminRoles';
+import AdminShippingFee from './AdminShippingFee';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -87,6 +88,11 @@ export default function AdminRouter() {
           <Route path="shipping" element={
             <AdminPermissionRoute allowedRoles={['super_admin', 'admin', 'inventory_manager', 'customer_support']}>
               <AdminShipping />
+            </AdminPermissionRoute>
+          } />
+          <Route path="shipping-fee" element={
+            <AdminPermissionRoute allowedRoles={['super_admin', 'admin']}>
+              <AdminShippingFee />
             </AdminPermissionRoute>
           } />
           <Route path="delayed" element={

@@ -44,6 +44,7 @@ const NAV_GROUPS = [
       { to: '/admin/orders', label: 'Orders', icon: ShoppingBag, roles: ['super_admin', 'admin', 'customer_support'] },
       { to: '/admin/fulfillment', label: 'Fulfillment', icon: Zap, roles: ['super_admin', 'admin', 'inventory_manager', 'customer_support'] },
       { to: '/admin/shipping', label: 'Shipping', icon: Truck, roles: ['super_admin', 'admin', 'inventory_manager', 'customer_support'] },
+      { to: '/admin/shipping-fee', label: 'Shipping Fee', icon: DollarSign, roles: ['super_admin', 'admin'] },
       { to: '/admin/delayed', label: 'Delayed Orders', icon: Clock, alert: true, roles: ['super_admin', 'admin', 'inventory_manager', 'customer_support'] },
       { to: '/admin/inventory', label: 'Inventory', icon: Warehouse, roles: ['super_admin', 'admin', 'inventory_manager'] },
     ],

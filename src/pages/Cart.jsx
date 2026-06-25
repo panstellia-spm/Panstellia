@@ -9,7 +9,7 @@ import { getCategoryLabel } from '../utils/categoryLabels';
 
 const CartPage = () => {
   const { user } = useAuth();
-  const { cartItems, subtotal, shipping, tax, total, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cartItems, subtotal, shipping, tax, total, updateQuantity, removeFromCart, clearCart, shippingSettings } = useCart();
 
   const handleQuantityChange = async (productId, newQuantity) => {
     try {
@@ -142,9 +142,9 @@ const CartPage = () => {
                 </div>
               </div>
 
-              {shipping > 0 && (
+              {shipping > 0 && shippingSettings.shippingEnabled && shippingSettings.freeShippingEnabled && (
                 <p className="mt-4 text-sm text-green-600 bg-green-50 p-2 rounded-lg">
-                  Add ₹{1000 - subtotal} more for FREE shipping!
+                  Add ₹{shippingSettings.freeShippingThreshold - subtotal} more for FREE shipping!
                 </p>
               )}
 

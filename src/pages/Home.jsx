@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { useCart } from '../context/CartContext';
 
 const ICON_MAP = {
   Sparkles, ArrowRight, Star, Truck, Shield, RefreshCw, ChevronLeft, ChevronRight, 
@@ -33,6 +34,7 @@ const CATEGORY_IMAGE_MAP = {
 
 const HomePage = () => {
   const { getFeaturedProducts, products, loading } = useProducts();
+  const { shippingSettings } = useCart();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -149,7 +151,11 @@ const HomePage = () => {
     {
       icon: Truck,
       title: 'Free Shipping',
-      description: 'On orders above ₹1000'
+      description: !shippingSettings.shippingEnabled
+        ? 'Free shipping on all orders'
+        : shippingSettings.freeShippingEnabled
+        ? `On orders above ₹${shippingSettings.freeShippingThreshold}`
+        : `Standard fee: ₹${shippingSettings.shippingCharge}`
     },
     {
       icon: Shield,
@@ -230,7 +236,12 @@ const HomePage = () => {
     }
   };
 
-  const marqueeText = "⭐ 4.6/5 Rating  |  2,000+ Happy Customers  |  Free Shipping on ₹999+  |  easy 3 -4 days return  |  handcrafted in korea  |  ";
+  const marqueeFreeShippingText = !shippingSettings.shippingEnabled
+    ? 'Free Shipping on all orders'
+    : shippingSettings.freeShippingEnabled
+    ? `Free Shipping on ₹${shippingSettings.freeShippingThreshold}+`
+    : `Flat Shipping ₹${shippingSettings.shippingCharge}`;
+  const marqueeText = `⭐ 4.6/5 Rating  |  2,000+ Happy Customers  |  ${marqueeFreeShippingText}  |  easy 3 -4 days return  |  handcrafted in korea  |  `;
 
   // Section Renderers
   const renderHeroSection = (sec) => {

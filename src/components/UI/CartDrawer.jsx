@@ -6,7 +6,7 @@ import { getCategoryLabel } from '../../utils/categoryLabels';
 import { useNavigate } from 'react-router-dom';
 
 const CartDrawer = ({ isOpen, onClose }) => {
-  const { cartItems, subtotal, updateQuantity, removeFromCart } = useCart();
+  const { cartItems, subtotal, updateQuantity, removeFromCart, shippingSettings } = useCart();
   const navigate = useNavigate();
 
   const totalItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -56,23 +56,25 @@ const CartDrawer = ({ isOpen, onClose }) => {
               </div>
 
               {/* Free Shipping Meter */}
-              <div className="px-6 py-4 bg-luxury-50/50 border-b border-luxury-100 flex-shrink-0">
-                {subtotal >= 999 ? (
-                  <div className="text-xs font-medium text-green-700">
-                    🎉 You qualify for <span className="font-bold">Free Shipping</span>!
+              {shippingSettings.shippingEnabled && shippingSettings.freeShippingEnabled && (
+                <div className="px-6 py-4 bg-luxury-50/50 border-b border-luxury-100 flex-shrink-0">
+                  {subtotal >= shippingSettings.freeShippingThreshold || shippingSettings.freeShippingThreshold === 0 ? (
+                    <div className="text-xs font-medium text-green-700">
+                      🎉 You qualify for <span className="font-bold">Free Shipping</span>!
+                    </div>
+                  ) : (
+                    <div className="text-xs font-medium text-luxury-700">
+                      You&apos;re <span className="font-bold text-gold-600">₹{Math.max(0, shippingSettings.freeShippingThreshold - subtotal)}</span> away from free shipping
+                    </div>
+                  )}
+                  <div className="w-full bg-luxury-200 rounded-full h-1.5 mt-2">
+                    <div
+                      className="bg-gold-500 h-1.5 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, (subtotal / (shippingSettings.freeShippingThreshold || 1)) * 100)}%` }}
+                    />
                   </div>
-                ) : (
-                  <div className="text-xs font-medium text-luxury-700">
-                    You&apos;re <span className="font-bold text-gold-600">₹{Math.max(0, 999 - subtotal)}</span> away from free shipping
-                  </div>
-                )}
-                <div className="w-full bg-luxury-200 rounded-full h-1.5 mt-2">
-                  <div
-                    className="bg-gold-500 h-1.5 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (subtotal / 999) * 100)}%` }}
-                  />
                 </div>
-              </div>
+              )}
 
               {/* Items List */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">

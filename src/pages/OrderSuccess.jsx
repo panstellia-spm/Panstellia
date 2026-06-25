@@ -1,10 +1,13 @@
+import SEOHelmet from '../utils/seoHelmet';
+import { useCart } from '../context/CartContext';
+
 import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle, ShoppingBag, ArrowRight } from 'lucide-react';
-import SEOHelmet from '../utils/seoHelmet';
 
 const OrderSuccessPage = () => {
   const location = useLocation();
   const { orderId, items, total } = location.state || {};
+  const { shippingSettings } = useCart();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-luxury-50 py-12 px-4">
@@ -57,7 +60,19 @@ const OrderSuccessPage = () => {
             </li>
             <li className="flex items-start">
               <CheckCircle className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span>Free shipping on orders above ₹1000</span>
+              <span>
+                {!shippingSettings.shippingEnabled ? (
+                  'Free shipping on all orders'
+                ) : shippingSettings.freeShippingEnabled ? (
+                  shippingSettings.freeShippingThreshold === 0 ? (
+                    'Free shipping on all orders'
+                  ) : (
+                    `Free shipping on orders above ₹${shippingSettings.freeShippingThreshold}`
+                  )
+                ) : (
+                  `Standard shipping: ₹${shippingSettings.shippingCharge}`
+                )}
+              </span>
             </li>
           </ul>
         </div>
