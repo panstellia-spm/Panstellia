@@ -23,7 +23,7 @@ import SEOHelmet from '../utils/seoHelmet';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import OrderTimeline, { StatusBadge } from '../components/UI/OrderTimeline';
 import { subscribeToOrder } from '../services/orderTracking';
-import { openCheckout, verifyPayment } from '../services/payment';
+import { openCheckout, verifyPayment, createRetryOrder, cancelOrder } from '../services/payment';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -182,21 +182,24 @@ const OrderDetailsPage = () => {
     setActionLoading(true);
     try {
       const authToken = await user.getIdToken();
-      // Razorpay order ID is stored as `razorpayOrderId` on the document
-      const razorpayOrderId = order.razorpayOrderId || order.razorpay_order_id || '';
-      const amountPaise = Math.round(Number(order.total || 0) * 100);
-
-      if (!razorpayOrderId || !razorpayOrderId.startsWith('order_')) {
-        toast.error('Payment details not found or invalid. Please contact support.');
+      
+      let razorpayOrderId;
+      try {
+        const retryData = await createRetryOrder(order.id, { authToken });
+        razorpayOrderId = retryData.order_id;
+      } catch (err) {
+        toast.error(err.message || 'Unable to initiate payment. Stock may be unavailable.');
         setActionLoading(false);
         return;
       }
 
+      const amountPaise = Math.round(Number(order.total || 0) * 100);
+
       await openCheckout({
         amount: amountPaise,
-        currency: 'INR',
+        currency: order.currency || 'INR',
         name: 'Panstellia',
-        description: `Payment for Order #${order.id.slice(0, 8).toUpperCase()}`,
+        description: `Payment for Order #${(order.orderId || order.id).slice(0, 8).toUpperCase()}`,
         image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200',
         order_id: razorpayOrderId,
         prefill: {
@@ -219,14 +222,15 @@ const OrderDetailsPage = () => {
               toast.error('Payment verification failed. Please contact support.');
             }
           } catch (err) {
-            toast.error('Payment verification failed. Please contact support.');
+            toast.error(err.message || 'Payment verification failed. Please contact support.');
             console.error('Pay Now verification error:', err);
           } finally {
             setActionLoading(false);
           }
         },
-        onFailure: () => {
-          toast.error('Payment failed. Please try again.');
+        onFailure: (response) => {
+          const reason = response?.error?.description || response?.error?.reason || 'Payment failed. Please try again.';
+          toast.error(reason);
           setActionLoading(false);
         },
         onDismiss: () => {
@@ -246,24 +250,11 @@ const OrderDetailsPage = () => {
     if (!window.confirm('Are you sure you want to cancel this order? This cannot be undone.')) return;
     setActionLoading(true);
     try {
-      const orderRef = doc(db, 'orders', order.id);
-      await updateDoc(orderRef, { status: 'cancelled', paymentStatus: 'Cancelled' });
-
-      // Also update linked payment document if present
-      try {
-        const paymentsRef = collection(db, 'payments');
-        const q = query(paymentsRef, where('orderDocId', '==', order.id));
-        const snap = await getDocs(q);
-        for (const d of snap.docs) {
-          await updateDoc(doc(db, 'payments', d.id), { paymentStatus: 'Cancelled' });
-        }
-      } catch (payErr) {
-        console.warn('Could not update payment document:', payErr);
-      }
-
+      const authToken = await user.getIdToken();
+      await cancelOrder(order.id, { authToken });
       toast.success('Order cancelled successfully.');
     } catch (err) {
-      toast.error('Failed to cancel order. Please try again.');
+      toast.error(err.message || 'Failed to cancel order. Please try again.');
       console.error('Cancel order error:', err);
     } finally {
       setActionLoading(false);

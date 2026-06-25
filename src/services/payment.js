@@ -10,6 +10,8 @@ const RAZORPAY_KEY_ID = rawKeyId.trim().replace(/^"|"$/g, '');
 const CREATE_ORDER_URL = '/api/createOrder';
 const VERIFY_PAYMENT_URL = '/api/verifyPayment';
 const MARK_PAYMENT_FAILED_URL = '/api/markPaymentFailed';
+const CREATE_RETRY_ORDER_URL = '/api/createRetryOrder';
+const CANCEL_ORDER_URL = '/api/cancelOrder';
 
 
 
@@ -268,11 +270,62 @@ export const openCheckout = async (options) => {
   return rzp;
 };
 
+/**
+ * Create a retry Razorpay order for an existing pending order via Firebase Functions.
+ */
+export const createRetryOrder = async (localOrderId, options = {}) => {
+  if (!CREATE_RETRY_ORDER_URL) throw new Error('Missing VITE_FIREBASE_CREATE_RETRY_ORDER_URL');
+
+  const response = await fetch(CREATE_RETRY_ORDER_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.authToken ? { Authorization: `Bearer ${options.authToken}` } : {}),
+    },
+    body: JSON.stringify({
+      local_order_id: localOrderId,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await parseErrorResponse(response);
+    throw new Error(err || 'Failed to create retry order');
+  }
+
+  return response.json();
+};
+
+/**
+ * Cancel a pending order securely via Firebase Functions.
+ */
+export const cancelOrder = async (orderId, options = {}) => {
+  if (!CANCEL_ORDER_URL) throw new Error('Missing VITE_FIREBASE_CANCEL_ORDER_URL');
+
+  const response = await fetch(CANCEL_ORDER_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.authToken ? { Authorization: `Bearer ${options.authToken}` } : {}),
+    },
+    body: JSON.stringify({
+      order_id: orderId,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await parseErrorResponse(response);
+    throw new Error(err || 'Failed to cancel order');
+  }
+
+  return response.json();
+};
+
 export default {
   loadRazorpay,
   createRazorpayOrder,
+  createRetryOrder,
+  cancelOrder,
   verifyPayment,
   markPaymentFailed,
   openCheckout,
 };
-

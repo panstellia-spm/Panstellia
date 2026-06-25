@@ -148,6 +148,9 @@ export default async function handler(req, res) {
 
       // Avoid double processing
       if (pData.status !== "pending_payment") {
+        if (pData.status === "cancelled") {
+          throw new Error("Order was cancelled. Payment cannot be accepted.");
+        }
         return {
           alreadyProcessed: true,
           order_number: pData.orderId,
