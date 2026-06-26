@@ -105,11 +105,19 @@ export const getOptimizedImageUrl = (url, { width = 800, quality = 82 } = {}) =>
 // ─────────────────────────────────────────────
 export const getProductImageUrls = (product, { width = 600, quality = 82 } = {}) => {
   const rawImages = Array.isArray(product?.images) ? product.images : [];
-  const fallback = product?.image ? [product.image] : [];
-  const images = rawImages.length > 0 ? rawImages : fallback;
+  
+  const allImages = [];
+  if (product?.image) {
+    allImages.push(product.image);
+  }
+  
+  rawImages.forEach(img => {
+    if (img && img !== product?.image) {
+      allImages.push(img);
+    }
+  });
 
-  return images
-    .filter(Boolean)
+  return allImages
     .map((img) => getOptimizedImageUrl(img, { width, quality }));
 };
 

@@ -245,6 +245,14 @@ const AdminPage = () => {
     setLoading(true);
 
     try {
+      const isDuplicate = products.some(
+        (p) => p.name.trim().toLowerCase() === productForm.name.trim().toLowerCase() && p.id !== editingProduct?.id
+      );
+
+      if (isDuplicate) {
+        throw new Error('A product with this name already exists.');
+      }
+
       const images = productForm.imagesText
         ? productForm.imagesText
             .split(',')
@@ -256,19 +264,14 @@ const AdminPage = () => {
 
       const productData = {
         ...formValues,
-        // Firestore rejects undefined values in documents.
-        // So we omit `images` entirely when none are provided.
-        ...(images.length > 0 ? { images } : {}),
+        images: images,
+        image: productForm.image || '',
         price: parseInt(formValues.price, 10),
         originalPrice: formValues.originalPrice
           ? parseInt(formValues.originalPrice, 10)
           : null,
         id: editingProduct?.id || `prod_${Date.now()}`,
       };
-
-      if (!productData.images || productData.images.length === 0) {
-        productData.image = formValues.image;
-      }
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);
@@ -709,7 +712,7 @@ const AdminPage = () => {
                             <div>
                               <label className="block text-sm font-medium mb-1">Main Image URL</label>
                               <input
-                                type="url"
+                                type="text"
                                 name="image"
                                 value={productForm.image}
                                 onChange={handleInputChange}
