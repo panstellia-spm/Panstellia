@@ -56,16 +56,22 @@ if (!admin.apps.length) {
         throw new Error(`Firebase Admin SDK failed to initialize with individual variables: ${error.message}`);
       }
     } else {
-      console.warn('[Firebase Admin] Missing service account env variables. Cannot connect securely.');
-      const missing = [];
-      if (!projectId) missing.push('FIREBASE_PROJECT_ID');
-      if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL');
-      if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY');
-      
-      throw new Error(
-        `Firebase Admin SDK is missing required Vercel Environment Variables. ` +
-        `Please set either FIREBASE_SERVICE_ACCOUNT_JSON (recommended) or the individual variables: ${missing.join(', ')}`
-      );
+      console.warn('[Firebase Admin] Missing service account env variables. Attempting default credentials initialization...');
+      try {
+        admin.initializeApp();
+        console.log('[Firebase Admin] Initialized with default credentials / environment.');
+      } catch (defaultError) {
+        console.error('[Firebase Admin] Default initialization failed:', defaultError.message);
+        const missing = [];
+        if (!projectId) missing.push('FIREBASE_PROJECT_ID');
+        if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL');
+        if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY');
+        
+        throw new Error(
+          `Firebase Admin SDK is missing required Vercel Environment Variables and default credentials fallback failed: ${defaultError.message}. ` +
+          `Please set either FIREBASE_SERVICE_ACCOUNT_JSON (recommended) or the individual variables: ${missing.join(', ')}`
+        );
+      }
     }
   }
 }

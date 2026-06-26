@@ -348,6 +348,45 @@ export default function TrackOrder() {
               </div>
             </div>
 
+            {/* Detailed courier scans timeline */}
+            {order.shipmentHistory && order.shipmentHistory.length > 0 && (
+              <div className="bg-white rounded-3xl shadow-lg p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <Truck className="w-4.5 h-4.5 text-gold-600" />
+                  <h2 className="text-sm font-bold text-luxury-900">Live Shipment History</h2>
+                </div>
+                <div className="space-y-4">
+                  {[...(order.shipmentHistory || [])]
+                    .sort((a, b) => {
+                      const tA = safeToDate(a.timestamp || a.date)?.getTime() || 0;
+                      const tB = safeToDate(b.timestamp || b.date)?.getTime() || 0;
+                      return tB - tA;
+                    })
+                    .map((scan, idx, arr) => (
+                      <div key={idx} className="flex gap-4 relative text-left">
+                        {idx < arr.length - 1 && (
+                          <div className="absolute left-[9px] top-5 bottom-[-15px] w-0.5 bg-luxury-100" />
+                        )}
+                        <div className="w-5 h-5 rounded-full bg-luxury-100 border-4 border-white flex items-center justify-center flex-shrink-0 z-10 mt-0.5">
+                          <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 ? 'bg-gold-500 animate-pulse' : 'bg-luxury-400'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-luxury-900">{scan.activity || scan.status}</p>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-luxury-500">
+                            {scan.location && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-luxury-100 text-luxury-700 text-[10px] font-bold uppercase tracking-wider">
+                                {scan.location}
+                              </span>
+                            )}
+                            <span>{formatDateTime(scan.timestamp || scan.date)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             {/* Order Items Preview */}
             <div className="bg-white rounded-3xl shadow-lg p-5">
               <div className="flex items-center justify-between mb-4">

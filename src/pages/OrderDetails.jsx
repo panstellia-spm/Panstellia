@@ -425,6 +425,56 @@ const OrderDetailsPage = () => {
                     No mapping, no transformation.
                   */}
                   <OrderTimeline status={rawStatus} statusHistory={order?.statusHistory || []} />
+
+                  {order.shipmentHistory && order.shipmentHistory.length > 0 && (
+                    <div className="mt-8 pt-6 border-t border-luxury-100">
+                      <h3 className="text-sm font-bold text-luxury-900 mb-4 flex items-center gap-2">
+                        <Truck className="w-4 h-4 text-gold-600" />
+                        Live Shipment Activity
+                      </h3>
+                      <div className="space-y-4">
+                        {[...(order.shipmentHistory || [])]
+                          .sort((a, b) => {
+                            const tA = safeToDate(a.timestamp || a.date)?.getTime() || 0;
+                            const tB = safeToDate(b.timestamp || b.date)?.getTime() || 0;
+                            return tB - tA;
+                          })
+                          .slice(0, 3)
+                          .map((scan, idx, arr) => (
+                            <div key={idx} className="flex gap-3 relative text-left">
+                              {idx < arr.length - 1 && (
+                                <div className="absolute left-[7px] top-4.5 bottom-[-15px] w-0.5 bg-luxury-100" />
+                              )}
+                              <div className="w-4 h-4 rounded-full bg-luxury-100 border-2 border-white flex-shrink-0 z-10 mt-0.5">
+                                <div className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-gold-500 animate-pulse' : 'bg-luxury-400'}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-luxury-900">{scan.activity || scan.status}</p>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-luxury-500">
+                                  {scan.location && (
+                                    <span className="font-bold text-luxury-700">
+                                      {scan.location}
+                                    </span>
+                                  )}
+                                  <span>•</span>
+                                  <span>{safeToDate(scan.timestamp || scan.date)?.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        {order.shipmentHistory.length > 3 && (
+                          <div className="text-center pt-2">
+                            <Link
+                              to={`/order/${id}/track`}
+                              className="text-xs font-bold text-gold-600 hover:text-gold-700 transition-colors"
+                            >
+                              Show All Checkpoints ({order.shipmentHistory.length}) →
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
