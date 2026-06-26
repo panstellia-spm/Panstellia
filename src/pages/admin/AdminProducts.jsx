@@ -169,7 +169,9 @@ export default function AdminProducts() {
   const openEdit = (p) => {
     setEditingProduct(p);
     setForm({
-      ...EMPTY_FORM, ...p,
+      ...EMPTY_FORM, 
+      ...p,
+      image: p.image || '',
       imagesText: Array.isArray(p.images) ? p.images.join(', ') : '',
       imageFile: null, imagesFiles: [],
     });
@@ -182,6 +184,14 @@ export default function AdminProducts() {
     e.preventDefault();
     setSaving(true);
     try {
+      const isDuplicate = products.some(
+        (p) => p.name.trim().toLowerCase() === form.name.trim().toLowerCase() && p.id !== editingProduct?.id
+      );
+
+      if (isDuplicate) {
+        throw new Error('A product with this name already exists.');
+      }
+
       const images = form.imagesText.split(',').map(s => s.trim()).filter(Boolean);
       const { imageFile, imagesFiles, ...rest } = form;
       
@@ -200,9 +210,9 @@ export default function AdminProducts() {
         id: editingProduct?.id || `prod_${Date.now()}`,
         inStock: stockQuantity > 0,
         productStatus: stockQuantity > 0 ? (rest.productStatus === 'unavailable' ? 'available' : rest.productStatus) : 'unavailable',
-        ...(images.length > 0 ? { images } : {}),
+        images: images,
+        image: form.image || '',
       };
-      if (!productData.images?.length) productData.image = rest.image;
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);
@@ -457,7 +467,7 @@ export default function AdminProducts() {
               {/* Images */}
               <FormSection title="Product Images">
                 <FormField label="Main Image URL">
-                  <input name="image" type="url" value={form.image} onChange={handleInputChange} placeholder="https://..." className={inputCls} />
+                  <input name="image" type="text" value={form.image} onChange={handleInputChange} placeholder="https://..." className={inputCls} />
                 </FormField>
                 <FormField label="Upload Main Image">
                   <div className="flex items-center gap-2">

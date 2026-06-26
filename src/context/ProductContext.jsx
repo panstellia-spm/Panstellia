@@ -35,6 +35,11 @@ const normalizeProduct = (p) => {
     ratings = 4.0 + ((charSum % 9) / 10); // 4.0 to 4.8
   }
 
+  // Force 5-star rating for Elite Series / Lux Wear category
+  if (p.category === 'Lux Wear' || p.category === 'Elite Series') {
+    ratings = 5.0;
+  }
+
   return {
     ...p,
     productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
