@@ -8,6 +8,7 @@ import { createRazorpayOrder, verifyPayment, openCheckout, markPaymentFailed } f
 import { db } from '../services/firebase';
 import { collection, addDoc, serverTimestamp, doc, runTransaction, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
 import { sendOrderNotifications, formatOrderDataForEmail } from '../services/orderNotifications';
+import { calculateRates, createShiprocketOrder } from '../services/shiprocket';
 
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
@@ -29,7 +30,15 @@ const CheckoutPage = () => {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponLoading, setCouponLoading] = useState(false);
 
-  const finalTotal = Math.max(0, subtotal + shipping + tax - couponDiscount);
+  // Shiprocket & Dynamic Shipping State
+  const [dynamicShipping, setDynamicShipping] = useState(shipping);
+  const [shippingRateLoading, setShippingRateLoading] = useState(false);
+  const [pincodeError, setPincodeError] = useState('');
+  const [estDeliveryDate, setEstDeliveryDate] = useState('');
+  const [courierName, setCourierName] = useState('');
+  const [isDeliverable, setIsDeliverable] = useState(true);
+
+  const finalTotal = Math.max(0, subtotal + dynamicShipping + tax - couponDiscount);
 
   const handleApplyCoupon = async () => {
     if (!couponCodeInput.trim()) {
@@ -303,6 +312,69 @@ const CheckoutPage = () => {
     }
   }, [cartItems.length, navigate]);
 
+  // Re-run serviceability / rate calculation when pincode or parameters change
+  useEffect(() => {
+    const checkRates = async () => {
+      const pin = formData.pincode.trim();
+      if (!/^\d{6}$/.test(pin)) {
+        setPincodeError('');
+        setIsDeliverable(true);
+        setDynamicShipping(shipping);
+        setEstDeliveryDate('');
+        setCourierName('');
+        return;
+      }
+
+      setShippingRateLoading(true);
+      setPincodeError('');
+
+      try {
+        const token = await user.getIdToken();
+        const weight = cartItems.reduce((acc, item) => acc + (item.quantity * 0.1), 0);
+        const isCod = selectedPaymentMethod === 'cod';
+
+        const res = await calculateRates(pin, subtotal, weight, isCod, token);
+
+        if (res.method === 'standard_fallback_error') {
+          setDynamicShipping(res.rate);
+          setIsDeliverable(true);
+          setEstDeliveryDate('3-5 business days');
+          setCourierName(res.courier || '');
+        } else if (res.isFree) {
+          setDynamicShipping(0);
+          setIsDeliverable(true);
+          setEstDeliveryDate('3-5 business days');
+          setCourierName('');
+        } else {
+          setDynamicShipping(res.rate);
+          setIsDeliverable(true);
+          if (res.est_days) {
+            setEstDeliveryDate(`${res.est_days}`);
+          } else if (res.etd) {
+            const formatted = new Date(res.etd).toLocaleDateString('en-IN', {
+              weekday: 'long',
+              month: 'short',
+              day: 'numeric'
+            });
+            setEstDeliveryDate(formatted);
+          }
+          setCourierName(res.courier || '');
+        }
+      } catch (err) {
+        console.error('Serviceability check failed:', err.message);
+        setPincodeError('Pincode may not be serviceable by our delivery partners.');
+        setIsDeliverable(false);
+        setDynamicShipping(shipping);
+      } finally {
+        setShippingRateLoading(false);
+      }
+    };
+
+    if (user && formData.pincode) {
+      checkRates();
+    }
+  }, [formData.pincode, selectedPaymentMethod, subtotal, shipping, user, cartItems]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -357,6 +429,10 @@ const CheckoutPage = () => {
       // Validate form
       if (!formData.name || !formData.email || !formData.phone || !formData.address || !formData.city || !formData.state || !formData.pincode) {
         throw new Error('Please fill in all required fields');
+      }
+
+      if (!isDeliverable) {
+        throw new Error('Your selected pincode is not serviceable by our shipping partners.');
       }
 
       await saveOrUpdateProfileAddress();
@@ -488,7 +564,7 @@ const CheckoutPage = () => {
               phone: formData.phone,
               email: formData.email,
               subtotal,
-              shipping,
+              shipping: dynamicShipping,
               tax,
               couponCode: appliedCoupon?.code || null,
               couponDiscount: couponDiscount || 0,
@@ -562,7 +638,7 @@ const CheckoutPage = () => {
               cartItems: cartItemsSnapshot,
               total: finalTotal,
               tax,
-              shipping,
+              shipping: dynamicShipping,
               couponCode: appliedCoupon?.code || null,
               couponDiscount: couponDiscount || 0,
             });
@@ -578,6 +654,18 @@ const CheckoutPage = () => {
             }
           } catch (emailError) {
             console.error('⚠️ Email sending error (order still placed):', emailError);
+          }
+
+          // Create Shiprocket Order for COD
+          try {
+            const configSnap = await getDoc(doc(db, 'system_settings', 'shiprocket'));
+            if (configSnap.exists() && configSnap.data().enabled) {
+              const token = await user.getIdToken();
+              console.log(`[Checkout] Creating Shiprocket order for COD doc: ${orderDocRef.id}`);
+              await createShiprocketOrder(orderDocRef.id, null, token);
+            }
+          } catch (shiprocketErr) {
+            console.error('Shiprocket automatic COD order creation failed:', shiprocketErr);
           }
 
           await clearCart();
@@ -658,7 +746,7 @@ const CheckoutPage = () => {
         items: cartItemsSnapshot,
         totals: {
           subtotal,
-          shipping,
+          shipping: dynamicShipping,
           tax,
           total: finalTotal,
           couponCode: appliedCoupon?.code || null,
@@ -756,7 +844,7 @@ const CheckoutPage = () => {
                   cartItems: cartItemsSnapshot,
                   total: finalTotal,
                   tax,
-                  shipping,
+                  shipping: dynamicShipping,
                   couponCode: appliedCoupon?.code || null,
                   couponDiscount: couponDiscount || 0,
                 });
@@ -772,6 +860,20 @@ const CheckoutPage = () => {
                 }
               } catch (emailError) {
                 console.error('⚠️ Email sending error (order still placed):', emailError);
+              }
+
+              // Create Shiprocket Order for Prepaid
+              try {
+                const configSnap = await getDoc(doc(db, 'system_settings', 'shiprocket'));
+                if (configSnap.exists() && configSnap.data().enabled) {
+                  const orderDocId = verificationResult.local_order_id || local_order_id;
+                  if (orderDocId) {
+                    console.log(`[Checkout] Creating Shiprocket order for Prepaid doc: ${orderDocId}`);
+                    await createShiprocketOrder(orderDocId, null, authToken);
+                  }
+                }
+              } catch (shiprocketErr) {
+                console.error('Shiprocket automatic Prepaid order creation failed:', shiprocketErr);
               }
 
               await clearCart();
@@ -1310,8 +1412,17 @@ const CheckoutPage = () => {
                 </div>
                 <div className="flex justify-between text-xs text-luxury-600 font-medium">
                   <span>Shipping</span>
-                  <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
+                  <span>{dynamicShipping === 0 ? 'Free' : `₹${dynamicShipping}`}</span>
                 </div>
+                {estDeliveryDate && (
+                  <div className="text-[10px] text-gold-650 font-bold -mt-2 flex items-center gap-1.5 justify-end">
+                    <Truck className="w-3.5 h-3.5" />
+                    Delivery by: {estDeliveryDate} {courierName && `(${courierName})`}
+                  </div>
+                )}
+                {pincodeError && (
+                  <p className="text-red-500 text-[10px] font-bold text-right -mt-2">{pincodeError}</p>
+                )}
                 <div className="flex justify-between text-xs text-luxury-600 font-medium">
                   <span>Tax</span>
                   <span>₹{tax.toLocaleString()}</span>

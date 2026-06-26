@@ -25,6 +25,7 @@ import {
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToOrder, subscribeToOrderNotes, updateOrderStatus, updateTrackingInfo, addOrderNote, updateOrderPriority, requestRefund } from '../../services/orderTracking';
+import shiprocketService from '../../services/shiprocket';
 import {
   STATUS_PIPELINE, PRIORITY_CONFIG, normalizeStatus,
   detectDelay, computeSLAStatus, estimateDelivery,
@@ -184,6 +185,151 @@ export default function AdminOrderDetail() {
 
   // Priority
   const [updatingPriority, setUpdatingPriority] = useState(false);
+
+  // Shiprocket integration states
+  const [shiprocketConfig, setShiprocketConfig] = useState(null);
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [activeFulfillmentTab, setActiveFulfillmentTab] = useState('shiprocket'); // 'shiprocket' or 'manual'
+  const [packageDetails, setPackageDetails] = useState({ weight: 0.1, length: 10, breadth: 10, height: 5 });
+  const [fetchingCouriers, setFetchingCouriers] = useState(false);
+  const [availableCouriers, setAvailableCouriers] = useState([]);
+  const [courierError, setCourierError] = useState('');
+  const [selectedCourierId, setSelectedCourierId] = useState(null);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [shipmentActionLoading, setShipmentActionLoading] = useState({});
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      setLoadingConfig(true);
+      try {
+        const token = await user.getIdToken();
+        const res = await shiprocketService.getShiprocketConfig(token);
+        if (res.success && res.config) {
+          setShiprocketConfig(res.config);
+          
+          // Calculate total order items weight or use default
+          const totalWeight = (order?.items || []).reduce((acc, item) => acc + (Number(item.quantity || 1) * 0.1), 0);
+          setPackageDetails({
+            weight: Number(totalWeight.toFixed(2)) || Number(res.config.defaultWeight) || 0.1,
+            length: Number(res.config.defaultLength) || 10,
+            breadth: Number(res.config.defaultBreadth) || 10,
+            height: Number(res.config.defaultHeight) || 5
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load Shiprocket config:', err);
+      } finally {
+        setLoadingConfig(false);
+      }
+    };
+    if (user && order) {
+      fetchConfig();
+    }
+  }, [user, order?.id]);
+
+  const handleFetchCouriers = async () => {
+    setFetchingCouriers(true);
+    setCourierError('');
+    setAvailableCouriers([]);
+    try {
+      const token = await user.getIdToken();
+      const isCod = order.paymentMethod?.toLowerCase() === 'cod';
+      const weightVal = Number(packageDetails.weight) || 0.1;
+      
+      const res = await shiprocketService.checkServiceability(order.pincode, weightVal, isCod, token);
+      if (res.deliverable && res.couriers) {
+        setAvailableCouriers(res.couriers);
+        if (res.couriers.length > 0) {
+          const sorted = [...res.couriers].sort((a, b) => Number(a.rate) - Number(b.rate));
+          setSelectedCourierId(sorted[0].courier_company_id);
+        }
+      } else {
+        setCourierError(res.error || 'No serviceable couriers found for this pincode.');
+      }
+    } catch (err) {
+      console.error('Failed to check serviceability:', err);
+      setCourierError(err.message || 'Serviceability check failed.');
+    } finally {
+      setFetchingCouriers(false);
+    }
+  };
+
+  const handleBookShipment = async () => {
+    if (!selectedCourierId) {
+      toast.error('Please select a courier');
+      return;
+    }
+    setBookingInProgress(true);
+    try {
+      const token = await user.getIdToken();
+      toast.info('Syncing order with Shiprocket...', { autoClose: 2000 });
+      const createRes = await shiprocketService.createShiprocketOrder(order.id, packageDetails, token);
+      
+      if (createRes.success && createRes.shipmentId) {
+        toast.info('Booking courier & assigning AWB...', { autoClose: 2000 });
+        const awbRes = await shiprocketService.assignAWB(order.id, createRes.shipmentId, selectedCourierId, token);
+        
+        if (awbRes.success) {
+          if (normalizeStatus(order.status) === 'processing') {
+            await updateOrderStatus(order.id, 'packed', user, `Order synced to Shiprocket. Courier: ${awbRes.courier}, AWB: ${awbRes.awb}`);
+          } else {
+            await updateTrackingInfo(order.id, {
+              trackingNumber: awbRes.awb,
+              courierName: awbRes.courier,
+              trackingUrl: `https://shiprocket.co/tracking/${awbRes.awb}`
+            }, user);
+          }
+          toast.success(`Shipment created successfully! AWB: ${awbRes.awb} assigned.`);
+          setAvailableCouriers([]);
+        }
+      }
+    } catch (err) {
+      console.error('Booking failed:', err);
+      toast.error('Logistics booking failed: ' + err.message);
+    } finally {
+      setBookingInProgress(false);
+    }
+  };
+
+  const handleShipmentAction = async (actionName, paramId) => {
+    setShipmentActionLoading(prev => ({ ...prev, [actionName]: true }));
+    try {
+      const token = await user.getIdToken();
+      if (actionName === 'schedule_pickup') {
+        const res = await shiprocketService.schedulePickup(order.id, paramId, token);
+        if (res.success) {
+          toast.success('Courier pickup scheduled successfully!');
+        }
+      } 
+      else if (actionName === 'download_label') {
+        const res = await shiprocketService.generateLabel(paramId, token);
+        if (res.success && res.labelUrl) {
+          window.open(res.labelUrl, '_blank');
+          toast.success('Label downloaded successfully');
+        }
+      } 
+      else if (actionName === 'download_invoice') {
+        const res = await shiprocketService.generateInvoice(paramId, token);
+        if (res.success && res.invoiceUrl) {
+          window.open(res.invoiceUrl, '_blank');
+          toast.success('Invoice downloaded successfully');
+        }
+      } 
+      else if (actionName === 'cancel_shipment') {
+        if (window.confirm('Are you sure you want to cancel this Shiprocket shipment?')) {
+          const res = await shiprocketService.cancelShipment(order.id, paramId, token);
+          if (res.success) {
+            toast.success('Shipment cancelled successfully.');
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Shipment action ${actionName} failed:`, err);
+      toast.error(`Action failed: ${err.message}`);
+    } finally {
+      setShipmentActionLoading(prev => ({ ...prev, [actionName]: false }));
+    }
+  };
 
   if (!isAdmin) return null;
 
@@ -470,79 +616,422 @@ export default function AdminOrderDetail() {
                 className="flex items-center gap-1.5 text-xs font-medium text-gold-600 hover:text-gold-700 transition-colors"
               >
                 <Edit3 className="w-3 h-3" />
-                {showTrackingForm ? 'Cancel' : 'Edit Tracking'}
+                {showTrackingForm ? 'Cancel' : 'Edit Tracking / Override'}
               </button>
             }
           >
-            {showTrackingForm ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-luxury-700 mb-1">Courier Name</label>
-                    <input
-                      value={trackingForm.courierName}
-                      onChange={e => setTrackingForm(p => ({ ...p, courierName: e.target.value }))}
-                      placeholder="BlueDart, DTDC, FedEx…"
-                      className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
-                    />
+            {!order.shiprocketOrderId ? (
+              /* ORDER NOT YET SYNCED WITH SHIPROCKET */
+              showTrackingForm ? (
+                /* EXISTING MANUAL FORM */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-luxury-700 mb-1">Courier Name</label>
+                      <input
+                        value={trackingForm.courierName}
+                        onChange={e => setTrackingForm(p => ({ ...p, courierName: e.target.value }))}
+                        placeholder="BlueDart, DTDC, FedEx…"
+                        className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking Number</label>
+                      <input
+                        value={trackingForm.trackingNumber}
+                        onChange={e => setTrackingForm(p => ({ ...p, trackingNumber: e.target.value }))}
+                        placeholder="AWB / Tracking ID"
+                        className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking URL (optional)</label>
+                      <input
+                        value={trackingForm.trackingUrl}
+                        onChange={e => setTrackingForm(p => ({ ...p, trackingUrl: e.target.value }))}
+                        placeholder="https://track.courier.com/..."
+                        className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-luxury-700 mb-1">Estimated Delivery</label>
+                      <input
+                        type="date"
+                        value={trackingForm.estimatedDelivery}
+                        onChange={e => setTrackingForm(p => ({ ...p, estimatedDelivery: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking Number</label>
-                    <input
-                      value={trackingForm.trackingNumber}
-                      onChange={e => setTrackingForm(p => ({ ...p, trackingNumber: e.target.value }))}
-                      placeholder="AWB / Tracking ID"
-                      className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking URL (optional)</label>
-                    <input
-                      value={trackingForm.trackingUrl}
-                      onChange={e => setTrackingForm(p => ({ ...p, trackingUrl: e.target.value }))}
-                      placeholder="https://track.courier.com/..."
-                      className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-luxury-700 mb-1">Estimated Delivery</label>
-                    <input
-                      type="date"
-                      value={trackingForm.estimatedDelivery}
-                      onChange={e => setTrackingForm(p => ({ ...p, estimatedDelivery: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
-                    />
-                  </div>
+                  <button
+                    onClick={handleSaveTracking}
+                    disabled={savingTracking}
+                    className="w-full py-2 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {savingTracking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    {savingTracking ? 'Saving…' : 'Save Tracking Info'}
+                  </button>
                 </div>
-                <button
-                  onClick={handleSaveTracking}
-                  disabled={savingTracking}
-                  className="w-full py-2 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {savingTracking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {savingTracking ? 'Saving…' : 'Save Tracking Info'}
-                </button>
-              </div>
-            ) : (
-              <div>
-                <InfoRow label="Courier" value={order.courierName} />
-                <InfoRow label="Tracking #" value={order.trackingNumber} copy mono />
-                <InfoRow label="ETA" value={eta.label} />
-                {order.trackingUrl && (
-                  <div className="mt-3">
-                    <a
-                      href={order.trackingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              ) : (
+                /* TABBED BOOKING OR MANUAL OPTION */
+                <div className="space-y-4">
+                  <div className="flex border-b border-luxury-100">
+                    <button
+                      onClick={() => setActiveFulfillmentTab('shiprocket')}
+                      className={`flex-1 pb-2.5 text-xs font-bold transition-colors border-b-2 text-center ${
+                        activeFulfillmentTab === 'shiprocket'
+                          ? 'border-gold-500 text-gold-600'
+                          : 'border-transparent text-luxury-400 hover:text-luxury-600'
+                      }`}
                     >
-                      <ExternalLink className="w-3 h-3" />
-                      View Live Tracking
-                    </a>
+                      Shiprocket Fulfillment
+                    </button>
+                    <button
+                      onClick={() => setActiveFulfillmentTab('manual')}
+                      className={`flex-1 pb-2.5 text-xs font-bold transition-colors border-b-2 text-center ${
+                        activeFulfillmentTab === 'manual'
+                          ? 'border-gold-500 text-gold-600'
+                          : 'border-transparent text-luxury-400 hover:text-luxury-600'
+                      }`}
+                    >
+                      Manual Courier Info
+                    </button>
                   </div>
-                )}
-                {!order.trackingNumber && !order.courierName && (
-                  <p className="text-sm text-luxury-400 text-center py-2">No tracking info added yet</p>
+
+                  {activeFulfillmentTab === 'shiprocket' ? (
+                    /* SHIPROCKET TAB */
+                    <div className="space-y-4">
+                      {shiprocketConfig && !shiprocketConfig.enabled ? (
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-700 text-center">
+                          Shiprocket integration is disabled in settings. Enable it to book couriers automatically.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Dimensions Form */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <div>
+                              <label className="block text-[10px] font-bold text-luxury-500 uppercase mb-1">Weight (kg)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={packageDetails.weight}
+                                onChange={e => setPackageDetails(p => ({ ...p, weight: parseFloat(e.target.value) || 0 }))}
+                                className="w-full px-2.5 py-1.5 text-xs border border-luxury-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gold-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-luxury-500 uppercase mb-1">Length (cm)</label>
+                              <input
+                                type="number"
+                                value={packageDetails.length}
+                                onChange={e => setPackageDetails(p => ({ ...p, length: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-2.5 py-1.5 text-xs border border-luxury-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gold-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-luxury-500 uppercase mb-1">Breadth (cm)</label>
+                              <input
+                                type="number"
+                                value={packageDetails.breadth}
+                                onChange={e => setPackageDetails(p => ({ ...p, breadth: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-2.5 py-1.5 text-xs border border-luxury-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gold-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-luxury-500 uppercase mb-1">Height (cm)</label>
+                              <input
+                                type="number"
+                                value={packageDetails.height}
+                                onChange={e => setPackageDetails(p => ({ ...p, height: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-2.5 py-1.5 text-xs border border-luxury-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gold-400"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Fetch & Booking Actions */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleFetchCouriers}
+                              disabled={fetchingCouriers || bookingInProgress}
+                              className="w-full py-2 text-xs font-bold rounded-xl border border-luxury-200 text-luxury-700 hover:bg-luxury-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                              {fetchingCouriers ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
+                              Fetch Available Couriers
+                            </button>
+                          </div>
+
+                          {/* Couriers List */}
+                          {courierError && (
+                            <p className="text-xs text-red-500 font-medium text-center py-1">{courierError}</p>
+                          )}
+
+                          {availableCouriers.length > 0 && (
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                              {availableCouriers.map((courier) => (
+                                <label
+                                  key={courier.courier_company_id}
+                                  className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                    selectedCourierId === courier.courier_company_id
+                                      ? 'border-gold-500 bg-gold-50/20'
+                                      : 'border-luxury-100 hover:border-luxury-200 bg-white'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="radio"
+                                      name="courier_select"
+                                      checked={selectedCourierId === courier.courier_company_id}
+                                      onChange={() => setSelectedCourierId(courier.courier_company_id)}
+                                      className="text-gold-600 focus:ring-gold-500"
+                                    />
+                                    <div className="text-left">
+                                      <p className="text-xs font-bold text-luxury-900">{courier.courier_name}</p>
+                                      <div className="flex items-center gap-2 text-[10px] text-luxury-500 mt-0.5">
+                                        <span className="text-amber-500 font-medium">★ {courier.rating || 'N/A'}</span>
+                                        <span>•</span>
+                                        <span>ETD: {courier.etd || 'N/A'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <p className="text-xs font-extrabold text-luxury-900">{formatINR(courier.rate)}</p>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+
+                          {availableCouriers.length > 0 && (
+                            <button
+                              onClick={handleBookShipment}
+                              disabled={bookingInProgress || !selectedCourierId}
+                              className="w-full py-2.5 rounded-xl bg-gold-500 text-white text-xs font-bold hover:bg-gold-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                              {bookingInProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                              Book Shipment & Generate AWB
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* MANUAL INFO FALLBACK */
+                    <div className="space-y-3">
+                      <div className="p-3 bg-luxury-50 rounded-xl border border-luxury-100 text-xs text-luxury-600 text-center">
+                        No tracking details configured. Enter tracking details manually below:
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-luxury-700 mb-1">Courier Name</label>
+                          <input
+                            value={trackingForm.courierName}
+                            onChange={e => setTrackingForm(p => ({ ...p, courierName: e.target.value }))}
+                            placeholder="BlueDart, DTDC, FedEx…"
+                            className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking Number</label>
+                          <input
+                            value={trackingForm.trackingNumber}
+                            onChange={e => setTrackingForm(p => ({ ...p, trackingNumber: e.target.value }))}
+                            placeholder="AWB / Tracking ID"
+                            className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking URL (optional)</label>
+                          <input
+                            value={trackingForm.trackingUrl}
+                            onChange={e => setTrackingForm(p => ({ ...p, trackingUrl: e.target.value }))}
+                            placeholder="https://track.courier.com/..."
+                            className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-luxury-700 mb-1">Estimated Delivery</label>
+                          <input
+                            type="date"
+                            value={trackingForm.estimatedDelivery}
+                            onChange={e => setTrackingForm(p => ({ ...p, estimatedDelivery: e.target.value }))}
+                            className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSaveTracking}
+                        disabled={savingTracking}
+                        className="w-full py-2.5 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {savingTracking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                        {savingTracking ? 'Saving…' : 'Save Tracking Info'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+              /* ORDER ALREADY SYNCED WITH SHIPROCKET */
+              <div className="space-y-4 text-left">
+                {showTrackingForm ? (
+                  /* EDITING FORM FOR MANUAL OVERRIDE (EVEN IF SHIPROCKET IS ACTIVE) */
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-luxury-700 mb-1">Courier Name</label>
+                        <input
+                          value={trackingForm.courierName}
+                          onChange={e => setTrackingForm(p => ({ ...p, courierName: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking Number</label>
+                        <input
+                          value={trackingForm.trackingNumber}
+                          onChange={e => setTrackingForm(p => ({ ...p, trackingNumber: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-luxury-700 mb-1">Tracking URL</label>
+                        <input
+                          value={trackingForm.trackingUrl}
+                          onChange={e => setTrackingForm(p => ({ ...p, trackingUrl: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-luxury-700 mb-1">Estimated Delivery</label>
+                        <input
+                          type="date"
+                          value={trackingForm.estimatedDelivery}
+                          onChange={e => setTrackingForm(p => ({ ...p, estimatedDelivery: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-luxury-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSaveTracking}
+                      disabled={savingTracking}
+                      className="w-full py-2 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {savingTracking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      {savingTracking ? 'Saving…' : 'Save Override'}
+                    </button>
+                  </div>
+                ) : (
+                  /* RENDER SHIPROCKET LOGISTICS DETAILS */
+                  <div>
+                    <div className="p-3.5 bg-gold-50/20 border border-gold-200/50 rounded-xl flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-xs font-bold text-gold-800">Shiprocket Connected Shipment</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-luxury-400">Order ID: {order.shiprocketOrderId}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                      <InfoRow label="Courier Partner" value={order.courierName} />
+                      <InfoRow label="AWB Tracking ID" value={order.awbNumber || order.trackingNumber} copy mono />
+                      <InfoRow label="Shipment ID" value={order.shipmentId} copy mono />
+                      <InfoRow label="Fulfillment Status" value={order.shipmentStatus?.toUpperCase()} />
+                      <InfoRow label="Delivery Status" value={order.deliveryStatus?.toUpperCase()} />
+                      <InfoRow label="Pickup Status" value={order.pickupStatus?.toUpperCase() || 'NOT SCHEDULED'} />
+                      <InfoRow label="Estimated Delivery" value={eta.label} />
+                    </div>
+
+                    {/* Shiprocket Actions Panel */}
+                    <div className="mt-5 pt-4 border-t border-luxury-100 space-y-3">
+                      <p className="text-[10px] font-bold text-luxury-400 uppercase tracking-wider mb-2">Shipment Actions</p>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {/* 1. Schedule Pickup */}
+                        <button
+                          onClick={() => handleShipmentAction('schedule_pickup', order.shipmentId)}
+                          disabled={shipmentActionLoading['schedule_pickup'] || order.pickupStatus === 'scheduled' || order.pickupStatus === 'picked_up'}
+                          className="py-2 px-2.5 rounded-xl border border-luxury-200 text-xs font-semibold text-luxury-700 hover:bg-luxury-50 hover:border-luxury-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          {shipmentActionLoading['schedule_pickup'] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5 text-amber-500" />}
+                          {order.pickupStatus === 'scheduled' ? 'Pickup Booked' : 'Book Pickup'}
+                        </button>
+
+                        {/* 2. Download Shipping Label */}
+                        <button
+                          onClick={() => handleShipmentAction('download_label', order.shipmentId)}
+                          disabled={shipmentActionLoading['download_label'] || !order.awbNumber}
+                          className="py-2 px-2.5 rounded-xl border border-luxury-200 text-xs font-semibold text-luxury-700 hover:bg-luxury-50 hover:border-luxury-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          {shipmentActionLoading['download_label'] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5 text-blue-500" />}
+                          Print Label
+                        </button>
+
+                        {/* 3. Download Invoice */}
+                        <button
+                          onClick={() => handleShipmentAction('download_invoice', order.shiprocketOrderId)}
+                          disabled={shipmentActionLoading['download_invoice'] || !order.shiprocketOrderId}
+                          className="py-2 px-2.5 rounded-xl border border-luxury-200 text-xs font-semibold text-luxury-700 hover:bg-luxury-50 hover:border-luxury-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          {shipmentActionLoading['download_invoice'] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5 text-purple-500" />}
+                          Print Invoice
+                        </button>
+
+                        {/* 4. Cancel Shipment */}
+                        <button
+                          onClick={() => handleShipmentAction('cancel_shipment', order.shiprocketOrderId)}
+                          disabled={shipmentActionLoading['cancel_shipment'] || order.shipmentStatus === 'cancelled'}
+                          className="py-2 px-2.5 rounded-xl border border-red-100 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          {shipmentActionLoading['cancel_shipment'] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5 text-red-500" />}
+                          Cancel Ship
+                        </button>
+                      </div>
+
+                      {/* Live Tracking Link */}
+                      {order.trackingUrl && (
+                        <div className="pt-2 text-center">
+                          <a
+                            href={order.trackingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Open Carrier Public Tracking Page
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Detailed courier scans timeline */}
+                    {order.shipmentHistory && order.shipmentHistory.length > 0 && (
+                      <div className="mt-5 pt-4 border-t border-luxury-100 space-y-3">
+                        <p className="text-[10px] font-bold text-luxury-400 uppercase tracking-wider mb-2">Courier Scans History</p>
+                        <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                          {[...(order.shipmentHistory || [])]
+                            .sort((a, b) => {
+                              const tA = safeToDate(a.timestamp || a.date)?.getTime() || 0;
+                              const tB = safeToDate(b.timestamp || b.date)?.getTime() || 0;
+                              return tB - tA;
+                            })
+                            .map((scan, idx, arr) => (
+                              <div key={idx} className="flex gap-2 text-xs relative">
+                                {idx < arr.length - 1 && (
+                                  <div className="absolute left-[5px] top-4 bottom-[-12px] w-0.5 bg-luxury-100" />
+                                )}
+                                <div className="w-2.5 h-2.5 rounded-full bg-gold-500 border-2 border-white flex-shrink-0 z-10 mt-1" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-luxury-800">{scan.activity || scan.status}</p>
+                                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-luxury-400">
+                                    {scan.location && <span>{scan.location}</span>}
+                                    {scan.location && <span>•</span>}
+                                    <span>{safeToDate(scan.timestamp || scan.date)?.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
