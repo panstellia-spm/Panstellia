@@ -144,11 +144,11 @@ export const DEFAULT_CMS = {
   navigation: [
     { to: '/', label: 'Home', icon: 'Home' },
     { to: '/products', label: 'Shop', icon: 'Store' },
-    { to: '/products?category=Gold', label: 'Gold Collection', icon: 'Gem', category: 'Gold' },
-    { to: '/products?category=Silver', label: 'Silver Collection', icon: 'CircleDot', category: 'Silver' },
+    { to: '/products?category=Gold', label: 'Luxe Ring', icon: 'Gem', category: 'Gold' },
+    { to: '/products?category=Silver', label: 'Royal Bracelets', icon: 'CircleDot', category: 'Silver' },
     { to: '/products?category=Lux Wear', label: 'Lux Wear', icon: 'Crown', category: 'Lux Wear' },
     { to: '/category/elegant-spark', label: 'Elegant Spark', icon: 'Sparkles', category: 'Elegant Spark' },
-    { to: '/products?category=Piercings', label: 'Piercings', icon: 'Diamond', category: 'Piercings' }
+    { to: '/products?category=Party%20Wear', label: 'Piercings', icon: 'Diamond', category: 'Party Wear' }
   ],
   contact: {
     email: "support@panstellia.com",

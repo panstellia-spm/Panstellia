@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, Grid, List } from 'lucide-react';
+import { Filter, X, Grid, List, Star } from 'lucide-react';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/UI/ProductCard';
 import SEOHelmet from '../utils/seoHelmet';
@@ -68,6 +68,7 @@ const ProductsPage = () => {
   const minPriceQuery = searchParams.get('minPrice') || '';
   const maxPriceQuery = searchParams.get('maxPrice') || '';
   const sortByQuery = searchParams.get('sortBy') || 'newest';
+  const minRatingQuery = searchParams.get('minRating') || '';
 
   // Filters state: category is an array (multi-select). Empty array means all categories
   const [filters, setFilters] = useState({
@@ -80,7 +81,8 @@ const ProductsPage = () => {
       outOfStock: false,
       discounted: false
     },
-    discountMin: '' // numeric threshold for discount filter (e.g., 10, 20)
+    discountMin: '', // numeric threshold for discount filter (e.g., 10, 20)
+    minRating: minRatingQuery || ''
   });
 
   const [filtersConfig, setFiltersConfig] = useState(DEFAULT_FILTERS_FALLBACK);
@@ -165,7 +167,8 @@ const ProductsPage = () => {
         category: nextCategory,
         minPrice: minPriceQuery || '',
         maxPrice: maxPriceQuery || '',
-        sortBy: sortByQuery || 'newest'
+        sortBy: sortByQuery || 'newest',
+        minRating: minRatingQuery || ''
       };
 
       // Simple shallow comparison
@@ -173,7 +176,8 @@ const ProductsPage = () => {
         JSON.stringify(current.category) === JSON.stringify(next.category) &&
         current.minPrice === next.minPrice &&
         current.maxPrice === next.maxPrice &&
-        current.sortBy === next.sortBy
+        current.sortBy === next.sortBy &&
+        current.minRating === next.minRating
       ) {
         return current;
       }
@@ -242,6 +246,17 @@ const ProductsPage = () => {
       });
     }
 
+    // Rating
+    if (filters.minRating) {
+      if (filters.minRating === '3-plus') {
+        result = result.filter((p) => p.ratings > 3);
+      } else if (filters.minRating === '4-plus') {
+        result = result.filter((p) => p.ratings > 4);
+      } else if (filters.minRating === '5-exact') {
+        result = result.filter((p) => p.ratings === 5);
+      }
+    }
+
     // Sort
     const sorted = [...result];
     switch (filters.sortBy) {
@@ -308,6 +323,7 @@ const ProductsPage = () => {
     if (newFilters.maxPrice) params.maxPrice = String(newFilters.maxPrice);
     if (newFilters.sortBy && newFilters.sortBy !== 'newest') params.sortBy = newFilters.sortBy;
     if (newFilters.discountMin) params.discountMin = String(newFilters.discountMin);
+    if (newFilters.minRating) params.minRating = String(newFilters.minRating);
     if (searchQuery) params.search = searchQuery;
 
     setSearchParams(params, { replace: true, state: { preventScroll: true } });
@@ -326,7 +342,8 @@ const ProductsPage = () => {
       maxPrice: '',
       sortBy: 'newest',
       availability: { inStock: false, outOfStock: false, discounted: false },
-      discountMin: ''
+      discountMin: '',
+      minRating: ''
     });
     setSelectedCustomFilters({});
     setSearchParams(searchQuery ? { search: searchQuery } : {}, { replace: true, state: { preventScroll: true } });
@@ -338,6 +355,7 @@ const ProductsPage = () => {
     filters.minPrice !== '' && filters.minPrice !== null,
     filters.maxPrice !== '' && filters.maxPrice !== null,
     filters.discountMin !== '' && filters.discountMin !== null,
+    filters.minRating !== '' && filters.minRating !== null,
     filters.availability && (filters.availability.inStock || filters.availability.outOfStock || filters.availability.discounted)
   ].filter(Boolean).length + customFiltersCount;
 
@@ -591,6 +609,26 @@ const ProductsPage = () => {
               onClick={() => handleFilterChange('discountMin', filters.discountMin === String(d) ? '' : String(d))}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filters.discountMin === String(d) ? 'bg-gold-500 text-white' : 'bg-white text-luxury-700 border-luxury-200 hover:border-gold-400'}`}>
               {d}%+ Off
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Rating Filter */}
+      <div className="mb-6">
+        <h3 className="text-xs font-bold text-luxury-800 uppercase tracking-wider mb-3">Rating</h3>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: '3+ Stars', value: '3-plus' },
+            { label: '4+ Stars', value: '4-plus' },
+            { label: '5 Stars Only', value: '5-exact' }
+          ].map((r) => (
+            <button
+              key={r.value}
+              onClick={() => handleFilterChange('minRating', filters.minRating === r.value ? '' : r.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${filters.minRating === r.value ? 'bg-gold-500 text-white border-gold-500 shadow-sm' : 'bg-white text-luxury-700 border-luxury-200 hover:border-gold-400 hover:text-gold-600'}`}>
+              {r.label}
+              <Star className={`w-3.5 h-3.5 ${filters.minRating === r.value ? 'fill-white text-white' : 'fill-gold-400 text-gold-400'}`} />
             </button>
           ))}
         </div>
