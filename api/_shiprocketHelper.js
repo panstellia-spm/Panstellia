@@ -1,4 +1,4 @@
-import admin from './firebaseAdmin.js';
+import admin from './_firebaseAdmin.js';
 
 const db = admin.firestore();
 const SHIPROCKET_BASE_URL = (process.env.SHIPROCKET_BASE_URL || 'https://apiv2.shiprocket.in').trim().replace(/\/$/, '');

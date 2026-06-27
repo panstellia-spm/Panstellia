@@ -1,6 +1,6 @@
-import admin from './firebaseAdmin.js';
+import admin from './_firebaseAdmin.js';
 import Razorpay from 'razorpay';
-import { handleCors } from './cors.js';
+import { handleCors } from './_cors.js';
 
 const FieldValue = admin.firestore.FieldValue;
 

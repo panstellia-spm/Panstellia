@@ -1,5 +1,5 @@
-import admin from './firebaseAdmin.js';
-import { handleCors } from './cors.js';
+import admin from './_firebaseAdmin.js';
+import { handleCors } from './_cors.js';
 
 const FieldValue = admin.firestore.FieldValue;
 

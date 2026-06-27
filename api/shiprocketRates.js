@@ -1,6 +1,6 @@
-import { handleCors } from './cors.js';
-import { shiprocketRequest } from './shiprocketHelper.js';
-import admin from './firebaseAdmin.js';
+import { handleCors } from './_cors.js';
+import { shiprocketRequest } from './_shiprocketHelper.js';
+import admin from './_firebaseAdmin.js';
 
 export default async function handler(req, res) {
   if (handleCors(req, res)) return;

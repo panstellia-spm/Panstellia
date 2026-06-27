@@ -1,5 +1,5 @@
-import admin from './firebaseAdmin.js';
-import { logShiprocketAction } from './shiprocketHelper.js';
+import admin from './_firebaseAdmin.js';
+import { logShiprocketAction } from './_shiprocketHelper.js';
 
 const db = admin.firestore();
 

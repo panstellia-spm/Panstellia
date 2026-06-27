@@ -1,6 +1,6 @@
-import { handleCors } from './cors.js';
-import { shiprocketRequest, logShiprocketAction } from './shiprocketHelper.js';
-import admin from './firebaseAdmin.js';
+import { handleCors } from './_cors.js';
+import { shiprocketRequest, logShiprocketAction } from './_shiprocketHelper.js';
+import admin from './_firebaseAdmin.js';
 
 const db = admin.firestore();
 
