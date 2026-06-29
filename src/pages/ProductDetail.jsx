@@ -862,11 +862,13 @@ const ProductDetailPage = () => {
                       </div>
                       <div className="flex justify-between border-b border-luxury-50 pb-2">
                         <span className="font-bold text-luxury-500">Return Window:</span>
-                        <span className="font-semibold text-luxury-800">5-Day Easy Replacement</span>
+                        <span className="font-semibold text-luxury-800">3-Day Easy Replacement</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="space-y-2">
                         <span className="font-bold text-luxury-500">Warranty Coverage:</span>
-                        <span className="font-semibold text-luxury-800">6 Months Brand Warranty</span>
+                        <span className="font-semibold text-luxury-800">
+                          Only products from the Elite Series are covered under a 3 Months Brand Warranty against manufacturing defects. All other product collections are not eligible for warranty coverage.
+                        </span>
                       </div>
                     </div>
                   )
