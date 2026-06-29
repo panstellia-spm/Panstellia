@@ -5,13 +5,17 @@ import SeoHelmet from '../utils/seoHelmet';
 import { getWebPageSchema } from '../utils/structuredData';
 
 const Careers = () => {
-  const handleApply = (e, subject) => {
-    e.preventDefault();
+  const handleApply = (subject) => {
     const email = 'hr@panstellia.com';
-    const params = new URLSearchParams();
-    if (subject) params.set('subject', subject);
-    const mailtoLink = `mailto:${email}${params.toString() ? `?${params.toString()}` : ''}`;
-    window.location.href = mailtoLink;
+    const encodedSubject = encodeURIComponent(subject || 'General Application');
+    const mailtoLink = `mailto:${email}?subject=${encodedSubject}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodedSubject}`;
+
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      window.location.href = mailtoLink;
+    } else {
+      window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
@@ -148,8 +152,9 @@ const Careers = () => {
               </div>
               <div className="flex-shrink-0 relative z-20">
                 <button
-                  onClick={(e) => handleApply(e, 'Application for ' + job.title)}
-                  className="inline-flex items-center justify-center whitespace-nowrap px-6 py-2.5 bg-[#C89A4F] hover:bg-[#b38842] text-white rounded-md transition-all font-medium text-sm w-full sm:w-auto cursor-pointer"
+                  type="button"
+                  onClick={() => handleApply('Application for ' + job.title)}
+                  className="inline-flex items-center justify-center whitespace-nowrap px-6 py-2.5 bg-[#C89A4F] hover:bg-[#b38842] text-white rounded-md transition-all font-medium text-sm w-full sm:w-auto"
                 >
                   Apply Now <Briefcase className="w-4 h-4 ml-2" />
                 </button>
@@ -166,8 +171,9 @@ const Careers = () => {
           We're always looking for talented individuals who share our passion for jewelry and exceptional customer experiences. Send us your resume and tell us how you can contribute to Panstellia.
         </p>
         <button
-          onClick={(e) => handleApply(e, 'General Application')}
-          className="inline-flex items-center text-[#C89A4F] border border-[#C89A4F] hover:bg-[#C89A4F] hover:text-white transition-colors rounded-md px-8 py-3 cursor-pointer"
+          type="button"
+          onClick={() => handleApply('General Application')}
+          className="inline-flex items-center text-[#C89A4F] border border-[#C89A4F] hover:bg-[#C89A4F] hover:text-white transition-colors rounded-md px-8 py-3"
         >
           <Mail className="w-5 h-5 mr-2" /> Get in touch
         </button>
