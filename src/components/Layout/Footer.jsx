@@ -95,7 +95,7 @@ const Footer = () => {
     contact: {
       email: "support@panstellia.com",
       phone: "+91 78100 32622, +91 90802 32622",
-      address: "9A, Indhira Nagar, Neyveli, Cuddalore, TamilNadu, India",
+      address: "9A, Indra Nagar, Neyveli, Cuddalore, TamilNadu, India",
       instagram: "https://www.instagram.com/panstellia",
       facebook: "https://www.facebook.com/people/Panstellia-PS/61581753914404/"
     },
@@ -313,12 +313,12 @@ const Footer = () => {
                   <li className="flex items-start">
                     <MapPin className="w-4 h-4 mr-2.5 mt-0.5 text-gold-500 flex-shrink-0" />
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cms.contact?.address || "9A Indhira Nagar Neyveli Cuddalore TamilNadu India")}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-luxury-300 hover:text-gold-400 transition-colors underline-offset-2 hover:underline"
-                    >
-                      {cms.contact?.address || "9A, Indhira Nagar, Neyveli, Cuddalore, TamilNadu, India"}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cms.contact?.address || "9A Indra Nagar Neyveli Cuddalore TamilNadu India")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-luxury-300 hover:text-gold-400 transition-colors underline-offset-2 hover:underline"
+                      >
+                        {cms.contact?.address || "9A, Indra Nagar, Neyveli, Cuddalore, TamilNadu, India"}
                     </a>
                   </li>
                   <li className="flex items-center">

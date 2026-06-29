@@ -7,20 +7,11 @@ import { getWebPageSchema } from '../utils/structuredData';
 const Careers = () => {
   const handleApply = (e, subject) => {
     e.preventDefault();
-    const email = 'support@panstellia.com';
-    const encodedSubject = encodeURIComponent(subject);
-    
-    // Detect if user is on mobile
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-      // On mobile, mailto: is highly reliable and correctly opens the native Gmail/Mail app
-      window.location.href = `mailto:${email}?subject=${encodedSubject}`;
-    } else {
-      // On desktop, mailto: often silently fails or opens blank tabs if no mail client is configured.
-      // This explicitly opens the Gmail web composer as a foolproof fallback.
-      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodedSubject}`, '_blank');
-    }
+    const email = 'hr@panstellia.com';
+    const params = new URLSearchParams();
+    if (subject) params.set('subject', subject);
+    const mailtoLink = `mailto:${email}${params.toString() ? `?${params.toString()}` : ''}`;
+    window.location.href = mailtoLink;
   };
 
   return (
@@ -186,7 +177,7 @@ const Careers = () => {
       <div className="py-6 text-center border-t border-white/10 bg-[#2B1F13]">
         <p className="text-[#f5f0e8]/60 text-sm flex items-center justify-center font-light">
           <MapPin className="w-4 h-4 mr-2 text-[#C89A4F]" />
-          9A, Indhira Nagar, Neyveli, Cuddalore, TamilNadu, India
+          9A, Indra Nagar, Neyveli, Cuddalore, TamilNadu, India
         </p>
       </div>
     </div>
