@@ -248,7 +248,7 @@ const HomePage = () => {
     const slides = sec.slides || [];
     if (slides.length === 0) return null;
     return (
-      <section className="relative h-[65vh] sm:h-[75vh] md:h-[85vh] lg:h-[90vh] w-full overflow-hidden bg-luxury-900 flex items-center justify-start">
+      <section className="relative h-[85dvh] sm:h-[75vh] md:h-[85vh] lg:h-[90vh] w-full overflow-hidden bg-luxury-900 flex items-center justify-start">
         {/* Background Slideshow */}
         <div className="absolute inset-0 z-0">
           {slides.map((slide, index) => (
@@ -264,7 +264,7 @@ const HomePage = () => {
                 alt={slide.title || `Featured Necklace ${index + 1}`}
                 priority={index === 0}
                 className="absolute inset-0 w-full h-full"
-                imgClassName="object-cover object-center"
+                imgClassName="object-cover object-[85%_center] sm:object-right"
               />
             </motion.div>
           ))}
@@ -718,7 +718,7 @@ const HomePage = () => {
       />
 
       {/* Hero Section */}
-      <section className="relative h-[65vh] sm:h-[75vh] md:h-[85vh] lg:h-[90vh] w-full overflow-hidden bg-luxury-900 flex items-center justify-start">
+      <section className="relative h-[85dvh] sm:h-[75vh] md:h-[85vh] lg:h-[90vh] w-full overflow-hidden bg-luxury-900 flex items-center justify-start">
         {/* Background Slideshow */}
         <div className="absolute inset-0 z-0">
           {heroImages.map((img, index) => (
@@ -734,7 +734,7 @@ const HomePage = () => {
                 alt={`Featured Necklace ${index + 1}`}
                 priority={index === 0}
                 className="absolute inset-0 w-full h-full"
-                imgClassName="object-cover object-center"
+                imgClassName="object-cover object-[85%_center] sm:object-right"
               />
             </motion.div>
           ))}

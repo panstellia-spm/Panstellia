@@ -145,11 +145,10 @@ const Navbar = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center md:gap-2">
               <img 
-                src="/favicon.svg" 
+                src="https://res.cloudinary.com/omoikkzf/image/upload/v1782732034/Panstellia.logo_JPEG_-removebg-preview_xy8sbd.png" 
                 alt="Panstellia" 
-                className={`transition-all duration-150 ease-out w-auto ${scrolled ? 'h-8 md:h-10' : 'h-10 md:h-14'}`} 
+                className={`transition-all duration-150 ease-out object-contain w-auto ${scrolled ? 'h-10 md:h-12' : 'h-16 md:h-20'} py-1`} 
               />
-              <span className="hidden md:block font-serif text-xl md:text-2xl font-bold text-luxury-800">Panstellia</span>
             </Link>
 
             {/* Mobile Navigation Icons (Home & Shop) */}
@@ -445,8 +444,7 @@ const Navbar = () => {
               {/* Drawer Top */}
               <div className="p-6 border-b border-luxury-100 flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                  <img src="/favicon.svg" alt="Panstellia" className="h-10 w-auto" />
-                  <span className="font-serif text-lg font-bold text-luxury-800">Panstellia</span>
+                  <img src="https://res.cloudinary.com/omoikkzf/image/upload/v1782732034/Panstellia.logo_JPEG_-removebg-preview_xy8sbd.png" alt="Panstellia" className="h-16 md:h-20 w-auto object-contain py-1" />
                 </Link>
                 <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-full hover:bg-luxury-50 text-luxury-500">
                   <X className="w-5 h-5" />
