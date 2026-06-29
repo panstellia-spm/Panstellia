@@ -264,7 +264,7 @@ const HomePage = () => {
                 alt={slide.title || `Featured Necklace ${index + 1}`}
                 priority={index === 0}
                 className="absolute inset-0 w-full h-full"
-                imgClassName="object-cover object-[85%_center] sm:object-right"
+                imgClassName="object-cover object-[75%_center] sm:object-right"
               />
             </motion.div>
           ))}
