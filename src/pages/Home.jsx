@@ -281,22 +281,19 @@ const HomePage = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                className="max-w-xl text-left"
+                className="max-w-xl text-left pt-72 sm:pt-56"
               >
-                <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight break-words">
-                  {slide.title}
-                </h1>
-                <p className="mt-3 sm:mt-4 text-sm sm:text-base md:text-lg lg:text-xl text-luxury-100 max-w-md break-words">
-                  {slide.subtitle}
-                </p>
-                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   {slide.ctaText && slide.ctaLink && (
                     <Link to={slide.ctaLink} className="btn-primary inline-flex items-center justify-center py-3 px-8 text-sm">
-                      {slide.ctaText}
+                      Explore Collections
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Link>
                   )}
                 </div>
+                <p className="mt-4 sm:mt-6 text-base sm:text-lg md:text-xl lg:text-2xl text-white font-medium max-w-md break-words drop-shadow-lg">
+                  {slide.subtitle}
+                </p>
               </motion.div>
             );
           })}
@@ -747,26 +744,17 @@ const HomePage = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="max-w-xl text-left"
+            className="max-w-xl text-left pt-72 sm:pt-56"
           >
-            <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight">
-              Wear Your Story
-            </h1>
-            <p className="mt-3 sm:mt-4 text-sm sm:text-base md:text-lg lg:text-xl text-luxury-100 max-w-md">
-              Handcrafted luxury necklaces for every occasion
-            </p>
-            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Link to="/products" className="btn-primary inline-flex items-center justify-center py-3 px-8 text-sm">
-                Shop Now
+                Explore Collections
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
-              <Link
-                to="/products?category=Lux%2520Wear"
-                className="border-2 border-white text-white py-3 px-6 rounded-lg font-semibold hover:bg-white hover:text-luxury-900 transition-colors duration-300 inline-flex items-center justify-center text-sm"
-              >
-                Explore Collections
-              </Link>
             </div>
+            <p className="mt-4 sm:mt-6 text-base sm:text-lg md:text-xl lg:text-2xl text-white font-medium max-w-md drop-shadow-lg">
+              Handcrafted luxury necklaces for every occasion
+            </p>
           </motion.div>
         </div>
       </section>
