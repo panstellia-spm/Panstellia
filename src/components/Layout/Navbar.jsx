@@ -143,11 +143,16 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className={`flex items-center justify-between transition-all duration-150 ease-out ${scrolled ? 'h-14' : 'h-20'}`}>
             {/* Logo */}
-            <Link to="/" className="flex items-center md:gap-2">
+            <Link to="/" className="flex items-center">
               <img 
-                src="https://res.cloudinary.com/omoikkzf/image/upload/v1782732034/Panstellia.logo_JPEG_-removebg-preview_xy8sbd.png" 
+                src="https://res.cloudinary.com/omoikkzf/image/upload/v1782807091/582758AE-6631-4766-BFCA-34594061A683_fycfgc.png" 
                 alt="Panstellia" 
                 className={`transition-all duration-150 ease-out object-contain w-auto ${scrolled ? 'h-10 md:h-12' : 'h-16 md:h-20'} py-1`} 
+              />
+              <img
+                src="https://res.cloudinary.com/omoikkzf/image/upload/v1782808009/BF047E70-2690-4C58-9FED-9F098C4CF7AC-removebg-preview_noq9pz.png"
+                alt="Panstellia Text"
+                className={`hidden lg:block transition-all duration-150 ease-out object-contain w-auto ${scrolled ? 'h-12' : 'h-24'} -ml-4`}
               />
             </Link>
 
@@ -444,7 +449,7 @@ const Navbar = () => {
               {/* Drawer Top */}
               <div className="p-6 border-b border-luxury-100 flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                  <img src="https://res.cloudinary.com/omoikkzf/image/upload/v1782732034/Panstellia.logo_JPEG_-removebg-preview_xy8sbd.png" alt="Panstellia" className="h-16 md:h-20 w-auto object-contain py-1" />
+                  <img src="https://res.cloudinary.com/omoikkzf/image/upload/v1782807091/582758AE-6631-4766-BFCA-34594061A683_fycfgc.png" alt="Panstellia" className="h-16 md:h-20 w-auto object-contain py-1" />
                 </Link>
                 <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-full hover:bg-luxury-50 text-luxury-500">
                   <X className="w-5 h-5" />

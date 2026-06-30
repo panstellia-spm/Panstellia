@@ -13,7 +13,7 @@ import { useState } from 'react';
 const WishlistPage = () => {
   const { wishlistItems, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
-  const { resolveWarrantyForProduct } = useProducts();
+  const { products } = useProducts();
 
   const [addedItems, setAddedItems] = useState({});
 
@@ -89,13 +89,16 @@ const WishlistPage = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {wishlistItems.map(item => {
-            const warranty = resolveWarrantyForProduct(item);
+            const fullProduct = products?.find(p => p.id === item.id) || item;
+            const itemImage = fullProduct.image || fullProduct.images?.[0];
+            const warranty = fullProduct?.warranty;
+            
             return (
-              <div key={item.id} className="bg-white rounded-xl shadow-md overflow-hidden">
-                <Link to={`/product/${item.id}`}>
+            <div key={item.id} className="bg-white rounded-xl shadow-md overflow-hidden">
+              <Link to={`/product/${item.id}`}>
 <div className="relative overflow-hidden aspect-[3/4]">
                   <img
-                    src={getOptimizedImageUrl(item.image, { width: 400, quality: 75 })}
+                    src={getOptimizedImageUrl(itemImage, { width: 400, quality: 75 })}
                     alt={item.name}
                     className="w-full h-full object-cover"
                   />
@@ -149,8 +152,7 @@ const WishlistPage = () => {
                 </div>
               </div>
             </div>
-            );
-          })}
+          );})}
         </div>
       </div>
     </div>

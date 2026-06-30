@@ -21,7 +21,7 @@ const ClientReviews = () => {
     },
     {
       id: 2,
-      rating: 3,
+      rating: 5,
       text: '"I am completely mesmerized by the intricate designs and premium quality. The packaging was luxurious and the customer service team was incredibly helpful and responsive."',
       avatar: '💎',
       name: 'Lakshmi',
@@ -37,7 +37,7 @@ const ClientReviews = () => {
     },
     {
       id: 4,
-      rating: 3,
+      rating: 4,
       text: '"Beautiful collection with exceptional designs. The customer experience was wonderful and delivery was prompt. My only wish is for more variety in the collection!"',
       avatar: '🌟',
       name: 'Riya',
