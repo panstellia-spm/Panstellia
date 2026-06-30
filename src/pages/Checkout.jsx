@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { CreditCard, Lock, ChevronLeft, Truck, Plus } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useProducts } from '../context/ProductContext';
 import { toast } from 'react-toastify';
 import { createRazorpayOrder, verifyPayment, openCheckout, markPaymentFailed } from '../services/payment';
 import { db } from '../services/firebase';
@@ -17,6 +18,7 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const { user, userData, addAddress, updateAddress } = useAuth();
   const { cartItems, subtotal, shipping, tax, total, clearCart } = useCart();
+  const { resolveWarrantyForProduct } = useProducts();
   
   const [loading, setLoading] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('razorpay');
@@ -416,14 +418,22 @@ const CheckoutPage = () => {
   const handlePayment = async () => {
     setLoading(true);
     let hasReservedStock = false;
-    const cartItemsSnapshot = cartItems.map((ci) => ({
-      id: ci.id,
-      name: ci.name,
-      price: ci.price,
-      quantity: ci.quantity,
-      image: ci.image,
-      category: ci.category || '',
-    }));
+    const cartItemsSnapshot = cartItems.map((ci) => {
+      const w = resolveWarrantyForProduct(ci);
+      return {
+        id: ci.id,
+        name: ci.name,
+        price: ci.price,
+        quantity: ci.quantity,
+        image: ci.image,
+        category: ci.category || '',
+        warranty: w ? {
+          name: w.name,
+          duration: w.duration,
+          badge: w.badge || ''
+        } : null
+      };
+    });
 
     try {
       // Validate form
@@ -443,6 +453,7 @@ const CheckoutPage = () => {
           const paymentMethod = 'cod';
           const shortCode = Math.random().toString(36).slice(2, 8).toUpperCase();
           const orderId = `COD-${shortCode}`;
+          const orderDocRef = doc(collection(db, 'orders'));
 
           // Run transaction to check/deduct stock and save order/payment
           await runTransaction(db, async (transaction) => {
@@ -554,7 +565,6 @@ const CheckoutPage = () => {
             }
 
             // 4. Save order and payment records
-            const orderDocRef = doc(collection(db, 'orders'));
             const paymentDocRef = doc(collection(db, 'payments'));
 
             const commonOrderData = {

@@ -6,10 +6,12 @@ import { toast } from 'react-toastify';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
 import { getCategoryLabel } from '../utils/categoryLabels';
+import { useProducts } from '../context/ProductContext';
 
 const CartPage = () => {
   const { user } = useAuth();
   const { cartItems, subtotal, shipping, tax, total, updateQuantity, removeFromCart, clearCart, shippingSettings } = useCart();
+  const { resolveWarrantyForProduct } = useProducts();
 
   const handleQuantityChange = async (productId, newQuantity) => {
     try {
@@ -70,9 +72,11 @@ const CartPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
-            {cartItems.map(item => (
-              <div key={item.id} className="bg-white rounded-xl shadow-md p-4 flex gap-4">
-<Link to={`/product/${item.id}`} className="w-24 h-24 flex-shrink-0">
+            {cartItems.map(item => {
+              const warranty = resolveWarrantyForProduct(item);
+              return (
+                <div key={item.id} className="bg-white rounded-xl shadow-md p-4 flex gap-4">
+                  <Link to={`/product/${item.id}`} className="w-24 h-24 flex-shrink-0">
                   <img
                     src={getOptimizedImageUrl(item.image, { width: 200, quality: 70 })}
                     alt={item.name}
@@ -83,7 +87,17 @@ const CartPage = () => {
                   <Link to={`/product/${item.id}`} className="hover:text-gold-600">
                     <h3 className="font-medium text-luxury-900 line-clamp-2">{item.name}</h3>
                   </Link>
-                  <p className="text-sm text-luxury-500 mt-1">{getCategoryLabel(item.category)}</p>
+                  <p className="text-sm text-luxury-500 mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span>{getCategoryLabel(item.category)}</span>
+                    {warranty && (
+                      <>
+                        <span className="text-luxury-300">•</span>
+                        <span className="text-xs text-gold-600 font-semibold bg-gold-50 px-2 py-0.5 rounded-full border border-gold-150 flex items-center gap-0.5">
+                          🛡️ {warranty.duration} Brand Warranty
+                        </span>
+                      </>
+                    )}
+                  </p>
                   <p className="text-lg font-semibold text-luxury-900 mt-2">
                     ₹{item.price?.toLocaleString()}
                   </p>
@@ -113,7 +127,7 @@ const CartPage = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           {/* Order Summary */}

@@ -83,19 +83,35 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Order must contain at least one item' });
       }
 
+      // Sanitize phone number (digits only, last 10 digits to remove +91/spaces)
+      const rawPhone = String(order.phone || '').replace(/\D/g, '');
+      const billingPhone = rawPhone.length > 10 ? rawPhone.slice(-10) : rawPhone;
+
+      // Concatenate and sanitize address (Shiprocket requires minimum 10 chars)
+      let billingAddress = (order.address || '').trim();
+      if (order.apartment) {
+        billingAddress = `${order.apartment}, ${billingAddress}`;
+      }
+      if (order.landmark) {
+        billingAddress = `${billingAddress} (Landmark: ${order.landmark})`;
+      }
+      if (billingAddress.length < 10) {
+        billingAddress = `${billingAddress} Shipping Address`;
+      }
+
       const payload = {
         order_id: order.orderId || orderDocId,
         order_date: getFormattedDate(order.createdAt),
         pickup_location: defaultPickupLocation,
         billing_customer_name: firstName,
         billing_last_name: lastName,
-        billing_address: order.address || 'N/A',
+        billing_address: billingAddress,
         billing_city: order.city || 'N/A',
         billing_pincode: String(order.pincode || ''),
         billing_state: order.state || 'N/A',
         billing_country: 'India',
         billing_email: order.customerEmail || 'no-email@panstellia.com',
-        billing_phone: String(order.phone || ''),
+        billing_phone: billingPhone,
         shipping_is_billing: true,
         order_items: orderItems,
         payment_method: paymentMethod,

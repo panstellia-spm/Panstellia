@@ -58,7 +58,9 @@ if (!admin.apps.length) {
     } else {
       console.warn('[Firebase Admin] Missing service account env variables. Attempting default credentials initialization...');
       try {
-        admin.initializeApp();
+        admin.initializeApp({
+          projectId: process.env.FIREBASE_PROJECT_ID || 'panstellia-65653'
+        });
         console.log('[Firebase Admin] Initialized with default credentials / environment.');
       } catch (defaultError) {
         console.error('[Firebase Admin] Default initialization failed:', defaultError.message);

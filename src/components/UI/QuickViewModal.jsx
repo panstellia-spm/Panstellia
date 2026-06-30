@@ -8,10 +8,12 @@ import { getProductImageUrls } from '../../utils/imageUtils';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import { toast } from 'react-toastify';
 import NotifyMeModal from './NotifyMeModal';
+import { useProducts } from '../../context/ProductContext';
 
 const QuickViewModal = ({ product, isOpen, onClose }) => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { resolveWarrantyForProduct } = useProducts();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
@@ -19,6 +21,9 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
 
   const imageUrls = useMemo(() => (product ? getProductImageUrls(product) : []), [product]);
   const wishlisted = product ? isInWishlist(product.id) : false;
+  const resolvedWarranty = useMemo(() => {
+    return product ? resolveWarrantyForProduct(product) : null;
+  }, [product, resolveWarrantyForProduct]);
 
   if (!isOpen || !product) return null;
 
@@ -154,8 +159,8 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
                 {product.name}
               </h2>
 
-              {/* Rating */}
-              <div className="flex items-center gap-1.5 mb-4">
+              {/* Rating & Warranty */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <div className="flex text-gold-400">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -169,6 +174,14 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
                 <span className="text-xs text-luxury-500">
                   ({product.reviews || 0} reviews)
                 </span>
+                {resolvedWarranty && (
+                  <>
+                    <span className="text-luxury-200">•</span>
+                    <span className="flex items-center gap-0.5 text-[9px] font-extrabold text-gold-600 bg-gold-50 border border-gold-200 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                      🛡️ {resolvedWarranty.duration} Warranty
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* Price */}

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { getProductImageUrls } from '../../utils/imageUtils';
 import { getCategoryLabel } from '../../utils/categoryLabels';
+import { useProducts } from '../../context/ProductContext';
 import QuickViewModal from './QuickViewModal';
 import OptimizedImage from './OptimizedImage';
 import NotifyMeModal from './NotifyMeModal';
@@ -14,6 +15,7 @@ import NotifyMeModal from './NotifyMeModal';
 const ProductCard = ({ product, priority = false }) => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { resolveWarrantyForProduct } = useProducts();
   const [isAdding, setIsAdding] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -22,6 +24,10 @@ const ProductCard = ({ product, priority = false }) => {
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
   
   const wishlisted = isInWishlist(product.id);
+
+  const resolvedWarranty = useMemo(() => {
+    return resolveWarrantyForProduct(product);
+  }, [product, resolveWarrantyForProduct]);
 
   const handleAddToCart = async () => {
     setIsAdding(true);
@@ -191,10 +197,17 @@ const ProductCard = ({ product, priority = false }) => {
 
           {/* Content */}
           <Link to={`/product/${product.id}`} className="flex flex-1 flex-col p-4 hover:opacity-90 transition-opacity">
-            {/* Category */}
-            <p className="min-h-[1rem] line-clamp-1 text-[10px] text-gold-600 font-bold uppercase tracking-wider">
-              {getCategoryLabel(product.category)}
-            </p>
+            {/* Category & Warranty Row */}
+            <div className="flex items-center justify-between gap-1 min-h-[1.25rem]">
+              <p className="line-clamp-1 text-[10px] text-gold-600 font-bold uppercase tracking-wider">
+                {getCategoryLabel(product.category)}
+              </p>
+              {resolvedWarranty && (
+                <span className="flex items-center gap-0.5 text-[8px] font-extrabold text-gold-600 bg-gold-50 border border-gold-200 px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                  🛡️ {resolvedWarranty.duration}
+                </span>
+              )}
+            </div>
             
             {/* Name */}
             <h3 className="mt-1 min-h-[2.75rem] text-luxury-900 font-medium leading-snug line-clamp-2 group-hover:text-gold-600 transition-colors text-sm">

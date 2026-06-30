@@ -4,9 +4,11 @@ import { useCart } from '../../context/CartContext';
 import { getOptimizedImageUrl } from '../../utils/imageUtils';
 import { getCategoryLabel } from '../../utils/categoryLabels';
 import { useNavigate } from 'react-router-dom';
+import { useProducts } from '../../context/ProductContext';
 
 const CartDrawer = ({ isOpen, onClose }) => {
   const { cartItems, subtotal, updateQuantity, removeFromCart, shippingSettings } = useCart();
+  const { resolveWarrantyForProduct } = useProducts();
   const navigate = useNavigate();
 
   const totalItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -93,19 +95,21 @@ const CartDrawer = ({ isOpen, onClose }) => {
                     </button>
                   </div>
                 ) : (
-                  cartItems.map((item) => (
-                    <div key={item.id} className="flex gap-4 items-start pb-6 border-b border-luxury-50 last:border-b-0 last:pb-0">
-                      {/* Image */}
-                      <img
-                        src={getOptimizedImageUrl(item.image, { width: 120, quality: 60 })}
-                        alt={item.name}
-                        className="w-16 h-16 object-cover rounded-lg bg-luxury-100 flex-shrink-0"
-                      />
+                  cartItems.map((item) => {
+                    const warranty = resolveWarrantyForProduct(item);
+                    return (
+                      <div key={item.id} className="flex gap-4 items-start pb-6 border-b border-luxury-50 last:border-b-0 last:pb-0">
+                        {/* Image */}
+                        <img
+                          src={getOptimizedImageUrl(item.image, { width: 120, quality: 60 })}
+                          alt={item.name}
+                          className="w-16 h-16 object-cover rounded-lg bg-luxury-100 flex-shrink-0"
+                        />
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
                         <span className="text-[10px] text-gold-600 font-bold uppercase tracking-wider block mb-0.5">
-                          {getCategoryLabel(item.category)}
+                          {getCategoryLabel(item.category)} {warranty && `• 🛡️ ${warranty.duration}`}
                         </span>
                         <h3 className="text-sm font-medium text-luxury-900 truncate mb-1">
                           {item.name}
@@ -151,7 +155,8 @@ const CartDrawer = ({ isOpen, onClose }) => {
                         ₹{(item.price * item.quantity).toLocaleString()}
                       </p>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 

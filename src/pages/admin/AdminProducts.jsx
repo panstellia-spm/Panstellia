@@ -39,6 +39,7 @@ const EMPTY_FORM = {
   nickelFree: false, hypoallergenic: false, tarnishResistant: false,
   stockQuantity: '', reorderThreshold: '5', reorderQuantity: '10',
   serialNumber: '', metalType: '', weight: '', certificationNumber: '',
+  warrantyId: '',
 };
 
 function StockBadge({ inStock, productStatus }) {
@@ -110,7 +111,7 @@ const SEARCH_CONFIG = {
 };
 
 export default function AdminProducts() {
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, addProduct, updateProduct, deleteProduct, warranties } = useProducts();
   const { isAdmin, user } = useAuth();
 
   const {
@@ -174,6 +175,7 @@ export default function AdminProducts() {
       image: p.image || '',
       imagesText: Array.isArray(p.images) ? p.images.join(', ') : '',
       imageFile: null, imagesFiles: [],
+      warrantyId: p.warrantyId || '',
     });
     setShowForm(true);
     setUploadStatus(''); setUploadError('');
@@ -212,6 +214,7 @@ export default function AdminProducts() {
         productStatus: stockQuantity > 0 ? (rest.productStatus === 'unavailable' ? 'available' : rest.productStatus) : 'unavailable',
         images: images,
         image: form.image || '',
+        warrantyId: form.warrantyId || '',
       };
 
       if (editingProduct) {
@@ -440,6 +443,14 @@ export default function AdminProducts() {
                     </select>
                   </FormField>
                 </div>
+                <FormField label="Warranty Override (Optional)">
+                  <select name="warrantyId" value={form.warrantyId || ''} onChange={handleInputChange} className={inputCls}>
+                    <option value="">No Override (Follow Collection/Category mapping rules)</option>
+                    {warranties && warranties.filter(w => w.status === 'active').map(w => (
+                      <option key={w.id} value={w.id}>{w.name} ({w.duration})</option>
+                    ))}
+                  </select>
+                </FormField>
                 <div className="flex flex-wrap items-center gap-6 mt-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="featured" checked={form.featured} onChange={handleInputChange} className="w-4 h-4 accent-gold-500" />

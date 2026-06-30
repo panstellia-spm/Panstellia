@@ -25,6 +25,7 @@ import {
   Sparkles,
   Gift,
   Star,
+  Award,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import GlobalSearch from '../../components/admin/GlobalSearch';
@@ -54,6 +55,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/admin/products', label: 'Products', icon: Package, roles: ['super_admin', 'admin', 'content_manager', 'inventory_manager'] },
       { to: '/admin/collections', label: 'Collections & Filters', icon: Sparkles, roles: ['super_admin', 'admin', 'content_manager'] },
+      { to: '/admin/warranties', label: 'Warranty Details', icon: Award, roles: ['super_admin', 'admin', 'content_manager'] },
     ],
   },
   {
