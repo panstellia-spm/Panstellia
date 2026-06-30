@@ -281,7 +281,7 @@ const HomePage = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                className="max-w-xl text-left pt-72 sm:pt-56"
+                className="max-w-xl text-left pt-[29rem] sm:pt-56"
               >
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   {slide.ctaText && slide.ctaLink && (
@@ -744,7 +744,7 @@ const HomePage = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="max-w-xl text-left pt-72 sm:pt-56"
+            className="max-w-xl text-left pt-[25rem] sm:pt-56"
           >
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Link to="/products" className="btn-primary inline-flex items-center justify-center py-3 px-8 text-sm">
