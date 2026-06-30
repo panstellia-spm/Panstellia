@@ -388,6 +388,14 @@ export async function initializeDatabase() {
       console.error('Failed to seed/update "Shooting Star Drops" product:', err);
     }
 
+    // Seed default warranties and assignments
+    try {
+      const { seedDefaultWarranties } = await import('../services/warrantyService');
+      await seedDefaultWarranties();
+    } catch (err) {
+      console.error('Failed to seed warranties during database initialization:', err);
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Database seeding failed:', error);

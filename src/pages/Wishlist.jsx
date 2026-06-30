@@ -7,6 +7,7 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
 import { getCategoryLabel } from '../utils/categoryLabels';
 import { useProducts } from '../context/ProductContext';
+import { useProducts } from '../context/ProductContext';
 
 import { useState } from 'react';
 
@@ -103,7 +104,14 @@ const WishlistPage = () => {
                 </div>
               </Link>
               <div className="p-4">
-                <p className="text-xs text-gold-600 font-medium">{getCategoryLabel(item.category)}</p>
+                <div className="flex items-center justify-between gap-1 min-h-[1.25rem]">
+                  <p className="text-xs text-gold-600 font-bold uppercase tracking-wider">{getCategoryLabel(item.category)}</p>
+                  {warranty && (
+                    <span className="flex items-center gap-0.5 text-[8px] font-extrabold text-gold-600 bg-gold-50 border border-gold-200 px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                      🛡️ {warranty.duration}
+                    </span>
+                  )}
+                </div>
                 <Link to={`/product/${item.id}`}>
                   <h3 className="mt-1 text-luxury-900 font-medium line-clamp-2 hover:text-gold-600">
                     {item.name}

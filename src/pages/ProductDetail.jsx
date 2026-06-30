@@ -22,7 +22,7 @@ import NotifyMeModal from '../components/UI/NotifyMeModal';
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getProductById, products } = useProducts();
+  const { getProductById, products, resolveWarrantyForProduct } = useProducts();
   const { addToCart, shippingSettings } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   
@@ -42,6 +42,11 @@ const ProductDetailPage = () => {
   // Variant states
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
+
+  // Resolved warranty memo
+  const activeWarranty = useMemo(() => {
+    return resolveWarrantyForProduct(product, selectedColor, selectedSize);
+  }, [product, selectedColor, selectedSize, resolveWarrantyForProduct]);
 
   // Pincode state
   const [pincode, setPincode] = useState('');
@@ -757,7 +762,7 @@ const ProductDetailPage = () => {
                   ['Finish', product.finishType || product.finish || 'High Polish Mirror Finish'],
                   ['Weight', product.weight ? `${product.weight} g` : '—'],
                   ['Dimensions', product.dimensions || '—'],
-                  ['Warranty', product.warranty || '6 Months Brand Warranty']
+                  ['Warranty', activeWarranty ? activeWarranty.name : 'No Warranty Available']
                 ].map(([label, value]) => {
                   if (!value) return null;
                   return (
@@ -864,12 +869,59 @@ const ProductDetailPage = () => {
                         <span className="font-bold text-luxury-500">Return Window:</span>
                         <span className="font-semibold text-luxury-800">3-Day Easy Replacement</span>
                       </div>
-                      <div className="space-y-2">
-                        <span className="font-bold text-luxury-500">Warranty Coverage:</span>
-                        <span className="font-semibold text-luxury-800">
-                          Only products from the Elite Series are covered under a 3 Months Brand Warranty against manufacturing defects. All other product collections are not eligible for warranty coverage.
-                        </span>
-                      </div>
+                      {activeWarranty ? (
+                        <div className="space-y-3 pt-2 border-t border-luxury-50">
+                          <div className="flex justify-between border-b border-luxury-50 pb-2">
+                            <span className="font-bold text-luxury-500">Warranty Coverage:</span>
+                            <span className="font-semibold text-luxury-800">{activeWarranty.name}</span>
+                          </div>
+                          {activeWarranty.coverage && (
+                            <div className="space-y-0.5">
+                              <span className="font-bold text-luxury-500">Coverage Details:</span>
+                              <p className="font-medium text-luxury-700 leading-relaxed text-[11px]">{activeWarranty.coverage}</p>
+                            </div>
+                          )}
+                          {activeWarranty.exclusions && (
+                            <div className="space-y-0.5">
+                              <span className="font-bold text-luxury-500">Exclusions:</span>
+                              <p className="font-medium text-luxury-700 leading-relaxed text-[11px]">{activeWarranty.exclusions}</p>
+                            </div>
+                          )}
+                          {activeWarranty.terms && (
+                            <div className="space-y-0.5">
+                              <span className="font-bold text-luxury-500">Terms & Rules:</span>
+                              <p className="font-medium text-luxury-700 leading-relaxed text-[11px]">{activeWarranty.terms}</p>
+                            </div>
+                          )}
+                          {(activeWarranty.replacementPolicy || activeWarranty.repairPolicy) && (
+                            <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-luxury-50/50">
+                              {activeWarranty.replacementPolicy && (
+                                <div className="space-y-0.5">
+                                  <span className="font-bold text-luxury-500 block">Replacement:</span>
+                                  <span className="font-medium text-luxury-700 text-[10px] leading-relaxed block">{activeWarranty.replacementPolicy}</span>
+                                </div>
+                              )}
+                              {activeWarranty.repairPolicy && (
+                                <div className="space-y-0.5">
+                                  <span className="font-bold text-luxury-500 block">Repair:</span>
+                                  <span className="font-medium text-luxury-700 text-[10px] leading-relaxed block">{activeWarranty.repairPolicy}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {activeWarranty.eligibility && (
+                            <div className="space-y-0.5 pt-1.5 border-t border-luxury-50/50">
+                              <span className="font-bold text-luxury-500 block">Eligibility:</span>
+                              <span className="font-medium text-luxury-700 text-[10px] leading-relaxed block">{activeWarranty.eligibility}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <span className="font-bold text-luxury-500">Warranty Coverage:</span>
+                          <span className="font-semibold text-luxury-800 block">No Warranty Available</span>
+                        </div>
+                      )}
                     </div>
                   )
                 }

@@ -577,6 +577,11 @@ const OrderDetailsPage = () => {
                           <p className="font-semibold text-luxury-900 leading-snug">
                             {item.name || 'Item'}
                           </p>
+                          {item.warranty && (
+                            <p className="text-xs text-gold-650 font-bold mt-1 flex items-center gap-1">
+                              🛡️ Warranty: {item.warranty.name}
+                            </p>
+                          )}
                           <p className="text-sm text-luxury-500 mt-0.5">
                             Qty: {item.quantity ?? 1}
                           </p>

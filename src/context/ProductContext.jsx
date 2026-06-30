@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { triggerRestockNotifications } from '../services/restockNotifications';
 
@@ -77,9 +77,104 @@ export const ProductProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [warranties, setWarranties] = useState([]);
+  const [warrantyAssignments, setWarrantyAssignments] = useState([]);
+
   useEffect(() => {
     loadProducts();
   }, []);
+
+  // Listen to warranties and assignments in real-time
+  useEffect(() => {
+    const unsubWarranties = onSnapshot(collection(db, 'warranties'), (snap) => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      setWarranties(list);
+    }, (err) => console.error('Error listing warranties:', err));
+
+    const unsubAssignments = onSnapshot(collection(db, 'warranty_assignments'), (snap) => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      setWarrantyAssignments(list);
+    }, (err) => console.error('Error listing assignments:', err));
+
+    return () => {
+      unsubWarranties();
+      unsubAssignments();
+    };
+  }, []);
+
+  /**
+   * Resolves the warranty for a specific product following assignment priority:
+   * 1. Product specific ID override
+   * 2. Variant ID specific override
+   * 3. Collection assignment mapping
+   * 4. Category assignment mapping (e.g. Lux Wear)
+   * 5. Brand assignment mapping
+   */
+  const resolveWarrantyForProduct = (product, selectedColor = null, selectedSize = null) => {
+    if (!product) return null;
+
+    // Direct product level check (from database field on product)
+    if (product.warrantyId) {
+      const w = warranties.find(war => war.id === product.warrantyId && war.status === 'active');
+      if (w) return w;
+    }
+
+    // 1. Specific Product Assignment Target (product ID)
+    const prodAssign = warrantyAssignments.find(a => a.type === 'product' && a.target === product.id && a.enabled !== false);
+    if (prodAssign) {
+      const w = warranties.find(war => war.id === prodAssign.warrantyId && war.status === 'active');
+      if (w) return w;
+    }
+
+    // 2. Specific Variant Assignment Target (e.g. prodId:color or prodId:size)
+    if (selectedColor) {
+      const varColorAssign = warrantyAssignments.find(a => a.type === 'variant' && a.target === `${product.id}:${selectedColor}` && a.enabled !== false);
+      if (varColorAssign) {
+        const w = warranties.find(war => war.id === varColorAssign.warrantyId && war.status === 'active');
+        if (w) return w;
+      }
+    }
+    if (selectedSize) {
+      const varSizeAssign = warrantyAssignments.find(a => a.type === 'variant' && a.target === `${product.id}:${selectedSize}` && a.enabled !== false);
+      if (varSizeAssign) {
+        const w = warranties.find(war => war.id === varSizeAssign.warrantyId && war.status === 'active');
+        if (w) return w;
+      }
+    }
+
+    // 3. Collection assignment mapping
+    if (product.collectionName || product.collection) {
+      const collectionName = product.collectionName || product.collection;
+      const collAssign = warrantyAssignments.find(a => a.type === 'collection' && a.target.trim().toLowerCase() === collectionName.trim().toLowerCase() && a.enabled !== false);
+      if (collAssign) {
+        const w = warranties.find(war => war.id === collAssign.warrantyId && war.status === 'active');
+        if (w) return w;
+      }
+    }
+
+    // 4. Category assignment mapping
+    if (product.category) {
+      const catAssign = warrantyAssignments.find(a => a.type === 'category' && a.target.trim().toLowerCase() === product.category.trim().toLowerCase() && a.enabled !== false);
+      if (catAssign) {
+        const w = warranties.find(war => war.id === catAssign.warrantyId && war.status === 'active');
+        if (w) return w;
+      }
+    }
+
+    // 5. Brand assignment mapping
+    if (product.brandName || product.brand) {
+      const brandName = product.brandName || product.brand;
+      const brandAssign = warrantyAssignments.find(a => a.type === 'brand' && a.target.trim().toLowerCase() === brandName.trim().toLowerCase() && a.enabled !== false);
+      if (brandAssign) {
+        const w = warranties.find(war => war.id === brandAssign.warrantyId && war.status === 'active');
+        if (w) return w;
+      }
+    }
+
+    return null;
+  };
 
   const loadProducts = async () => {
     setLoading(true);
@@ -237,7 +332,10 @@ export const ProductProvider = ({ children }) => {
     getFeaturedProducts,
     searchProducts,
     filterProducts,
-    loadProducts
+    loadProducts,
+    warranties,
+    warrantyAssignments,
+    resolveWarrantyForProduct
   };
 
   return (
