@@ -7,7 +7,6 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
 import { getCategoryLabel } from '../utils/categoryLabels';
 import { useProducts } from '../context/ProductContext';
-import { useProducts } from '../context/ProductContext';
 
 import { useState } from 'react';
 
@@ -92,6 +91,8 @@ const WishlistPage = () => {
           {wishlistItems.map(item => {
             const fullProduct = products?.find(p => p.id === item.id) || item;
             const itemImage = fullProduct.image || fullProduct.images?.[0];
+            const warranty = fullProduct?.warranty;
+            
             return (
             <div key={item.id} className="bg-white rounded-xl shadow-md overflow-hidden">
               <Link to={`/product/${item.id}`}>
