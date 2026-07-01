@@ -31,7 +31,7 @@ export const getOrganizationSchema = () => ({
   url: 'https://panstellia.com',
   logo: {
     '@type': 'ImageObject',
-    url: 'https://panstellia.com/favicon.svg',
+    url: 'https://panstellia.com/android-chrome-512x512.png',
     width: 512,
     height: 512
   },
@@ -319,7 +319,7 @@ export const getLocalBusinessSchema = () => ({
   '@context': 'https://schema.org',
   '@type': 'LocalBusiness',
   name: 'Panstellia',
-  image: 'https://panstellia.com/logo.svg',
+  image: 'https://panstellia.com/android-chrome-512x512.png',
   description: 'Luxury necklace jewelry store',
   address: {
     '@type': 'PostalAddress',
