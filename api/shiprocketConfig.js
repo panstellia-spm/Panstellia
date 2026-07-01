@@ -17,19 +17,7 @@ export default async function handler(req, res) {
       
       // Get current configurations
       if (action === 'get_config') {
-        const configSnap = await db.collection('system_settings').doc('shiprocket').get();
-        const configData = configSnap.exists ? configSnap.data() : {
-          enabled: false,
-          autoAwbEnabled: false,
-          defaultPickupLocation: 'Primary',
-          pickupPincode: '560001',
-          defaultWeight: 0.1,
-          defaultLength: 10,
-          defaultBreadth: 10,
-          defaultHeight: 5
-        };
-
-        // Fetch active pickup locations from Shiprocket API
+        // 1. Fetch active pickup locations from Shiprocket API first
         let pickupLocations = [];
         try {
           console.log('[api/shiprocketConfig] Fetching pickup addresses from Shiprocket');
@@ -43,15 +31,52 @@ export default async function handler(req, res) {
           console.warn('[api/shiprocketConfig] Failed to fetch pickup locations from Shiprocket:', apiErr.message);
         }
 
+        const mappedLocations = pickupLocations.map(loc => ({
+          id: loc.id,
+          pickup_location: loc.pickup_location,
+          pincode: loc.pin_code || loc.pincode || '',
+          address: `${loc.address || ''}, ${loc.city || ''}, ${loc.state || ''}`,
+          phone: loc.phone || ''
+        }));
+
+        // 2. Fetch configurations
+        const configSnap = await db.collection('system_settings').doc('shiprocket').get();
+        let configData = configSnap.exists ? configSnap.data() : {
+          enabled: false,
+          autoAwbEnabled: false,
+          defaultPickupLocation: 'PANSTELLIA',
+          pickupPincode: '607303',
+          defaultWeight: 0.1,
+          defaultLength: 10,
+          defaultBreadth: 10,
+          defaultHeight: 5
+        };
+
+        // 3. If config is default/Primary or not set, resolve dynamically using mapped locations
+        if (mappedLocations.length > 0) {
+          const firstLoc = mappedLocations[0];
+          if (!configData.defaultPickupLocation || configData.defaultPickupLocation === 'Primary') {
+            configData.defaultPickupLocation = firstLoc.pickup_location;
+            configData.pickupPincode = firstLoc.pincode;
+          } else {
+            // Ensure the pincode is synchronized with the selected pickup location
+            const matched = mappedLocations.find(l => l.pickup_location === configData.defaultPickupLocation);
+            if (matched) {
+              configData.pickupPincode = matched.pincode;
+            }
+          }
+        } else {
+          // If no pickup locations fetched from Shiprocket, fall back to environment variable or standard
+          const envPickup = (process.env.SHIPROCKET_PICKUP_LOCATION || 'PANSTELLIA').trim().replace(/^"|"$/g, '');
+          if (!configData.defaultPickupLocation || configData.defaultPickupLocation === 'Primary') {
+            configData.defaultPickupLocation = envPickup;
+            configData.pickupPincode = '607303';
+          }
+        }
+
         return res.status(200).json({
           config: configData,
-          pickupLocations: pickupLocations.map(loc => ({
-            id: loc.id,
-            pickup_location: loc.pickup_location,
-            pincode: loc.pin_code || loc.pincode || '',
-            address: `${loc.address || ''}, ${loc.city || ''}, ${loc.state || ''}`,
-            phone: loc.phone || ''
-          }))
+          pickupLocations: mappedLocations
         });
       }
 

@@ -89,12 +89,37 @@ export default function AdminShipping() {
     try {
       const token = await user.getIdToken();
       const res = await shiprocketService.getShiprocketConfig(token);
-      if (res.config) {
-        setShiprocketConfig(res.config);
+      
+      let config = res.config || {
+        enabled: false,
+        autoAwbEnabled: false,
+        defaultPickupLocation: 'PANSTELLIA',
+        pickupPincode: '607303',
+        defaultWeight: 0.1,
+        defaultLength: 10,
+        defaultBreadth: 10,
+        defaultHeight: 5
+      };
+
+      const locations = res.pickupLocations || [];
+      setPickupLocations(locations);
+
+      // Secure UI display: if default pickup location in config is 'Primary' or not in Shiprocket's list,
+      // resolve it dynamically to the first location from Shiprocket
+      if (locations.length > 0) {
+        const savedLoc = config.defaultPickupLocation;
+        const exists = locations.some(l => l.pickup_location === savedLoc);
+        if (!exists || savedLoc === 'Primary') {
+          const firstLoc = locations[0];
+          config = {
+            ...config,
+            defaultPickupLocation: firstLoc.pickup_location,
+            pickupPincode: firstLoc.pincode
+          };
+        }
       }
-      if (res.pickupLocations) {
-        setPickupLocations(res.pickupLocations);
-      }
+      
+      setShiprocketConfig(config);
     } catch (err) {
       console.error('Failed to load Shiprocket configs:', err.message);
     } finally {
