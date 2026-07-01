@@ -165,7 +165,7 @@ const HomePage = () => {
     {
       icon: RefreshCw,
       title: 'Easy Returns',
-      description: '3-4 days return policy'
+      description: '2-day return policy'
     },
     {
       icon: Star,

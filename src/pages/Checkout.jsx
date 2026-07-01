@@ -340,12 +340,12 @@ const CheckoutPage = () => {
         if (res.method === 'standard_fallback_error') {
           setDynamicShipping(res.rate);
           setIsDeliverable(true);
-          setEstDeliveryDate('3-5 business days');
+          setEstDeliveryDate('2-4 business days');
           setCourierName(res.courier || '');
         } else if (res.isFree) {
           setDynamicShipping(0);
           setIsDeliverable(true);
-          setEstDeliveryDate('3-5 business days');
+          setEstDeliveryDate('2-4 business days');
           setCourierName('');
         } else {
           setDynamicShipping(res.rate);

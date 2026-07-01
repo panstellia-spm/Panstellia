@@ -115,7 +115,7 @@ export const getProductSchema = (product) => ({
   '@type': 'Product',
   name: product.name,
   description: product.description,
-  image: product.image,
+  image: product.image || product.images?.[0] || '',
   brand: {
     '@type': 'Brand',
     name: product.brandName || 'Panstellia'
@@ -308,7 +308,7 @@ export const getCollectionSchema = (collectionName, products) => ({
       item: {
         '@type': 'Product',
         name: product.name,
-        image: product.image,
+        image: product.image || product.images?.[0] || '',
         url: `/product/${product.id}`
       }
     }))

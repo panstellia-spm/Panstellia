@@ -1126,7 +1126,7 @@ const AdminPage = () => {
                         <tr key={product.id}>
                           <td className="px-4 py-3">
                             <img
-                              src={getOptimizedImageUrl(product.image, { width: 100, quality: 60 })}
+                              src={getOptimizedImageUrl(product.image || product.images?.[0], { width: 100, quality: 60 })}
                               alt={product.name}
                               className="w-12 h-12 object-cover rounded"
                               onError={(e) => {

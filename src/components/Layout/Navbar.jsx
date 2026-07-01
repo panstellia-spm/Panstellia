@@ -117,6 +117,7 @@ const Navbar = () => {
         let label = item.label;
         if (label === 'Gold Collection') label = 'Luxe Ring';
         if (label === 'Silver Collection') label = 'Royal Bracelets';
+        if (label === 'Lux Wear') label = 'Elite series';
 
         return {
           to: toUrl,
@@ -130,7 +131,7 @@ const Navbar = () => {
         { to: '/products', label: 'Shop', icon: Store, isActive: location.pathname === '/products' && !currentCategory },
         { to: '/products?category=Gold', label: getCategoryLabel('Gold'), icon: Gem, isActive: location.pathname === '/products' && currentCategory === 'Gold' },
         { to: '/products?category=Silver', label: getCategoryLabel('Silver'), icon: CircleDot, isActive: location.pathname === '/products' && currentCategory === 'Silver' },
-        { to: '/products?category=Lux Wear', label: getCategoryLabel('Lux Wear'), icon: Crown, isActive: location.pathname === '/products' && currentCategory === 'Lux Wear' },
+        { to: '/products?category=Lux Wear', label: 'Elite series', icon: Crown, isActive: location.pathname === '/products' && currentCategory === 'Lux Wear' },
         { to: '/category/elegant-spark', label: getCategoryLabel('Elegant Spark'), icon: Sparkles, isActive: location.pathname === '/category/elegant-spark' },
         { to: '/products?category=Party%20Wear', label: getCategoryLabel('Party Wear'), icon: Diamond, isActive: location.pathname === '/products' && currentCategory === 'Party Wear' }
       ];
@@ -201,7 +202,7 @@ const Navbar = () => {
                             {[
                               { name: 'Gold', to: '/products?category=Gold' },
                               { name: 'Silver', to: '/products?category=Silver' },
-                              { name: 'Lux Wear', to: '/products?category=Lux%20Wear' },
+                              { name: 'Elite series', to: '/products?category=Lux%20Wear' },
                               { name: 'Party Wear', to: '/products?category=Party%20Wear' },
                               { name: 'Elegant Spark', to: '/products?category=Elegant%20Spark' }
                             ].map((cat) => (
@@ -293,7 +294,7 @@ const Navbar = () => {
                         }}
                         className="flex items-center gap-3 p-2 hover:bg-luxury-50 rounded-lg transition-colors"
                       >
-                        <img src={getOptimizedImageUrl(product.image, { width: 100, quality: 60 })} alt={product.name} className="w-10 h-10 object-cover rounded bg-luxury-100 flex-shrink-0" />
+                        <img src={getOptimizedImageUrl(product.image || product.images?.[0], { width: 100, quality: 60 })} alt={product.name} className="w-10 h-10 object-cover rounded bg-luxury-100 flex-shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-xs text-luxury-800 truncate">{product.name}</p>
                           <p className="text-[11px] text-gold-600 font-semibold">₹{product.price.toLocaleString()}</p>

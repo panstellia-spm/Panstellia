@@ -24,7 +24,7 @@ const defaultFaqs = [
     id: 3,
     category: 'Delivery',
     question: 'What is the average delivery time?',
-    answer: 'Standard delivery typically takes 5-7 business days within India. Express delivery options are available for faster shipping. Delivery times may vary based on your location and current order volume.'
+    answer: 'Standard delivery typically takes 2-4 business days across India. Express delivery options are available for faster shipping. Delivery times may vary based on your location and current order volume.'
   },
   {
     id: 4,
@@ -42,7 +42,7 @@ const defaultFaqs = [
     id: 6,
     category: 'Return',
     question: 'What is your return policy?',
-    answer: 'We offer a 30-day return policy from the date of purchase. Items must be unused, in original packaging, and in perfect condition. Please initiate returns through our website or contact our support team.'
+    answer: 'We offer a 2-day return policy from the date of purchase. Items must be unused, in original packaging, and in perfect condition. Please initiate returns through our website or contact our support team.'
   },
   {
     id: 7,

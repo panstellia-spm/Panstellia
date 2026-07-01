@@ -69,105 +69,99 @@ const ShippingPolicyPage = () => {
         {/* Content */}
         <div className="p-8 md:p-12 space-y-8 text-luxury-800 leading-relaxed">
           <section>
-            <h2 className="font-serif text-2xl font-bold mb-6 text-luxury-900 flex items-center gap-3">
-              <Truck className="w-7 h-7 text-gold-500 flex-shrink-0" />
-              Free Shipping
-            </h2>
-            <div className="bg-gold-50 border border-gold-200 rounded-xl p-6 mb-8">
-              <p className="text-xl font-bold text-gold-700 mb-2">
-                {!shippingSettings.shippingEnabled
-                  ? 'Free Shipping on all orders'
-                  : shippingSettings.freeShippingEnabled
-                  ? `On orders above ₹${shippingSettings.freeShippingThreshold.toLocaleString()}`
-                  : `Standard Shipping Charge: ₹${shippingSettings.shippingCharge}`}
-              </p>
-              <p className="text-lg">
-                {!shippingSettings.shippingEnabled
-                  ? 'Enjoy complimentary shipping across India for all orders.'
-                  : shippingSettings.freeShippingEnabled
-                  ? `Enjoy complimentary shipping across India for all orders over ₹${shippingSettings.freeShippingThreshold.toLocaleString()}.`
-                  : `Enjoy secure nationwide delivery with a flat shipping fee of ₹${shippingSettings.shippingCharge}.`}
-              </p>
-            </div>
-          </section>
-
-          <section>
-            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Shipping Rates</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-luxury-50 p-6 rounded-xl">
-                <h3 className="font-semibold text-lg mb-3">Standard Delivery</h3>
-                <ul className="space-y-2 text-luxury-700">
-                  <li className="flex items-center gap-2"><Clock className="w-5 h-5 text-gold-500" /> 3-5 business days</li>
-                  <li className="flex items-center gap-2">
-                    <PackageCheck className="w-5 h-5 text-gold-500" />{' '}
-                    {!shippingSettings.shippingEnabled
-                      ? 'FREE shipping'
-                      : shippingSettings.freeShippingEnabled
-                      ? `₹${shippingSettings.shippingCharge} or FREE over ₹${shippingSettings.freeShippingThreshold.toLocaleString()}`
-                      : `₹${shippingSettings.shippingCharge} flat rate`}
-                  </li>
-                </ul>
-              </div>
-              <div className="bg-luxury-50 p-6 rounded-xl">
-                <h3 className="font-semibold text-lg mb-3">Express Delivery</h3>
-                <ul className="space-y-2 text-luxury-700">
-                  <li className="flex items-center gap-2"><Clock className="w-5 h-5 text-gold-500" /> 1-2 business days</li>
-                  <li><strong>₹150 flat rate</strong></li>
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Delivery Areas</h2>
-            <p className="text-lg mb-6">
-              We deliver across all pin codes in India. International shipping coming soon!
+            <p className="text-lg">
+              At <strong className="text-luxury-900">PANSTELLIA</strong>, we are committed to delivering your jewelry safely and efficiently.
             </p>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-indigo-200">
-              <h3 className="font-semibold text-lg mb-3">Major Cities (Metro)</h3>
-              <p className="text-luxury-700">Same-day dispatch | Next-day delivery</p>
-              <p className="text-sm text-luxury-600 mt-2">Delhi, Mumbai, Bangalore, Chennai, Hyderabad, Kolkata, Pune, Ahmedabad</p>
-            </div>
           </section>
 
           <section>
             <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Order Processing</h2>
-            <ul className="space-y-3 text-lg ml-6">
-              <li>• Orders placed before 2 PM: Same-day dispatch (Mon-Sat)</li>
-              <li>• After 2 PM / Sundays: Next business day dispatch</li>
-              <li>• Delivery timeline starts from dispatch date</li>
-              <li>• Tracking provided via SMS & email</li>
+            <p className="text-lg text-luxury-700">
+              All orders are processed within 24–48 hours (excluding weekends and public holidays). Once your order is processed, it is handed over to our logistics partner for dispatch.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Shipping Timeline</h2>
+            <ul className="space-y-3 text-lg ml-6 text-luxury-700">
+              <li>• <strong className="text-luxury-900">Across India:</strong> 2–4 business days</li>
+            </ul>
+            <p className="mt-4 text-lg text-luxury-700">
+              Please note that delivery timelines may vary depending on your location and unforeseen logistical delays.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Shipping Charges</h2>
+            <ul className="space-y-3 text-lg ml-6 text-luxury-700">
+              <li>• <strong className="text-luxury-900">Free Shipping:</strong> Available on all prepaid orders across India.</li>
+              <li>• <strong className="text-luxury-900">Cash on Delivery (if applicable):</strong> Additional charges may apply.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Shipping Partners</h2>
-            <div className="grid md:grid-cols-3 gap-4 mt-4">
-              <div className="text-center p-4 bg-white border rounded-lg shadow-sm">
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <Truck className="w-6 h-6 text-orange-600" />
-                </div>
-                <p className="font-semibold text-luxury-800">DTDC</p>
-              </div>
-              <div className="text-center p-4 bg-white border rounded-lg shadow-sm">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <Truck className="w-6 h-6 text-blue-600" />
-                </div>
-                <p className="font-semibold text-luxury-800">BlueDart</p>
-              </div>
-              <div className="text-center p-4 bg-white border rounded-lg shadow-sm">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <Truck className="w-6 h-6 text-green-600" />
-                </div>
-                <p className="font-semibold text-luxury-800">Delhivery</p>
-              </div>
-            </div>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Order Tracking</h2>
+            <p className="text-lg text-luxury-700">
+              Once your order is shipped, you will receive a tracking link via email/SMS, allowing you to track your package in real time.
+            </p>
           </section>
 
-          <section className="border-t border-luxury-200 pt-8">
-            <p className="text-sm text-luxury-500 mb-4">
-              For shipping queries: <a href="mailto:support@panstellia.com" className="text-gold-600 hover:underline">support@panstellia.com</a> or +91 78100 32622
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Delivery Partners</h2>
+            <p className="text-lg text-luxury-700">
+              We work with trusted courier partners to ensure safe and timely delivery of your orders.
             </p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Delays & Exceptions</h2>
+            <p className="text-lg text-luxury-700 mb-4">
+              While we strive to deliver your order within the estimated timeframe, delays may occur due to:
+            </p>
+            <ul className="space-y-3 text-lg ml-6 text-luxury-700">
+              <li>• Weather conditions</li>
+              <li>• Public holidays</li>
+              <li>• High order volumes</li>
+              <li>• Unexpected courier delays</li>
+            </ul>
+            <p className="mt-4 text-lg text-luxury-700">
+              In such cases, we appreciate your patience and understanding.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Incorrect Address</h2>
+            <p className="text-lg text-luxury-700">
+              Please ensure that the shipping address provided is accurate. <strong className="text-luxury-900">PANSTELLIA</strong> will not be responsible for orders delivered to incorrect or incomplete addresses provided by the customer.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Damaged or Tampered Package</h2>
+            <p className="text-lg text-luxury-700 mb-4">
+              If your package appears to be tampered with or damaged, please:
+            </p>
+            <ul className="space-y-3 text-lg ml-6 text-luxury-700">
+              <li>• Do not accept the delivery.</li>
+              <li>• Contact us immediately at our support email.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4 text-luxury-900">Contact Us</h2>
+            <p className="text-lg text-luxury-700 mb-4">
+              For any shipping-related queries, feel free to reach out to us:
+            </p>
+            <ul className="space-y-3 text-lg ml-6 text-luxury-700">
+              <li>📧 <strong>Email:</strong> <a href="mailto:support@panstellia.com" className="text-gold-600 hover:underline">support@panstellia.com</a></li>
+              <li>📱 <strong>Response Time:</strong> Within 24–48 hours</li>
+            </ul>
+            <p className="mt-6 text-lg font-medium text-luxury-900">
+              ✨ Thank you for choosing PANSTELLIA. We appreciate your trust in us.
+            </p>
+          </section>
+
+          <section className="border-t border-luxury-200 pt-8 mt-8 flex justify-center">
             <Link 
               to="/products" 
               className="inline-flex items-center gap-2 bg-gold-500 text-white px-8 py-3 rounded-xl font-medium hover:bg-gold-600 transition-all shadow-lg"

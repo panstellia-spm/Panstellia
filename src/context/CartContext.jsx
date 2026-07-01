@@ -138,7 +138,7 @@ export const CartProvider = ({ children }) => {
         id: product.id,
         name: product.name,
         price: product.price,
-        image: product.image,
+        image: product.image || product.images?.[0] || '',
         quantity,
         category: product.category
       };
