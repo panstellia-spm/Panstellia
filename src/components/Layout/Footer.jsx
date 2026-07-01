@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { db } from '../../services/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { useProducts } from '../../context/ProductContext';
 
 const defaultFaqs = [
   {
@@ -83,6 +84,7 @@ const defaultFaqs = [
 ];
 
 const Footer = () => {
+  const { visibleCollections } = useProducts();
   const [openSection, setOpenSection] = useState({
     quickLinks: false,
     customerService: false,
@@ -193,26 +195,16 @@ const Footer = () => {
                     Shop
                   </Link>
                 </li>
-                <li>
-                  <Link to="/products?category=Gold" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Gold')} Collection
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/products?category=Lux Wear" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Lux Wear')} Collection
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/products?category=Party%20Wear" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Party Wear')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/category/elegant-spark" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Elegant Spark')} Collection
-                  </Link>
-                </li>
+                {visibleCollections.map(col => {
+                  const toUrl = col.category === 'Elegant Spark' ? '/category/elegant-spark' : `/products?category=${encodeURIComponent(col.category)}`;
+                  return (
+                    <li key={col.id}>
+                      <Link to={toUrl} className="text-luxury-300 hover:text-gold-400 transition-colors">
+                        {col.name} Collection
+                      </Link>
+                    </li>
+                  );
+                })}
                 <li>
                   <Link to="/about-us" className="text-luxury-300 hover:text-gold-400 transition-colors">
                     About Us

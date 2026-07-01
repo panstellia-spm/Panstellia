@@ -2,11 +2,17 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, collection, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { toast } from 'react-toastify';
-import { Filter, Sparkles, Plus, Trash2, Edit2, Save, ArrowUp, ArrowDown } from 'lucide-react';
+import { Filter, Sparkles, Plus, Trash2, Edit2, Save, ArrowUp, ArrowDown, Eye } from 'lucide-react';
+import { useProducts } from '../../context/ProductContext';
 
 export default function AdminCollections() {
   const [activeTab, setActiveTab] = useState('filters');
   const [loading, setLoading] = useState(true);
+
+  // Visibility context fields
+  const { collections = [], updateCollectionConfig } = useProducts();
+  const [editingNameId, setEditingNameId] = useState(null);
+  const [tempName, setTempName] = useState('');
 
   // Filters State
   const [filtersList, setFiltersList] = useState([]);
@@ -156,6 +162,54 @@ export default function AdminCollections() {
     }
   };
 
+  const handleEditName = (col) => {
+    setEditingNameId(col.id);
+    setTempName(col.name);
+  };
+
+  const handleSaveName = async (id) => {
+    if (!tempName.trim()) return;
+    const updated = collections.map(c => c.id === id ? { ...c, name: tempName.trim(), updatedAt: new Date().toISOString() } : c);
+    try {
+      await updateCollectionConfig(updated);
+      toast.success('Collection renamed successfully!');
+      setEditingNameId(null);
+    } catch (err) {
+      toast.error('Failed to rename collection');
+    }
+  };
+
+  const handleToggleVisibility = async (id) => {
+    const col = collections.find(c => c.id === id);
+    if (!col) return;
+    const updated = collections.map(c => c.id === id ? { ...c, enabled: !c.enabled, updatedAt: new Date().toISOString() } : c);
+    try {
+      await updateCollectionConfig(updated);
+      toast.success(`Collection is now ${!col.enabled ? 'visible' : 'hidden'}`);
+    } catch (err) {
+      toast.error('Failed to update visibility');
+    }
+  };
+
+  const handleMoveCollection = async (index, direction) => {
+    const updated = [...collections];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= updated.length) return;
+
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+
+    // Reset orders
+    const reordered = updated.map((c, idx) => ({ ...c, order: idx }));
+    try {
+      await updateCollectionConfig(reordered);
+      toast.success('Display order updated!');
+    } catch (err) {
+      toast.error('Failed to update order');
+    }
+  };
+
   const handleDeleteCollection = async (id) => {
     if (!window.confirm("Are you sure you want to delete this collection config?")) return;
     try {
@@ -184,7 +238,7 @@ export default function AdminCollections() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-luxury-200 mb-8 bg-white p-1 rounded-xl shadow-sm max-w-sm">
+      <div className="flex border-b border-luxury-200 mb-8 bg-white p-1 rounded-xl shadow-sm max-w-md">
         <button
           onClick={() => { setActiveTab('filters'); setEditingFilter(null); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
@@ -206,6 +260,17 @@ export default function AdminCollections() {
         >
           <Sparkles className="w-4 h-4" />
           Collections Shelf
+        </button>
+        <button
+          onClick={() => { setActiveTab('visibility'); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
+            activeTab === 'visibility'
+              ? 'bg-gold-500 text-white shadow-sm'
+              : 'text-luxury-600 hover:text-luxury-900 hover:bg-luxury-50'
+          }`}
+        >
+          <Eye className="w-4 h-4" />
+          Collection Visibility
         </button>
       </div>
 
@@ -562,6 +627,125 @@ export default function AdminCollections() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {/* Collection Visibility Tab */}
+      {activeTab === 'visibility' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-luxury-100 shadow-md overflow-hidden">
+            <div className="p-6 border-b border-luxury-150 flex items-center justify-between bg-luxury-50/20">
+              <div>
+                <h3 className="text-base font-bold text-luxury-900">Collection Visibility Control</h3>
+                <p className="text-xs text-luxury-500 mt-1">Manage which product collections are active and visible across the storefront, header, footer, filters, and menus.</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-luxury-200 text-xs font-bold text-luxury-600 uppercase tracking-wider bg-luxury-50/50">
+                    <th className="py-3 px-6">Display Order</th>
+                    <th className="py-3 px-6">Collection Details</th>
+                    <th className="py-3 px-6">Product Count</th>
+                    <th className="py-3 px-6">Status</th>
+                    <th className="py-3 px-6">Visibility Toggle</th>
+                    <th className="py-3 px-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-luxury-100 text-sm">
+                  {collections.map((col, index) => (
+                    <tr key={col.id} className="hover:bg-luxury-50/30">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveCollection(index, 'up')}
+                            disabled={index === 0}
+                            className="p-1 rounded hover:bg-luxury-100 text-luxury-500 disabled:opacity-30"
+                            title="Move Up"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveCollection(index, 'down')}
+                            disabled={index === collections.length - 1}
+                            className="p-1 rounded hover:bg-luxury-100 text-luxury-500 disabled:opacity-30"
+                            title="Move Down"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div>
+                          {editingNameId === col.id ? (
+                            <form onSubmit={(e) => { e.preventDefault(); handleSaveName(col.id); }} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={tempName}
+                                onChange={(e) => setTempName(e.target.value)}
+                                className="input-field p-1 px-2 border rounded text-xs focus:ring-gold-500"
+                                autoFocus
+                              />
+                              <button type="submit" className="p-1 text-emerald-600 hover:text-emerald-700 font-bold text-xs uppercase">Save</button>
+                              <button type="button" onClick={() => setEditingNameId(null)} className="p-1 text-red-650 hover:text-red-700 font-bold text-xs uppercase">Cancel</button>
+                            </form>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-luxury-800">{col.name}</span>
+                              <button onClick={() => handleEditName(col)} className="text-luxury-400 hover:text-gold-550 transition-colors" title="Rename Collection">
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                          <span className="block text-[10px] text-luxury-400 uppercase tracking-wider mt-0.5">Category Key: {col.category}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-luxury-700">
+                        <span className="font-medium text-xs bg-luxury-50 border border-luxury-200 px-2 py-0.5 rounded-lg">
+                          {col.count} products
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${
+                          col.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {col.enabled ? 'Active' : 'Hidden'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={col.enabled}
+                            onChange={() => handleToggleVisibility(col.id)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-luxury-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-luxury-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gold-500"></div>
+                        </label>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVisibility(col.id)}
+                            className={`p-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                              col.enabled 
+                                ? 'border-red-200 text-red-700 bg-red-50 hover:bg-red-100' 
+                                : 'border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {col.enabled ? 'Disable' : 'Enable'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>
