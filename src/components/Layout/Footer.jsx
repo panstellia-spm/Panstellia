@@ -313,12 +313,21 @@ const Footer = () => {
                   <li className="flex items-start">
                     <MapPin className="w-4 h-4 mr-2.5 mt-0.5 text-gold-500 flex-shrink-0" />
                     <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cms.contact?.address || "9A Indra Nagar Neyveli Cuddalore TamilNadu India")}`}
+                        href="https://www.google.com/maps/place/PANSTELLIA/@11.6176492,79.5385022,17z/data=!4m9!1m2!2m1!1s9A,+Indhira+Nagar,+Neyveli,+Cuddalore,+TamilNadu,+India!3m5!1s0x3a54b1082d35dde9:0x520053a2012e2e29!8m2!3d11.617644!4d79.5410825!16s%2Fg%2F11njy63n3d!5m1!1e4?entry=ttu&g_ep=EgoyMDI2MDYyOC4wIKXMDSoASAFQAw%3D%3D"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-luxury-300 hover:text-gold-400 transition-colors underline-offset-2 hover:underline"
                       >
-                        {cms.contact?.address || "9A, Indra Nagar, Neyveli, Cuddalore, TamilNadu, India"}
+                        {cms.contact?.address ? (
+                          cms.contact.address
+                        ) : (
+                          <>
+                            
+                            9A, Indra Nagar,<br />
+                            Neyveli, Cuddalore,<br />
+                            Tamil Nadu, India
+                          </>
+                        )}
                     </a>
                   </li>
                   <li className="flex items-center">
@@ -454,6 +463,9 @@ const Footer = () => {
               </Link>
               <Link to="/shipping" className="text-luxury-400 hover:text-gold-400 transition-colors">
                 Shipping Policy
+              </Link>
+              <Link to="/return" className="text-luxury-400 hover:text-gold-400 transition-colors">
+                Return Policy
               </Link>
             </div>
           </div>

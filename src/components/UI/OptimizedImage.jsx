@@ -117,7 +117,7 @@ const OptimizedImage = ({
       )}
 
       {/* ── Blur placeholder ── */}
-      {isInView && blurSrc && !isLoaded && !hasError && (
+      {(priority || isInView) && blurSrc && !isLoaded && !hasError && (
         <img
           src={blurSrc}
           alt=""
@@ -127,7 +127,7 @@ const OptimizedImage = ({
       )}
 
       {/* ── Real image ── */}
-      {isInView && !hasError && (
+      {(priority || isInView) && !hasError && (
         <img
           ref={imageElRef}
           src={currentSrc || fallbackSrc || ''}
