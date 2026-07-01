@@ -217,7 +217,8 @@ export default async function handler(req, res) {
           courier: awbData.courier_name
         });
       } else {
-        throw new Error(response?.response?.data?.message || 'Failed to assign AWB or response is empty.');
+        const errorMsg = response?.message || response?.response?.data?.message || JSON.stringify(response) || 'Failed to assign AWB or response is empty.';
+        throw new Error(`Shiprocket Error: ${errorMsg}`);
       }
     }
 

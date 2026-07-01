@@ -142,8 +142,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid notes" });
     }
 
-    const amountNum = Number(amount);
-    if (!amountNum || !Number.isFinite(amountNum) || amountNum < 100) {
+    const parsedAmount = Number(amount);
+    if (!parsedAmount || !Number.isFinite(parsedAmount) || parsedAmount < 100) {
       return res.status(400).json({
         error: "Invalid amount. Minimum amount is 100 paise (Rs. 1)",
       });
