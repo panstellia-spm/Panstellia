@@ -40,9 +40,20 @@ const normalizeProduct = (p) => {
     ratings = 5.0;
   }
 
+  let createdAt = p.createdAt;
+  if (createdAt && typeof createdAt.toDate === 'function') {
+    createdAt = createdAt.toDate().toISOString();
+  }
+  let updatedAt = p.updatedAt;
+  if (updatedAt && typeof updatedAt.toDate === 'function') {
+    updatedAt = updatedAt.toDate().toISOString();
+  }
+
   return {
     ...p,
-    productStatus: p.productStatus ?? (stockQuantity <= 0 ? 'unavailable' : 'available'),
+    createdAt,
+    updatedAt,
+    productStatus: p.productStatus ?? 'available',
     stockQuantity,
     reservedQuantity,
     availableQuantity,
@@ -226,8 +237,19 @@ export const ProductProvider = ({ children }) => {
   const updateProduct = async (id, productData) => {
     try {
       const existingProduct = products.find(p => p.id === id) || {};
+      
+      // Explicitly extract and normalize createdAt to prevent deletion or timestamp/string sorting mismatch
+      let createdAt = productData.createdAt || existingProduct.createdAt;
+      if (createdAt && typeof createdAt.toDate === 'function') {
+        createdAt = createdAt.toDate().toISOString();
+      }
+      if (!createdAt) {
+        createdAt = getTimestamp();
+      }
+
       const updatedData = {
         ...productData,
+        createdAt,
         updatedAt: getTimestamp()
       };
       

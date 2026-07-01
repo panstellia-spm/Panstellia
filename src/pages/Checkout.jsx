@@ -473,6 +473,14 @@ const CheckoutPage = () => {
               );
             }
 
+            // Read shipping settings from ShippingSettings config doc
+            const shippingSettingsRef = doc(db, 'ShippingSettings', 'config');
+            readPromises.push(
+              transaction.get(shippingSettingsRef).then(snap => {
+                return { type: 'shippingSettings', ref: shippingSettingsRef, snap };
+              })
+            );
+            
             // Read coupon
             let couponRef = null;
             if (appliedCoupon) {
@@ -487,6 +495,8 @@ const CheckoutPage = () => {
             const readResults = await Promise.all(readPromises);
             
             const productDocs = readResults.filter(r => r.type === 'product');
+            const shippingSettingsResult = readResults.find(r => r.type === 'shippingSettings');
+            const shippingSettingsSnap = shippingSettingsResult ? shippingSettingsResult.snap : null;
             const couponResult = readResults.find(r => r.type === 'coupon');
             const couponSnap = couponResult ? couponResult.snap : null;
 
@@ -499,15 +509,36 @@ const CheckoutPage = () => {
               }
             }
 
-            // 2. Validate availability
+            // 2. Validate availability and calculate subtotal securely
+            let calculatedSubtotal = 0;
+            const securedCartItemsSnapshot = [];
+
             for (const { snap, item } of productDocs) {
               const pData = snap.data();
               const stockQuantity = Number(pData.stockQuantity ?? 0);
               const reservedQuantity = Number(pData.reservedQuantity ?? 0);
               const available = stockQuantity - reservedQuantity;
               if (available < item.quantity) {
-                throw new Error(`Insufficient stock for "${item.name}". Only ${available} available.`);
+                throw new Error(`Insufficient stock for "${pData.name || item.name}". Only ${available} available.`);
               }
+
+              const realPrice = Number(pData.price ?? 0);
+              calculatedSubtotal += realPrice * item.quantity;
+              
+              const w = resolveWarrantyForProduct(pData);
+              securedCartItemsSnapshot.push({
+                id: item.id,
+                name: pData.name || item.name,
+                price: realPrice,
+                quantity: item.quantity,
+                image: pData.image || pData.images?.[0] || item.image || '',
+                category: pData.category || '',
+                warranty: w ? {
+                  name: w.name,
+                  duration: w.duration,
+                  badge: w.badge || ''
+                } : null
+              });
             }
 
             // 3. Apply updates & log stock changes
@@ -538,7 +569,7 @@ const CheckoutPage = () => {
               const logRef = doc(collection(db, 'inventory_logs'));
               transaction.set(logRef, {
                 productId: item.id,
-                productName: item.name,
+                productName: pData.name || item.name,
                 skuCode: pData.skuCode || '',
                 action: 'Stock Decrease',
                 change: -item.quantity,
@@ -555,7 +586,7 @@ const CheckoutPage = () => {
                 const notifRef = doc(db, 'admin_notifications', `lowstock-${item.id}-${orderId}`);
                 transaction.set(notifRef, {
                   title: 'Low Stock Alert',
-                  message: `Product "${item.name}" is low in stock (${newStock} left)`,
+                  message: `Product "${pData.name || item.name}" is low in stock (${newStock} left)`,
                   type: 'inventory',
                   targetId: item.id,
                   read: false,
@@ -563,6 +594,64 @@ const CheckoutPage = () => {
                 });
               }
             }
+
+            // Calculate shipping charge securely
+            let shippingCharge = 99;
+            let freeShippingThreshold = 999;
+            let shippingEnabled = true;
+            let freeShippingEnabled = true;
+            if (shippingSettingsSnap && shippingSettingsSnap.exists()) {
+              const sData = shippingSettingsSnap.data();
+              shippingCharge = Number(sData.shippingCharge ?? 99);
+              freeShippingThreshold = Number(sData.freeShippingThreshold ?? 999);
+              shippingEnabled = sData.shippingEnabled ?? true;
+              freeShippingEnabled = sData.freeShippingEnabled ?? true;
+            }
+
+            let calculatedShipping = 0;
+            if (shippingEnabled) {
+              if (freeShippingEnabled) {
+                if (freeShippingThreshold === 0) {
+                  calculatedShipping = 0;
+                } else {
+                  calculatedShipping = calculatedSubtotal >= freeShippingThreshold ? 0 : shippingCharge;
+                }
+              } else {
+                calculatedShipping = shippingCharge;
+              }
+            }
+
+            // Recalculate coupon discount securely
+            let calculatedDiscount = 0;
+            if (appliedCoupon && couponSnap && couponSnap.exists()) {
+              const coupon = couponSnap.data();
+              if (coupon.type === 'percentage') {
+                calculatedDiscount = Math.round((calculatedSubtotal * Number(coupon.value || 0)) / 100);
+              } else if (coupon.type === 'flat') {
+                calculatedDiscount = Number(coupon.value || 0);
+              } else if (coupon.type === 'buy_x_get_y') {
+                const buyQty = Number(coupon.buyQty || 2);
+                const getQty = Number(coupon.getQty || 1);
+                const totalQty = securedCartItemsSnapshot.reduce((sum, item) => sum + item.quantity, 0);
+                if (totalQty >= buyQty) {
+                  const itemPrices = [];
+                  securedCartItemsSnapshot.forEach(item => {
+                    for (let i = 0; i < item.quantity; i++) {
+                      itemPrices.push(item.price);
+                    }
+                  });
+                  itemPrices.sort((a, b) => a - b);
+                  const freeItemsCount = Math.min(getQty, itemPrices.length);
+                  for (let i = 0; i < freeItemsCount; i++) {
+                    calculatedDiscount += itemPrices[i];
+                  }
+                }
+              }
+              calculatedDiscount = Math.min(calculatedDiscount, calculatedSubtotal);
+            }
+
+            const calculatedTax = calculatedSubtotal * 0.05;
+            const calculatedTotal = Math.max(0, calculatedSubtotal + calculatedShipping + calculatedTax - calculatedDiscount);
 
             // 4. Save order and payment records
             const paymentDocRef = doc(collection(db, 'payments'));
@@ -573,13 +662,13 @@ const CheckoutPage = () => {
               customerName: formData.name,
               phone: formData.phone,
               email: formData.email,
-              subtotal,
-              shipping: dynamicShipping,
-              tax,
+              subtotal: calculatedSubtotal,
+              shipping: calculatedShipping,
+              tax: calculatedTax,
               couponCode: appliedCoupon?.code || null,
-              couponDiscount: couponDiscount || 0,
-              total: finalTotal,
-              items: cartItemsSnapshot,
+              couponDiscount: calculatedDiscount,
+              total: calculatedTotal,
+              items: securedCartItemsSnapshot,
               status: 'processing',
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
@@ -597,7 +686,7 @@ const CheckoutPage = () => {
 
             transaction.set(paymentDocRef, {
               ...commonOrderData,
-              amount: finalTotal * 100, // paise
+              amount: calculatedTotal * 100, // paise
               customerOrderId: orderId,
               orderDocId: orderDocRef.id,
             });
@@ -617,7 +706,7 @@ const CheckoutPage = () => {
             const orderNotifRef = doc(db, 'admin_notifications', `order-${orderId}`);
             transaction.set(orderNotifRef, {
               title: 'New Order Placed',
-              message: `Order #${orderId} was placed by ${formData.name} for ₹${finalTotal.toLocaleString()}`,
+              message: `Order #${orderId} was placed by ${formData.name} for ₹${calculatedTotal.toLocaleString()}`,
               type: 'order',
               targetId: orderDocRef.id,
               read: false,

@@ -201,6 +201,17 @@ export default function AdminProducts() {
       const reorderThreshold = parseInt(rest.reorderThreshold || 5, 10);
       const reorderQuantity = parseInt(rest.reorderQuantity || 10, 10);
       
+      const priceVal = parseInt(rest.price, 10);
+      if (isNaN(priceVal) || priceVal < 1) {
+        throw new Error('Price must be greater than or equal to 1.');
+      }
+      if (rest.originalPrice && parseInt(rest.originalPrice, 10) < 1) {
+        throw new Error('Original price must be greater than or equal to 1.');
+      }
+      if (stockQuantity < 0) {
+        throw new Error('Stock quantity cannot be negative.');
+      }
+
       const productData = {
         ...rest,
         price: parseInt(rest.price, 10),
@@ -211,7 +222,7 @@ export default function AdminProducts() {
         availableQuantity: stockQuantity - Number(rest.reservedQuantity || 0),
         id: editingProduct?.id || `prod_${Date.now()}`,
         inStock: stockQuantity > 0,
-        productStatus: stockQuantity > 0 ? (rest.productStatus === 'unavailable' ? 'available' : rest.productStatus) : 'unavailable',
+        productStatus: rest.productStatus || 'available',
         images: images,
         image: form.image || '',
         warrantyId: form.warrantyId || '',

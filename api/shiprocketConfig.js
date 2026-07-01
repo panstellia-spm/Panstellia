@@ -33,12 +33,11 @@ export default async function handler(req, res) {
         let pickupLocations = [];
         try {
           console.log('[api/shiprocketConfig] Fetching pickup addresses from Shiprocket');
-          const response = await shiprocketRequest('GET', 'v1/external/settings/pickup/addresses');
-          if (response && response.shipping_address) {
-            // response.shipping_address is typically an array or object containing pickup locations
-            pickupLocations = Array.isArray(response.shipping_address) 
-              ? response.shipping_address 
-              : Object.values(response.shipping_address);
+          const response = await shiprocketRequest('GET', 'v1/external/settings/company/pickup');
+          if (response && response.data && response.data.shipping_address) {
+            pickupLocations = Array.isArray(response.data.shipping_address) 
+              ? response.data.shipping_address 
+              : Object.values(response.data.shipping_address);
           }
         } catch (apiErr) {
           console.warn('[api/shiprocketConfig] Failed to fetch pickup locations from Shiprocket:', apiErr.message);
@@ -49,9 +48,9 @@ export default async function handler(req, res) {
           pickupLocations: pickupLocations.map(loc => ({
             id: loc.id,
             pickup_location: loc.pickup_location,
-            pincode: loc.pin_code,
-            address: `${loc.address}, ${loc.city}, ${loc.state}`,
-            phone: loc.phone
+            pincode: loc.pin_code || loc.pincode || '',
+            address: `${loc.address || ''}, ${loc.city || ''}, ${loc.state || ''}`,
+            phone: loc.phone || ''
           }))
         });
       }
