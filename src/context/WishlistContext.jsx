@@ -79,7 +79,7 @@ export const WishlistProvider = ({ children }) => {
       id: product.id,
       name: product.name,
       price: product.price,
-      image: product.image,
+      image: product.image || (product.images && product.images.length > 0 ? product.images[0] : null),
       category: product.category
     };
     const updatedItems = [...wishlistItems, newItem];

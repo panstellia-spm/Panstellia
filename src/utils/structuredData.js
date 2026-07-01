@@ -31,7 +31,7 @@ export const getOrganizationSchema = () => ({
   url: 'https://panstellia.com',
   logo: {
     '@type': 'ImageObject',
-    url: 'https://panstellia.com/favicon.svg',
+    url: 'https://panstellia.com/android-chrome-512x512.png',
     width: 512,
     height: 512
   },
@@ -115,7 +115,7 @@ export const getProductSchema = (product) => ({
   '@type': 'Product',
   name: product.name,
   description: product.description,
-  image: product.image,
+  image: product.image || product.images?.[0] || '',
   brand: {
     '@type': 'Brand',
     name: product.brandName || 'Panstellia'
@@ -308,7 +308,7 @@ export const getCollectionSchema = (collectionName, products) => ({
       item: {
         '@type': 'Product',
         name: product.name,
-        image: product.image,
+        image: product.image || product.images?.[0] || '',
         url: `/product/${product.id}`
       }
     }))
@@ -319,7 +319,7 @@ export const getLocalBusinessSchema = () => ({
   '@context': 'https://schema.org',
   '@type': 'LocalBusiness',
   name: 'Panstellia',
-  image: 'https://panstellia.com/logo.svg',
+  image: 'https://panstellia.com/android-chrome-512x512.png',
   description: 'Luxury necklace jewelry store',
   address: {
     '@type': 'PostalAddress',

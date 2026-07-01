@@ -711,7 +711,7 @@ const ProductDetailPage = () => {
                 <div className="flex items-start justify-between gap-2 overflow-x-auto scrollbar-hide pb-2">
                   {[
                     { title: 'Pay on Delivery', icon: Banknote },
-                    { title: '10 days Returnable', icon: RefreshCw },
+                    { title: '2 days Returnable', icon: RefreshCw },
                     { title: 'Panstellia Delivered', icon: Truck },
                     { title: 'Free Delivery', icon: Box },
                     { title: 'Secure transaction', icon: ShieldCheck }
@@ -863,11 +863,11 @@ const ProductDetailPage = () => {
                       </div>
                       <div className="flex justify-between border-b border-luxury-50 pb-2">
                         <span className="font-bold text-luxury-500">Estimated Arrival:</span>
-                        <span className="font-semibold text-luxury-800">3-6 Business Days</span>
+                        <span className="font-semibold text-luxury-800">2-4 Business Days</span>
                       </div>
                       <div className="flex justify-between border-b border-luxury-50 pb-2">
                         <span className="font-bold text-luxury-500">Return Window:</span>
-                        <span className="font-semibold text-luxury-800">3-Day Easy Replacement</span>
+                        <span className="font-semibold text-luxury-800">2-Day Easy Return</span>
                       </div>
                       {activeWarranty ? (
                         <div className="space-y-3 pt-2 border-t border-luxury-50">

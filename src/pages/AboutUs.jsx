@@ -47,7 +47,7 @@ const AboutUsPage = () => {
 
       <section className="relative overflow-hidden">
         {/* Background image */}
-        <div className="absolute inset-0 bg-[url('https://i.ibb.co/7dMyTQSh/AI-Generated-Image-2026-06-23.jpg')] bg-cover bg-center"></div>
+        <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/omoikkzf/image/upload/v1782812152/db8ee875-de62-4ed5-bafc-c093f8c386c1_cp2nbv.png')] bg-cover bg-center"></div>
 
         {/* Left-side dark overlay — 40% opacity, fades to transparent at 55% width */}
         <div
@@ -111,7 +111,7 @@ const AboutUsPage = () => {
             </p>
           </motion.div>
 
-          <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.3 }} className="overflow-hidden rounded-[2rem] shadow-2xl">
+          <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.3 }} className="overflow-hidden rounded-[2rem] shadow-2xl h-full">
             <img
               src="https://i.ibb.co/tw43vBRN/Chat-GPT-Image-May-23-2026-10-01-25-AM.png"
               alt="Luxury jewelry image"
@@ -254,7 +254,7 @@ const AboutUsPage = () => {
               We believe jewelry should be accessible, beautiful, and meaningful—crafted with care so it can be worn confidently every day.
             </p>
           </div>
-          <div className="rounded-3xl overflow-hidden shadow-2xl">
+          <div className="rounded-3xl overflow-hidden shadow-2xl h-full">
             <img
               src="https://i.ibb.co/MFCffjn/Chat-GPT-Image-May-19-2026-12-16-30-PM.png"
               alt="Close-up of elegant jewelry details"
