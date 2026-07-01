@@ -19,7 +19,7 @@ const Navbar = () => {
   const { user, logout, isAdmin } = useAuth();
   const { cartItems } = useCart();
   const { wishlistItems } = useWishlist();
-  const { searchProducts } = useProducts();
+  const { searchProducts, visibleCollections } = useProducts();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -92,49 +92,41 @@ const Navbar = () => {
     Home, Store, Gem, CircleDot, Crown, Sparkles, Diamond, Gift, BadgePercent, Star, Shield
   };
 
-  const navItems = dbNavItems.length > 0 
-    ? dbNavItems.map(item => {
-        const IconComponent = ICON_MAP[item.icon] || Gem;
-        let toUrl = item.to;
-        if (toUrl === '/products?category=Piercings') {
-          toUrl = '/products?category=Party%20Wear';
-        }
+  const isUrlAllowed = (url) => {
+    if (!url.includes('category=') && !url.includes('/category/')) return true;
+    let cat = '';
+    if (url.includes('category=')) {
+      cat = new URLSearchParams(url.split('?')[1]).get('category');
+    } else if (url.includes('/category/')) {
+      const slug = url.split('/category/')[1];
+      if (slug === 'elegant-spark') cat = 'Elegant Spark';
+    }
+    if (!cat) return true;
+    return visibleCollections.some(col => col.category?.toLowerCase() === cat.toLowerCase());
+  };
 
-        let isActive = false;
-        if (toUrl === '/') {
-          isActive = location.pathname === '/';
-        } else if (toUrl === '/products') {
-          isActive = location.pathname === '/products' && !currentCategory;
-        } else {
-          const targetCat = new URLSearchParams(toUrl.split('?')[1]).get('category');
-          if (targetCat) {
-            isActive = location.pathname === '/products' && currentCategory === targetCat;
-          } else {
-            isActive = location.pathname === toUrl;
-          }
-        }
+  // Always build from visibleCollections so admin's toggle is immediately reflected in the nav.
+  // dbNavItems (from CMS) is used only for non-collection static nav entries (Home, custom pages).
+  // Collection icons ALWAYS come from visibleCollections to stay in sync with admin panel.
+  const collectionNavItems = visibleCollections.map(col => {
+    const IconComponent = ICON_MAP[col.icon] || Gem;
+    const toUrl = col.category === 'Elegant Spark'
+      ? '/category/elegant-spark'
+      : `/products?category=${encodeURIComponent(col.category)}`;
+    return {
+      to: toUrl,
+      label: col.name,
+      icon: IconComponent,
+      isActive: (location.pathname === '/products' && currentCategory === col.category)
+        || (col.category === 'Elegant Spark' && location.pathname === '/category/elegant-spark')
+    };
+  });
 
-        let label = item.label;
-        if (label === 'Gold Collection') label = 'Luxe Ring';
-        if (label === 'Silver Collection') label = 'Royal Bracelets';
-        if (label === 'Lux Wear') label = 'Elite series';
-
-        return {
-          to: toUrl,
-          label: label,
-          icon: IconComponent,
-          isActive
-        };
-      })
-    : [
-        { to: '/', label: 'Home', icon: Home, isActive: location.pathname === '/' },
-        { to: '/products', label: 'Shop', icon: Store, isActive: location.pathname === '/products' && !currentCategory },
-        { to: '/products?category=Gold', label: getCategoryLabel('Gold'), icon: Gem, isActive: location.pathname === '/products' && currentCategory === 'Gold' },
-        { to: '/products?category=Silver', label: getCategoryLabel('Silver'), icon: CircleDot, isActive: location.pathname === '/products' && currentCategory === 'Silver' },
-        { to: '/products?category=Lux Wear', label: 'Elite series', icon: Crown, isActive: location.pathname === '/products' && currentCategory === 'Lux Wear' },
-        { to: '/category/elegant-spark', label: getCategoryLabel('Elegant Spark'), icon: Sparkles, isActive: location.pathname === '/category/elegant-spark' },
-        { to: '/products?category=Party%20Wear', label: getCategoryLabel('Party Wear'), icon: Diamond, isActive: location.pathname === '/products' && currentCategory === 'Party Wear' }
-      ];
+  const navItems = [
+    { to: '/', label: 'Home', icon: Home, isActive: location.pathname === '/' },
+    { to: '/products', label: 'Shop', icon: Store, isActive: location.pathname === '/products' && !currentCategory },
+    ...collectionNavItems
+  ];
 
   return (
     <>
@@ -199,21 +191,18 @@ const Navbar = () => {
                         >
                           <h4 className="font-serif text-sm font-bold text-luxury-900 border-b border-luxury-100 pb-2 mb-3">Shop Collections</h4>
                           <div className="grid grid-cols-2 gap-3">
-                            {[
-                              { name: 'Gold', to: '/products?category=Gold' },
-                              { name: 'Silver', to: '/products?category=Silver' },
-                              { name: 'Elite series', to: '/products?category=Lux%20Wear' },
-                              { name: 'Party Wear', to: '/products?category=Party%20Wear' },
-                              { name: 'Elegant Spark', to: '/products?category=Elegant%20Spark' }
-                            ].map((cat) => (
-                              <Link
-                                key={cat.name}
-                                to={cat.to}
-                                className="text-xs text-luxury-600 hover:text-gold-500 font-semibold transition-colors py-1.5 px-2 hover:bg-luxury-50 rounded"
-                              >
-                                {getCategoryLabel(cat.name)}
-                              </Link>
-                            ))}
+                            {visibleCollections.map((col) => {
+                              const toUrl = col.category === 'Elegant Spark' ? '/category/elegant-spark' : `/products?category=${encodeURIComponent(col.category)}`;
+                              return (
+                                <Link
+                                  key={col.id}
+                                  to={toUrl}
+                                  className="text-xs text-luxury-600 hover:text-gold-500 font-semibold transition-colors py-1.5 px-2 hover:bg-luxury-50 rounded"
+                                >
+                                  {col.name}
+                                </Link>
+                              );
+                            })}
                           </div>
                         </motion.div>
                       </div>

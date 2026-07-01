@@ -421,11 +421,61 @@ export default function AdminOrderDetail() {
     if (!refundForm.reason.trim()) { toast.error('Please enter a refund reason'); return; }
     setRequestingRefund(true);
     try {
-      await requestRefund(id, { amount: refundForm.amount, reason: refundForm.reason }, user);
-      toast.success('Refund request submitted');
+      const token = await user.getIdToken();
+      const response = await fetch('/api/refundOrder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          orderDocId: id,
+          amount: Number(refundForm.amount || order.total || 0),
+          reason: refundForm.reason
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.error || 'Refund failed');
+      }
+
+      toast.success(`Refund of ₹${resData.amount} processed successfully! ID: ${resData.refundId}`);
       setShowRefundForm(false);
     } catch (e) {
-      toast.error('Failed to submit refund');
+      console.error('Refund failed:', e);
+      toast.error(`Failed to submit refund: ${e.message}`);
+    } finally {
+      setRequestingRefund(false);
+    }
+  };
+
+  const handleProcessRefund = async (amount, reason) => {
+    setRequestingRefund(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/refundOrder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          orderDocId: id,
+          amount: Number(amount || order.total || 0),
+          reason: reason || 'Processed by admin'
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.error || 'Refund failed');
+      }
+
+      toast.success(`Refund of ₹${resData.amount} processed successfully! ID: ${resData.refundId}`);
+    } catch (e) {
+      console.error('Refund failed:', e);
+      toast.error(`Failed to process refund: ${e.message}`);
     } finally {
       setRequestingRefund(false);
     }
@@ -1134,12 +1184,23 @@ export default function AdminOrderDetail() {
           {(isCancelled || order.refundStatus) && (
             <Section title="Refund Management" icon={RefreshCw} iconColor="text-teal-600">
               {order.refundStatus && order.refundStatus !== 'none' ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <InfoRow label="Refund Status" value={order.refundStatus?.toUpperCase()} />
                   <InfoRow label="Refund Amount" value={formatINR(order.refundAmount)} />
                   <InfoRow label="Reason" value={order.refundReason} />
                   <InfoRow label="Requested" value={formatOrderDate(order.refundRequestedAt)} />
                   <InfoRow label="Requested By" value={order.refundRequestedBy} />
+                  
+                  {order.refundStatus === 'requested' && (
+                    <button
+                      onClick={() => handleProcessRefund(order.refundAmount, order.refundReason)}
+                      disabled={requestingRefund}
+                      className="w-full mt-2 py-2 rounded-xl bg-teal-500 text-white font-bold text-sm hover:bg-teal-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${requestingRefund ? 'animate-spin' : ''}`} />
+                      {requestingRefund ? 'Processing Refund...' : 'Process & Complete Refund'}
+                    </button>
+                  )}
                 </div>
               ) : showRefundForm ? (
                 <div className="space-y-3">
@@ -1167,7 +1228,7 @@ export default function AdminOrderDetail() {
                       disabled={requestingRefund}
                       className="flex-1 py-2 rounded-xl bg-teal-500 text-white font-bold text-sm hover:bg-teal-600 transition-colors disabled:opacity-50"
                     >
-                      {requestingRefund ? 'Submitting…' : 'Submit Refund Request'}
+                      {requestingRefund ? 'Processing Refund…' : 'Submit & Process Refund'}
                     </button>
                     <button onClick={() => setShowRefundForm(false)} className="px-3 py-2 rounded-xl border border-luxury-200 text-sm text-luxury-600 hover:bg-luxury-50 transition-colors">
                       Cancel

@@ -54,11 +54,25 @@ const ProductsPage = () => {
   };
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { products, loading } = useProducts();
+  const { products, loading, visibleCollections = [], visibleCollectionsForFilter = [] } = useProducts();
 
   const visibleProducts = useMemo(() => {
-    return products.filter((p) => (p.productStatus || 'available') === 'available');
-  }, [products]);
+    return products.filter((p) => {
+      if ((p.productStatus || 'available') !== 'available') return false;
+      const hasCategory = p.category;
+      if (hasCategory) {
+        const isCatEnabled = visibleCollections.some(col => col.category === hasCategory);
+        if (!isCatEnabled) return false;
+      }
+      return true;
+    });
+  }, [products, visibleCollections]);
+
+  const getCollectionDisplayName = (catName) => {
+    if (!catName) return '';
+    const col = visibleCollections.find(c => c.category?.toLowerCase() === catName.toLowerCase());
+    return col ? col.name : getCategoryLabel(catName);
+  };
 
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -118,16 +132,12 @@ const ProductsPage = () => {
     }).length;
   };
 
-  // Derive categories dynamically from available products so counts can be shown
+  // Derive categories for the filter sidebar — uses visibleCollectionsForFilter
+  // so hideEmptyCollections setting is respected for the sidebar only.
   const categories = useMemo(() => {
-    const map = {};
-    visibleProducts.forEach((p) => {
-      const key = p.category || 'Uncategorized';
-      map[key] = (map[key] || 0) + 1;
-    });
-    const list = Object.keys(map).sort();
+    const list = visibleCollectionsForFilter.map(col => col.category);
     return ['All', ...list];
-  }, [visibleProducts]);
+  }, [visibleCollectionsForFilter]);
 
   // Sort options expanded
   const sortOptions = [
@@ -477,9 +487,9 @@ const ProductsPage = () => {
                       if (e.target.checked) next.add(category); else next.delete(category);
                       handleFilterChange('category', Array.from(next));
                     }}
-                    aria-label={`Filter by ${getCategoryLabel(category)}`}
+                    aria-label={`Filter by ${getCollectionDisplayName(category)}`}
                   />
-                  <span className="text-luxury-700">{getCategoryLabel(category)}</span>
+                  <span className="text-luxury-700">{getCollectionDisplayName(category)}</span>
                 </div>
                 <span className="text-luxury-400 text-xs">{categoryCounts[category] || 0}</span>
               </label>
@@ -659,18 +669,18 @@ const ProductsPage = () => {
           (filters.category && filters.category.length === 1 && filters.category[0] === 'Lux Wear')
             ? 'Elite Series'
             : (filters.category && filters.category.length === 1)
-            ? getCategoryLabel(filters.category[0])
+            ? getCollectionDisplayName(filters.category[0])
             : 'Shop'
         } | Panstellia`}
         description={`${
           (filters.category && filters.category.length === 1 && filters.category[0] === 'Lux Wear')
             ? 'Explore Panstellia’s Elite Series — premium, handcrafted Lux Wear luxury necklace jewelry for every special occasion.'
-            : `Browse our ${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]).toLowerCase() : 'complete collection of'} necklace jewelry. Premium quality designs for every occasion.`
+            : `Browse our ${(filters.category && filters.category.length === 1) ? getCollectionDisplayName(filters.category[0]).toLowerCase() : 'complete collection of'} necklace jewelry. Premium quality designs for every occasion.`
         }`}
         keywords={`${
           (filters.category && filters.category.length === 1 && filters.category[0] === 'Lux Wear')
             ? 'elite series jewelry, lux wear necklaces, premium jewelry, luxury necklace'
-            : `${(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]).toLowerCase() + ' necklaces' : 'necklaces'}, jewelry, luxury jewelry`
+            : `${(filters.category && filters.category.length === 1) ? getCollectionDisplayName(filters.category[0]).toLowerCase() + ' necklaces' : 'necklaces'}, jewelry, luxury jewelry`
         }`}
         canonical={`https://panstellia.com/products${(filters.category && filters.category.length === 1) ? `?category=${filters.category[0]}` : ''}`}
         structuredData={getWebPageSchema(
@@ -699,7 +709,7 @@ const ProductsPage = () => {
           {filters.category && filters.category.length === 1 && (
             <>
               <span>/</span>
-              <span className="text-luxury-800">{getCategoryLabel(filters.category[0])}</span>
+              <span className="text-luxury-800">{getCollectionDisplayName(filters.category[0])}</span>
             </>
           )}
         </nav>
@@ -708,7 +718,7 @@ const ProductsPage = () => {
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="font-serif text-3xl md:text-4xl font-bold text-luxury-900 leading-tight">
-              {(filters.category && filters.category.length === 1) ? getCategoryLabel(filters.category[0]) : (filters.category && filters.category.length > 1 ? 'Filtered Products' : 'All Products')}
+              {(filters.category && filters.category.length === 1) ? getCollectionDisplayName(filters.category[0]) : (filters.category && filters.category.length > 1 ? 'Filtered Products' : 'All Products')}
             </h1>
             <p className="mt-2 text-xs text-luxury-500 font-medium">
               {filteredProducts.length} items found
@@ -828,7 +838,7 @@ const ProductsPage = () => {
                   }}
                   className="px-3 py-1.5 bg-white border border-luxury-200 rounded-full text-xs font-semibold text-luxury-700 shadow-sm flex items-center gap-2 hover:border-gold-450 hover:text-gold-600 transition-colors"
                 >
-                  <span>{getCategoryLabel(c)}</span>
+                  <span>{getCollectionDisplayName(c)}</span>
                   <span className="text-luxury-400">✕</span>
                 </button>
               ))}

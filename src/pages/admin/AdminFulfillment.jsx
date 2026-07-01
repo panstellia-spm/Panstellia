@@ -377,7 +377,7 @@ export default function AdminFulfillment() {
       <div className="flex border-b border-luxury-200 gap-1 overflow-x-auto scrollbar-hide pb-0.5">
         {[
           { id: 'overview', label: 'Overview Dashboard', icon: ClipboardList },
-          { id: 'kanban', label: 'Kanban Board', icon: Kanban },
+          { id: 'kanban', label: 'Order Fulfillment Operations', icon: Kanban },
           { id: 'picking', label: 'Picking Queue', icon: Hand },
           { id: 'packing', label: 'Packing Station', icon: Box },
           { id: 'logs', label: 'Fulfillment Logs', icon: Activity },

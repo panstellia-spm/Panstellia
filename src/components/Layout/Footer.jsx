@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { db } from '../../services/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { useProducts } from '../../context/ProductContext';
 
 const defaultFaqs = [
   {
@@ -83,6 +84,7 @@ const defaultFaqs = [
 ];
 
 const Footer = () => {
+  const { visibleCollections, quickLinks = [] } = useProducts();
   const [openSection, setOpenSection] = useState({
     quickLinks: false,
     customerService: false,
@@ -183,46 +185,35 @@ const Footer = () => {
               openSection.quickLinks ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0 md:max-h-full md:opacity-100'
             }`}>
               <ul className="space-y-2 mt-2 md:mt-0 text-sm">
-                <li>
-                  <Link to="/" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/products" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    Shop
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/products?category=Gold" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Gold')} Collection
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/products?category=Lux Wear" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Lux Wear')} Collection
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/products?category=Party%20Wear" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Party Wear')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/category/elegant-spark" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    {getCategoryLabel('Elegant Spark')} Collection
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/about-us" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/careers" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    Careers
-                  </Link>
-                </li>
+                {/* Before-collection static links (Home, Shop, etc.) */}
+                {quickLinks.filter(l => l.placement === 'before').map(link => (
+                  <li key={link.id}>
+                    <Link to={link.to} className="text-luxury-300 hover:text-gold-400 transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+
+                {/* Dynamic collection links */}
+                {visibleCollections.map(col => {
+                  const toUrl = col.category === 'Elegant Spark' ? '/category/elegant-spark' : `/products?category=${encodeURIComponent(col.category)}`;
+                  return (
+                    <li key={col.id}>
+                      <Link to={toUrl} className="text-luxury-300 hover:text-gold-400 transition-colors">
+                        {col.name} Collection
+                      </Link>
+                    </li>
+                  );
+                })}
+
+                {/* After-collection static links (About Us, Careers, etc.) */}
+                {quickLinks.filter(l => l.placement === 'after').map(link => (
+                  <li key={link.id}>
+                    <Link to={link.to} className="text-luxury-300 hover:text-gold-400 transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

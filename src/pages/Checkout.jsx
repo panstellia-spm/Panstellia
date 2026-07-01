@@ -7,9 +7,11 @@ import { useProducts } from '../context/ProductContext';
 import { toast } from 'react-toastify';
 import { createRazorpayOrder, verifyPayment, openCheckout, markPaymentFailed } from '../services/payment';
 import { db } from '../services/firebase';
-import { collection, addDoc, serverTimestamp, doc, runTransaction, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, runTransaction, onSnapshot, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { sendOrderNotifications, formatOrderDataForEmail } from '../services/orderNotifications';
-import { calculateRates, createShiprocketOrder } from '../services/shiprocket';
+import { calculateRates, createShiprocketOrder, checkServiceability } from '../services/shiprocket';
+import { calculateCheckout, getShippingETA } from '../utils/checkoutCalculations';
+import { validateCoupon, calculateCouponDiscount } from '../utils/couponEngine';
 
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import SEOHelmet from '../utils/seoHelmet';
@@ -17,7 +19,7 @@ import SEOHelmet from '../utils/seoHelmet';
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { user, userData, addAddress, updateAddress } = useAuth();
-  const { cartItems, subtotal, shipping, tax, total, clearCart } = useCart();
+  const { cartItems, subtotal, clearCart } = useCart();
   const { resolveWarrantyForProduct } = useProducts();
   
   const [loading, setLoading] = useState(false);
@@ -32,15 +34,25 @@ const CheckoutPage = () => {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponLoading, setCouponLoading] = useState(false);
 
-  // Shiprocket & Dynamic Shipping State
-  const [dynamicShipping, setDynamicShipping] = useState(shipping);
+  // Shipping selection: 'standard' or 'premium'
+  const [selectedShippingMethod, setSelectedShippingMethod] = useState('standard');
+
+  // Serviceability check state
   const [shippingRateLoading, setShippingRateLoading] = useState(false);
   const [pincodeError, setPincodeError] = useState('');
   const [estDeliveryDate, setEstDeliveryDate] = useState('');
   const [courierName, setCourierName] = useState('');
   const [isDeliverable, setIsDeliverable] = useState(true);
 
-  const finalTotal = Math.max(0, subtotal + dynamicShipping + tax - couponDiscount);
+  // Centralized calculations
+  const checkoutTotals = calculateCheckout({
+    subtotal,
+    shippingMethod: selectedShippingMethod,
+    paymentMethod: selectedPaymentMethod,
+    discount: couponDiscount
+  });
+
+  const { shipping: dynamicShipping, codCharge, tax, total: finalTotal } = checkoutTotals;
 
   const handleApplyCoupon = async () => {
     if (!couponCodeInput.trim()) {
@@ -63,94 +75,29 @@ const CheckoutPage = () => {
       
       const coupon = snap.data();
       
-      if (coupon.archived) {
-        toast.error("Coupon is invalid or archived");
+      // Verify user order eligibility (one-time usage)
+      let userOrdersCount = 0;
+      if (user) {
+        const q = query(
+          collection(db, 'orders'),
+          where('userId', '==', user.uid),
+          where('couponCode', '==', code)
+        );
+        const orderSnaps = await getDocs(q);
+        const activeOrders = orderSnaps.docs.filter(d => d.data().status !== 'cancelled');
+        userOrdersCount = activeOrders.length;
+      }
+
+      const validation = validateCoupon(coupon, { subtotal, cartItems, userOrdersCount });
+      if (!validation.valid) {
+        toast.error(validation.error);
         setAppliedCoupon(null);
         setCouponDiscount(0);
         setCouponLoading(false);
         return;
       }
-      
-      if (!coupon.enabled) {
-        toast.error("Coupon is currently disabled");
-        setAppliedCoupon(null);
-        setCouponDiscount(0);
-        setCouponLoading(false);
-        return;
-      }
-      
-      // Expiry check
-      if (coupon.endDate && new Date(coupon.endDate) < new Date()) {
-        toast.error("Coupon has expired");
-        setAppliedCoupon(null);
-        setCouponDiscount(0);
-        setCouponLoading(false);
-        return;
-      }
-      
-      // Start date check
-      if (coupon.startDate && new Date(coupon.startDate) > new Date()) {
-        toast.error("Coupon is not active yet");
-        setAppliedCoupon(null);
-        setCouponDiscount(0);
-        setCouponLoading(false);
-        return;
-      }
-      
-      // Uses limit check
-      const currentUses = Number(coupon.currentUses || 0);
-      const maxUses = Number(coupon.maxUses || 100);
-      if (currentUses >= maxUses) {
-        toast.error("Coupon usage limit has been reached");
-        setAppliedCoupon(null);
-        setCouponDiscount(0);
-        setCouponLoading(false);
-        return;
-      }
-      
-      // Min cart value check
-      if (subtotal < (coupon.minCartValue || 0)) {
-        toast.error(`Minimum order amount of ₹${coupon.minCartValue} required to apply this coupon.`);
-        setAppliedCoupon(null);
-        setCouponDiscount(0);
-        setCouponLoading(false);
-        return;
-      }
-      
-      // Calculate discount
-      let discount = 0;
-      if (coupon.type === 'percentage') {
-        discount = Math.round((subtotal * (coupon.value || 0)) / 100);
-      } else if (coupon.type === 'flat') {
-        discount = Number(coupon.value || 0);
-      } else if (coupon.type === 'buy_x_get_y') {
-        const buyQty = Number(coupon.buyQty || 2);
-        const getQty = Number(coupon.getQty || 1);
-        const totalQty = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-        
-        if (totalQty < buyQty) {
-          toast.error(`Buy ${buyQty} items to get ${getQty} free. Your cart has only ${totalQty} items.`);
-          setAppliedCoupon(null);
-          setCouponDiscount(0);
-          setCouponLoading(false);
-          return;
-        }
-        
-        const itemPrices = [];
-        cartItems.forEach(item => {
-          for (let i = 0; i < item.quantity; i++) {
-            itemPrices.push(Number(item.price));
-          }
-        });
-        itemPrices.sort((a, b) => a - b);
-        
-        const freeItemsCount = Math.min(getQty, itemPrices.length);
-        for (let i = 0; i < freeItemsCount; i++) {
-          discount += itemPrices[i];
-        }
-      }
-      
-      discount = Math.min(discount, subtotal);
+
+      const discount = calculateCouponDiscount(coupon, { subtotal, cartItems });
       
       setAppliedCoupon({ ...coupon, code });
       setCouponDiscount(discount);
@@ -314,14 +261,13 @@ const CheckoutPage = () => {
     }
   }, [cartItems.length, navigate]);
 
-  // Re-run serviceability / rate calculation when pincode or parameters change
+  // Re-run serviceability when pincode or parameters change
   useEffect(() => {
-    const checkRates = async () => {
+    const checkAddressServiceability = async () => {
       const pin = formData.pincode.trim();
       if (!/^\d{6}$/.test(pin)) {
         setPincodeError('');
         setIsDeliverable(true);
-        setDynamicShipping(shipping);
         setEstDeliveryDate('');
         setCourierName('');
         return;
@@ -335,47 +281,30 @@ const CheckoutPage = () => {
         const weight = cartItems.reduce((acc, item) => acc + (item.quantity * 0.1), 0);
         const isCod = selectedPaymentMethod === 'cod';
 
-        const res = await calculateRates(pin, subtotal, weight, isCod, token);
+        const res = await checkServiceability(pin, weight, isCod, token);
 
-        if (res.method === 'standard_fallback_error') {
-          setDynamicShipping(res.rate);
+        if (res.deliverable) {
           setIsDeliverable(true);
-          setEstDeliveryDate('2-4 business days');
+          setEstDeliveryDate(res.est_days || (selectedShippingMethod === 'premium' ? '2-4 Days' : '5-7 Days'));
           setCourierName(res.courier || '');
-        } else if (res.isFree) {
-          setDynamicShipping(0);
-          setIsDeliverable(true);
-          setEstDeliveryDate('2-4 business days');
-          setCourierName('');
         } else {
-          setDynamicShipping(res.rate);
-          setIsDeliverable(true);
-          if (res.est_days) {
-            setEstDeliveryDate(`${res.est_days}`);
-          } else if (res.etd) {
-            const formatted = new Date(res.etd).toLocaleDateString('en-IN', {
-              weekday: 'long',
-              month: 'short',
-              day: 'numeric'
-            });
-            setEstDeliveryDate(formatted);
-          }
-          setCourierName(res.courier || '');
+          setPincodeError('Pincode is not serviceable by our delivery partners.');
+          setIsDeliverable(false);
         }
       } catch (err) {
         console.error('Serviceability check failed:', err.message);
-        setPincodeError('Pincode may not be serviceable by our delivery partners.');
-        setIsDeliverable(false);
-        setDynamicShipping(shipping);
+        // Fallback gracefully in case of API failure, but warn user
+        setIsDeliverable(true);
+        setEstDeliveryDate(selectedShippingMethod === 'premium' ? '2-4 Days' : '5-7 Days');
       } finally {
         setShippingRateLoading(false);
       }
     };
 
     if (user && formData.pincode) {
-      checkRates();
+      checkAddressServiceability();
     }
-  }, [formData.pincode, selectedPaymentMethod, subtotal, shipping, user, cartItems]);
+  }, [formData.pincode, selectedPaymentMethod, user, cartItems, selectedShippingMethod]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -455,6 +384,19 @@ const CheckoutPage = () => {
           const orderId = `COD-${shortCode}`;
           const orderDocRef = doc(collection(db, 'orders'));
 
+          // Check user orders count with this coupon (One-time check)
+          let userOrdersCount = 0;
+          if (appliedCoupon) {
+            const q = query(
+              collection(db, 'orders'),
+              where('userId', '==', user.uid),
+              where('couponCode', '==', appliedCoupon.code)
+            );
+            const orderSnaps = await getDocs(q);
+            const activeOrders = orderSnaps.docs.filter(d => d.data().status !== 'cancelled');
+            userOrdersCount = activeOrders.length;
+          }
+
           // Run transaction to check/deduct stock and save order/payment
           await runTransaction(db, async (transaction) => {
             // 1. READ PHASE: Execute ALL reads concurrently before any writes
@@ -473,7 +415,7 @@ const CheckoutPage = () => {
               );
             }
 
-            // Read shipping settings from ShippingSettings config doc
+            // Read shipping settings from ShippingSettings config doc (compatibility check)
             const shippingSettingsRef = doc(db, 'ShippingSettings', 'config');
             readPromises.push(
               transaction.get(shippingSettingsRef).then(snap => {
@@ -495,19 +437,8 @@ const CheckoutPage = () => {
             const readResults = await Promise.all(readPromises);
             
             const productDocs = readResults.filter(r => r.type === 'product');
-            const shippingSettingsResult = readResults.find(r => r.type === 'shippingSettings');
-            const shippingSettingsSnap = shippingSettingsResult ? shippingSettingsResult.snap : null;
             const couponResult = readResults.find(r => r.type === 'coupon');
             const couponSnap = couponResult ? couponResult.snap : null;
-
-            if (couponSnap && couponSnap.exists()) {
-              const cData = couponSnap.data();
-              const curUses = Number(cData.currentUses || 0);
-              const mUses = Number(cData.maxUses || 100);
-              if (curUses >= mUses) {
-                throw new Error("Coupon usage limit has been reached since you applied it.");
-              }
-            }
 
             // 2. Validate availability and calculate subtotal securely
             let calculatedSubtotal = 0;
@@ -539,6 +470,18 @@ const CheckoutPage = () => {
                   badge: w.badge || ''
                 } : null
               });
+            }
+
+            // Validate Coupon inside transaction
+            if (couponSnap && couponSnap.exists()) {
+              const validation = validateCoupon(couponSnap.data(), {
+                subtotal: calculatedSubtotal,
+                cartItems: securedCartItemsSnapshot,
+                userOrdersCount
+              });
+              if (!validation.valid) {
+                throw new Error(validation.error);
+              }
             }
 
             // 3. Apply updates & log stock changes
@@ -595,63 +538,27 @@ const CheckoutPage = () => {
               }
             }
 
-            // Calculate shipping charge securely
-            let shippingCharge = 99;
-            let freeShippingThreshold = 999;
-            let shippingEnabled = true;
-            let freeShippingEnabled = true;
-            if (shippingSettingsSnap && shippingSettingsSnap.exists()) {
-              const sData = shippingSettingsSnap.data();
-              shippingCharge = Number(sData.shippingCharge ?? 99);
-              freeShippingThreshold = Number(sData.freeShippingThreshold ?? 999);
-              shippingEnabled = sData.shippingEnabled ?? true;
-              freeShippingEnabled = sData.freeShippingEnabled ?? true;
-            }
-
-            let calculatedShipping = 0;
-            if (shippingEnabled) {
-              if (freeShippingEnabled) {
-                if (freeShippingThreshold === 0) {
-                  calculatedShipping = 0;
-                } else {
-                  calculatedShipping = calculatedSubtotal >= freeShippingThreshold ? 0 : shippingCharge;
-                }
-              } else {
-                calculatedShipping = shippingCharge;
-              }
-            }
-
             // Recalculate coupon discount securely
             let calculatedDiscount = 0;
             if (appliedCoupon && couponSnap && couponSnap.exists()) {
-              const coupon = couponSnap.data();
-              if (coupon.type === 'percentage') {
-                calculatedDiscount = Math.round((calculatedSubtotal * Number(coupon.value || 0)) / 100);
-              } else if (coupon.type === 'flat') {
-                calculatedDiscount = Number(coupon.value || 0);
-              } else if (coupon.type === 'buy_x_get_y') {
-                const buyQty = Number(coupon.buyQty || 2);
-                const getQty = Number(coupon.getQty || 1);
-                const totalQty = securedCartItemsSnapshot.reduce((sum, item) => sum + item.quantity, 0);
-                if (totalQty >= buyQty) {
-                  const itemPrices = [];
-                  securedCartItemsSnapshot.forEach(item => {
-                    for (let i = 0; i < item.quantity; i++) {
-                      itemPrices.push(item.price);
-                    }
-                  });
-                  itemPrices.sort((a, b) => a - b);
-                  const freeItemsCount = Math.min(getQty, itemPrices.length);
-                  for (let i = 0; i < freeItemsCount; i++) {
-                    calculatedDiscount += itemPrices[i];
-                  }
-                }
-              }
-              calculatedDiscount = Math.min(calculatedDiscount, calculatedSubtotal);
+              calculatedDiscount = calculateCouponDiscount(couponSnap.data(), {
+                subtotal: calculatedSubtotal,
+                cartItems: securedCartItemsSnapshot
+              });
             }
 
-            const calculatedTax = calculatedSubtotal * 0.05;
-            const calculatedTotal = Math.max(0, calculatedSubtotal + calculatedShipping + calculatedTax - calculatedDiscount);
+            // Calculate checkout totals using centralized engine
+            const totalsObj = calculateCheckout({
+              subtotal: calculatedSubtotal,
+              shippingMethod: selectedShippingMethod,
+              paymentMethod: 'cod',
+              discount: calculatedDiscount
+            });
+
+            const calculatedShipping = totalsObj.shipping;
+            const calculatedCodCharge = totalsObj.codCharge;
+            const calculatedTax = totalsObj.tax;
+            const calculatedTotal = totalsObj.total;
 
             // 4. Save order and payment records
             const paymentDocRef = doc(collection(db, 'payments'));
@@ -664,6 +571,7 @@ const CheckoutPage = () => {
               email: formData.email,
               subtotal: calculatedSubtotal,
               shipping: calculatedShipping,
+              codCharge: calculatedCodCharge,
               tax: calculatedTax,
               couponCode: appliedCoupon?.code || null,
               couponDiscount: calculatedDiscount,
@@ -846,6 +754,8 @@ const CheckoutPage = () => {
         totals: {
           subtotal,
           shipping: dynamicShipping,
+          shippingMethod: selectedShippingMethod,
+          codCharge: 0,
           tax,
           total: finalTotal,
           couponCode: appliedCoupon?.code || null,
@@ -1320,6 +1230,50 @@ const CheckoutPage = () => {
                 </div>
               </div>
 
+              {/* Shipping Option Section */}
+              <div className="mt-8 pt-8 border-t border-luxury-200">
+                <h2 className="font-serif text-xl font-bold text-luxury-900 mb-6">
+                  Shipping Option
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Standard Shipping Card */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShippingMethod('standard')}
+                    className={`rounded-xl p-4 flex items-start border-2 transition-all text-left w-full ${
+                      selectedShippingMethod === 'standard'
+                        ? 'border-gold-500 bg-gold-50/10'
+                        : 'border-luxury-100 bg-white hover:border-luxury-300'
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <p className="font-bold text-sm text-luxury-900">Standard Shipping</p>
+                      <p className="text-xs text-luxury-500 mt-0.5">Surface Delivery (Up to 7 Days)</p>
+                      <p className="text-xs font-extrabold text-gold-650 mt-2">
+                        {subtotal >= 999 ? 'FREE' : '₹49'}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Premium Shipping Card */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShippingMethod('premium')}
+                    className={`rounded-xl p-4 flex items-start border-2 transition-all text-left w-full ${
+                      selectedShippingMethod === 'premium'
+                        ? 'border-gold-500 bg-gold-50/10'
+                        : 'border-luxury-100 bg-white hover:border-luxury-300'
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <p className="font-bold text-sm text-luxury-900">Premium Shipping</p>
+                      <p className="text-xs text-luxury-500 mt-0.5">Blue Dart Air (2–4 Days)</p>
+                      <p className="text-xs font-extrabold text-gold-650 mt-2">₹129</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* Payment Section */}
               <div className="mt-8 pt-8 border-t border-luxury-200">
                 <div className="flex items-center justify-between mb-6">
@@ -1510,7 +1464,7 @@ const CheckoutPage = () => {
                   <span>₹{subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-xs text-luxury-600 font-medium">
-                  <span>Shipping</span>
+                  <span>Shipping ({selectedShippingMethod === 'premium' ? 'Premium' : 'Standard'})</span>
                   <span>{dynamicShipping === 0 ? 'Free' : `₹${dynamicShipping}`}</span>
                 </div>
                 {estDeliveryDate && (
@@ -1522,10 +1476,12 @@ const CheckoutPage = () => {
                 {pincodeError && (
                   <p className="text-red-500 text-[10px] font-bold text-right -mt-2">{pincodeError}</p>
                 )}
-                <div className="flex justify-between text-xs text-luxury-600 font-medium">
-                  <span>Tax</span>
-                  <span>₹{tax.toLocaleString()}</span>
-                </div>
+                {selectedPaymentMethod === 'cod' && (
+                  <div className="flex justify-between text-xs text-luxury-600 font-medium">
+                    <span>COD Handling Charge</span>
+                    <span>₹{codCharge}</span>
+                  </div>
+                )}
                 
                 {/* Coupon discount display */}
                 {appliedCoupon && (

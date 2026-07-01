@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { triggerRestockNotifications } from '../services/restockNotifications';
@@ -91,11 +91,30 @@ export const ProductProvider = ({ children }) => {
   const [warranties, setWarranties] = useState([]);
   const [warrantyAssignments, setWarrantyAssignments] = useState([]);
 
+  const [collectionsConfig, setCollectionsConfig] = useState([]);
+  const [hideEmptyCollections, setHideEmptyCollections] = useState(false);
+  const [quickLinksConfig, setQuickLinksConfig] = useState([]);
+
+  const DEFAULT_COLLECTIONS = [
+    { id: 'gold', name: 'Luxe Ring', category: 'Gold', enabled: true, order: 0, icon: 'Gem', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817101/ChatGPT_Image_Jun_30_2026_03_33_25_PM_rmxgvr.png' },
+    { id: 'silver', name: 'Royal Bracelets', category: 'Silver', enabled: true, order: 1, icon: 'CircleDot', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817368/ChatGPT_Image_Jun_30_2026_03_35_17_PM_hylxo4.png' },
+    { id: 'lux-wear', name: 'Elite Series', category: 'Lux Wear', enabled: true, order: 2, icon: 'Crown', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817401/ChatGPT_Image_Jun_30_2026_03_34_47_PM_ugzgsu.png' },
+    { id: 'elegant-spark', name: 'Elegant Spark', category: 'Elegant Spark', enabled: true, order: 3, icon: 'Sparkles', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817390/ChatGPT_Image_Jun_30_2026_03_33_55_PM_smfn9p.png' },
+    { id: 'party-wear', name: 'Piercings', category: 'Party Wear', enabled: true, order: 4, icon: 'Diamond', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817380/ChatGPT_Image_Jun_30_2026_03_34_11_PM_hpvfmm.png' }
+  ];
+
+  const DEFAULT_QUICK_LINKS = [
+    { id: 'home', label: 'Home', to: '/', enabled: true, order: 0, placement: 'before', editable: false },
+    { id: 'shop', label: 'Shop', to: '/products', enabled: true, order: 1, placement: 'before', editable: false },
+    { id: 'about-us', label: 'About Us', to: '/about-us', enabled: true, order: 0, placement: 'after', editable: true },
+    { id: 'careers', label: 'Careers', to: '/careers', enabled: true, order: 1, placement: 'after', editable: true }
+  ];
+
   useEffect(() => {
     loadProducts();
   }, []);
 
-  // Listen to warranties and assignments in real-time
+  // Listen to warranties, assignments, collections, and filters in real-time
   useEffect(() => {
     const unsubWarranties = onSnapshot(collection(db, 'warranties'), (snap) => {
       const list = [];
@@ -109,9 +128,38 @@ export const ProductProvider = ({ children }) => {
       setWarrantyAssignments(list);
     }, (err) => console.error('Error listing assignments:', err));
 
+    const unsubCollections = onSnapshot(doc(db, 'system_settings', 'collections'), (snap) => {
+      if (snap.exists() && snap.data().list) {
+        setCollectionsConfig(snap.data().list);
+      } else {
+        setDoc(doc(db, 'system_settings', 'collections'), { list: DEFAULT_COLLECTIONS }, { merge: true })
+          .catch(err => console.error('Failed to seed default collections in Firestore:', err));
+        setCollectionsConfig(DEFAULT_COLLECTIONS);
+      }
+    }, (err) => console.error('Error listing collections config:', err));
+
+    const unsubQuickLinks = onSnapshot(doc(db, 'system_settings', 'quickLinks'), (snap) => {
+      if (snap.exists() && snap.data().list) {
+        setQuickLinksConfig(snap.data().list);
+      } else {
+        setDoc(doc(db, 'system_settings', 'quickLinks'), { list: DEFAULT_QUICK_LINKS }, { merge: true })
+          .catch(err => console.error('Failed to seed default quick links in Firestore:', err));
+        setQuickLinksConfig(DEFAULT_QUICK_LINKS);
+      }
+    }, (err) => console.error('Error listing quick links config:', err));
+
+    const unsubFilters = onSnapshot(doc(db, 'system_settings', 'filters'), (snap) => {
+      if (snap.exists() && snap.data().hideEmptyCollections !== undefined) {
+        setHideEmptyCollections(snap.data().hideEmptyCollections);
+      }
+    }, (err) => console.error('Error listing filters config:', err));
+
     return () => {
       unsubWarranties();
       unsubAssignments();
+      unsubCollections();
+      unsubFilters();
+      unsubQuickLinks();
     };
   }, []);
 
@@ -342,6 +390,85 @@ export const ProductProvider = ({ children }) => {
     return filtered;
   };
 
+  const collections = useMemo(() => {
+    const productCategories = [...new Set(products.map(p => p.category))].filter(Boolean);
+    const baseList = collectionsConfig.length > 0 ? collectionsConfig : DEFAULT_COLLECTIONS;
+    const mergedList = [...baseList];
+
+    productCategories.forEach(cat => {
+      const exists = mergedList.some(c => c.category?.toLowerCase() === cat.toLowerCase());
+      if (!exists) {
+        const cleanId = cat.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        mergedList.push({
+          id: cleanId,
+          name: cat,
+          category: cat,
+          enabled: true,
+          order: mergedList.length,
+          icon: 'Gem',
+          image: '',
+          updatedAt: new Date().toISOString()
+        });
+      }
+    });
+
+    return mergedList.map(col => {
+      const count = products.filter(p => p.category === col.category && (p.productStatus || 'available') === 'available').length;
+      return {
+        ...col,
+        count,
+        status: col.enabled ? 'Visible' : 'Hidden'
+      };
+    }).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [products, collectionsConfig]);
+
+  // visibleCollections: admin's toggle is the ONLY control. If enabled=true, always show it.
+  // Product count / hideEmptyCollections does NOT gate this — that only affects the Products page sidebar.
+  const visibleCollections = useMemo(() => {
+    return collections.filter(col => col.enabled === true || col.enabled === undefined);
+  }, [collections]);
+
+  // For the Products page filter sidebar only — respects hideEmptyCollections setting
+  const visibleCollectionsForFilter = useMemo(() => {
+    return collections.filter(col => {
+      if (!col.enabled) return false;
+      if (hideEmptyCollections && col.count === 0) return false;
+      return true;
+    });
+  }, [collections, hideEmptyCollections]);
+
+  // Quick links – enabled items, sorted by order within each placement group
+  const quickLinks = useMemo(() => {
+    const base = quickLinksConfig.length > 0 ? quickLinksConfig : DEFAULT_QUICK_LINKS;
+    return base.filter(l => l.enabled !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [quickLinksConfig]);
+
+  const updateCollectionConfig = async (updatedList) => {
+    try {
+      const cleanList = updatedList.map(({ count, status, ...rest }) => rest);
+      // Optimistic update – reflect immediately without waiting for Firestore snapshot
+      setCollectionsConfig(cleanList);
+      await setDoc(doc(db, 'system_settings', 'collections'), { list: cleanList }, { merge: true });
+      return { success: true };
+    } catch (err) {
+      console.error('Error saving collections configuration:', err);
+      throw new Error(err.message);
+    }
+  };
+
+  const updateQuickLinksConfig = async (updatedList) => {
+    try {
+      const cleanList = updatedList.map(l => ({ ...l }));
+      // Optimistic update
+      setQuickLinksConfig(cleanList);
+      await setDoc(doc(db, 'system_settings', 'quickLinks'), { list: cleanList }, { merge: true });
+      return { success: true };
+    } catch (err) {
+      console.error('Error saving quick links configuration:', err);
+      throw new Error(err.message);
+    }
+  };
+
   const value = {
     products,
     loading,
@@ -357,7 +484,14 @@ export const ProductProvider = ({ children }) => {
     loadProducts,
     warranties,
     warrantyAssignments,
-    resolveWarrantyForProduct
+    resolveWarrantyForProduct,
+    collections,
+    visibleCollections,
+    visibleCollectionsForFilter,
+    updateCollectionConfig,
+    quickLinks,
+    quickLinksConfig,
+    updateQuickLinksConfig
   };
 
   return (

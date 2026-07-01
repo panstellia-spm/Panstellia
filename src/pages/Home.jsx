@@ -4,7 +4,7 @@ import {
   Sparkles, ArrowRight, Star, Truck, Shield, RefreshCw, ChevronLeft, ChevronRight,
   BadgePercent, Gift, Home, Store, Gem, CircleDot, Crown, Diamond, Heart, Search
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/UI/ProductCard';
 import OptimizedImage from '../components/UI/OptimizedImage';
@@ -33,7 +33,7 @@ const CATEGORY_IMAGE_MAP = {
 };
 
 const HomePage = () => {
-  const { getFeaturedProducts, products, loading } = useProducts();
+  const { getFeaturedProducts, products, loading, visibleCollections } = useProducts();
   const { shippingSettings } = useCart();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
@@ -119,33 +119,14 @@ const HomePage = () => {
     return () => clearInterval(interval);
   }, [slidesCount]);
 
-  const categories = [
-    {
-      name: 'Gold',
-      image: getOptimizedImageUrl('https://i.ibb.co/4gRy3WYW/Use-AI-Image-May-19-2026-13-21-30.png', { width: 600 }),
-      count: products.filter(p => p.category === 'Gold').length
-    },
-    {
-      name: 'Silver',
-      image: getOptimizedImageUrl('https://i.ibb.co/p6W1S5xB/1000092270-ezremove.png', { width: 600 }),
-      count: products.filter(p => p.category === 'Silver').length
-    },
-    {
-      name: 'Lux Wear',
-      image: getOptimizedImageUrl('https://i.ibb.co/VcdqqHdc/1000092272-ezremove.png', { width: 600 }),
-      count: products.filter(p => p.category === 'Lux Wear').length
-    },
-    {
-      name: 'Party Wear',
-      image: getOptimizedImageUrl('https://i.ibb.co/xtcV8FKd/1000092275-ezremove.png', { width: 600 }),
-      count: products.filter(p => p.category === 'Party Wear').length
-    },
-    {
-      name: 'Elegant Spark',
-      image: getOptimizedImageUrl('https://i.ibb.co/DD38dQ8Q/file-000000008b207207972a2996aa7d3be3.png', { width: 600 }),
-      count: products.filter(p => p.category === 'Elegant Spark').length
-    }
-  ];
+  const categories = useMemo(() => {
+    return visibleCollections.map(col => ({
+      name: col.category,
+      image: col.image || 'https://i.ibb.co/4gRy3WYW/Use-AI-Image-May-19-2026-13-21-30.png',
+      count: col.count,
+      displayName: col.name
+    }));
+  }, [visibleCollections]);
 
   const features = [
     {
@@ -421,12 +402,17 @@ const HomePage = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             {list.filter(catName => {
+              const matchesVisible = visibleCollections.some(col => col.category === catName);
+              if (!matchesVisible) return false;
               const count = products.filter(p => p.category === catName).length;
               if (hideEmptyCollections && count === 0) return false;
               return true;
             }).map((catName, index) => {
-              const imgUrl = CATEGORY_IMAGE_MAP[catName] || 'https://i.ibb.co/4gRy3WYW/Use-AI-Image-May-19-2026-13-21-30.png';
+              const col = visibleCollections.find(c => c.category === catName);
+              const imgUrl = col?.image || CATEGORY_IMAGE_MAP[catName] || 'https://i.ibb.co/4gRy3WYW/Use-AI-Image-May-19-2026-13-21-30.png';
               const count = products.filter(p => p.category === catName).length;
+              const displayName = col?.name || getCategoryLabel(catName);
+              const toUrl = catName === 'Elegant Spark' ? '/category/elegant-spark' : `/products?category=${encodeURIComponent(catName)}`;
               return (
                 <motion.div
                   key={catName}
@@ -436,10 +422,10 @@ const HomePage = () => {
                   transition={{ delay: index * 0.08 }}
                   className="relative rounded-xl overflow-hidden h-40 sm:h-48 cursor-pointer group shadow-lg"
                 >
-                  <Link to={`/products?category=${encodeURIComponent(catName)}`} className="block w-full h-full">
+                  <Link to={toUrl} className="block w-full h-full">
                     <OptimizedImage
                       src={getOptimizedImageUrl(imgUrl, { width: 600 })}
-                      alt={getCategoryLabel(catName)}
+                      alt={displayName}
                       className="w-full h-full transform group-hover:scale-110 transition-transform duration-500 ease-out"
                     />
                     <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-all duration-300" />
@@ -451,7 +437,7 @@ const HomePage = () => {
 
                     <div className="absolute bottom-0 left-0 right-0 p-4 z-10 text-center">
                       <h3 className="text-white font-serif text-lg md:text-xl font-bold tracking-wide transition-all group-hover:scale-105 duration-300">
-                        {getCategoryLabel(catName)}
+                        {displayName}
                       </h3>
                     </div>
                   </Link>
@@ -863,35 +849,38 @@ const HomePage = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            {categories.filter(c => hideEmptyCollections ? c.count > 0 : true).map((category, index) => (
-              <motion.div
-                key={category.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.08 }}
-                className="relative rounded-xl overflow-hidden h-40 sm:h-48 cursor-pointer group shadow-lg"
-              >
-                <Link to={`/products?category=${category.name}`} className="block w-full h-full">
-                  <OptimizedImage
-                    src={category.image}
-                    alt={getCategoryLabel(category.name)}
-                    className="w-full h-full transform group-hover:scale-110 transition-transform duration-500 ease-out"
-                  />
-                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-all duration-300" />
+            {categories.filter(c => hideEmptyCollections ? c.count > 0 : true).map((category, index) => {
+              const toUrl = category.name === 'Elegant Spark' ? '/category/elegant-spark' : `/products?category=${encodeURIComponent(category.name)}`;
+              return (
+                <motion.div
+                  key={category.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.08 }}
+                  className="relative rounded-xl overflow-hidden h-40 sm:h-48 cursor-pointer group shadow-lg"
+                >
+                  <Link to={toUrl} className="block w-full h-full">
+                    <OptimizedImage
+                      src={category.image}
+                      alt={category.displayName}
+                      className="w-full h-full transform group-hover:scale-110 transition-transform duration-500 ease-out"
+                    />
+                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-all duration-300" />
 
-                  <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-luxury-900 text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow-sm">
-                    {category.count} items
-                  </span>
+                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-luxury-900 text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow-sm">
+                      {category.count} items
+                    </span>
 
-                  <div className="absolute bottom-0 left-0 right-0 p-4 z-10 text-center">
-                    <h3 className="text-white font-serif text-lg md:text-xl font-bold tracking-wide transition-all group-hover:scale-105 duration-300">
-                      {getCategoryLabel(category.name)}
-                    </h3>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 z-10 text-center">
+                      <h3 className="text-white font-serif text-lg md:text-xl font-bold tracking-wide transition-all group-hover:scale-105 duration-300">
+                        {category.displayName}
+                      </h3>
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
