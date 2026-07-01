@@ -47,7 +47,7 @@ const AboutUsPage = () => {
 
       <section className="relative overflow-hidden">
         {/* Background image */}
-        <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/omoikkzf/image/upload/v1782898440/retouch_2026070114200922_hzjpoq.jpg')] bg-cover bg-center"></div>
+        <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/omoikkzf/image/upload/v1782904932/Picsart_26-07-01_16-40-48-051_gbalhk.png')] bg-cover bg-center"></div>
 
         {/* Left-side dark overlay — 40% opacity, fades to transparent at 55% width */}
         <div
@@ -113,7 +113,7 @@ const AboutUsPage = () => {
 
           <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.3 }} className="rounded-3xl overflow-hidden shadow-2xl">
             <img
-              src="https://i.ibb.co/tw43vBRN/Chat-GPT-Image-May-23-2026-10-01-25-AM.png"
+              src="https://res.cloudinary.com/omoikkzf/image/upload/v1782905146/Chat-GPT-Image-May-23-2026-10-01-25-AM_rapyco.png"
               alt="Luxury jewelry image"
               loading="lazy"
               className="w-full aspect-[4/5] object-cover"
