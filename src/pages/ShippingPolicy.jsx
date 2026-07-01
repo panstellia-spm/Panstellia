@@ -70,7 +70,7 @@ const ShippingPolicyPage = () => {
         <div className="p-8 md:p-12 space-y-8 text-luxury-800 leading-relaxed">
           <section>
             <p className="text-lg">
-              At <strong className="text-luxury-900">PANSTELLIA</strong>, we are committed to delivering your jewelry safely and efficiently.
+              At <strong className="text-luxury-900">PANSTELLIA</strong>, we are committed to delivering your jewellery safely and efficiently.
             </p>
           </section>
 
