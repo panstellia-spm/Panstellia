@@ -25,7 +25,7 @@ const AboutUsPage = () => {
   ];
 
   const testimonials = [
-    { text: 'Panstellia made my wedding magical!', author: 'Priya R.', rating: 3 },
+    { text: 'Panstellia made my wedding magical!', author: 'Priya R.', rating: 4 },
     { text: 'Heirloom quality, fast delivery.', author: 'Rahul K.', rating: 5 },
     { text: 'Exceeded expectations completely.', author: 'Anita S.', rating: 4 }
   ];
@@ -47,7 +47,7 @@ const AboutUsPage = () => {
 
       <section className="relative overflow-hidden">
         {/* Background image */}
-        <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/omoikkzf/image/upload/v1782812152/db8ee875-de62-4ed5-bafc-c093f8c386c1_cp2nbv.png')] bg-cover bg-center"></div>
+        <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/omoikkzf/image/upload/v1782898440/retouch_2026070114200922_hzjpoq.jpg')] bg-cover bg-center"></div>
 
         {/* Left-side dark overlay — 40% opacity, fades to transparent at 55% width */}
         <div
@@ -64,7 +64,7 @@ const AboutUsPage = () => {
             </span>
             {/* Main heading — #F8F4EE, highlight word — #D4AF37 */}
             <h1
-              className="mt-6 font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight"
+              className="mt-6 font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight"
               style={{ color: '#F8F4EE' }}
             >
               Jewelry that feels{' '}
@@ -73,7 +73,7 @@ const AboutUsPage = () => {
             </h1>
             {/* Paragraph — #E8DDD0 */}
             <p
-              className="mt-6 max-w-2xl text-base sm:text-lg leading-8 font-light"
+              className="mt-4 max-w-2xl text-sm sm:text-base leading-7 font-light"
               style={{ color: '#E8DDD0' }}
             >
               Panstellia designs jewelry to celebrate every story—crafted with premium materials, modern thinking, and a promise of lasting beauty.
@@ -95,7 +95,7 @@ const AboutUsPage = () => {
       </section>
 
       <motion.section initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.25 }} transition={{ duration: 0.9, ease: 'easeOut' }} className="py-16">
-        <div className="max-w-6xl mx-auto px-4 grid gap-12 lg:grid-cols-[1.05fr_0.95fr] items-center">
+        <div className="max-w-6xl mx-auto px-4 grid gap-10 lg:grid-cols-2 items-center">
           <motion.div className="space-y-6" initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: 'easeOut' }}>
             <span className="inline-flex items-center px-3 py-1 bg-gold-100 text-gold-700 rounded-full text-xs uppercase tracking-[0.2em]">
               Our story
@@ -111,12 +111,12 @@ const AboutUsPage = () => {
             </p>
           </motion.div>
 
-          <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.3 }} className="overflow-hidden rounded-[2rem] shadow-2xl h-full">
+          <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.3 }} className="rounded-3xl overflow-hidden shadow-2xl">
             <img
               src="https://i.ibb.co/tw43vBRN/Chat-GPT-Image-May-23-2026-10-01-25-AM.png"
               alt="Luxury jewelry image"
               loading="lazy"
-              className="w-full h-full min-h-[420px] object-cover"
+              className="w-full aspect-[4/5] object-cover"
             />
           </motion.div>
         </div>
@@ -242,7 +242,7 @@ const AboutUsPage = () => {
       </section>
 
       <section className="py-16 bg-luxury-50">
-        <div className="max-w-6xl mx-auto px-4 grid gap-10 lg:grid-cols-2 items-start">
+        <div className="max-w-6xl mx-auto px-4 grid gap-10 lg:grid-cols-2 items-center">
           <div className="space-y-6">
             <span className="inline-flex items-center px-3 py-1 bg-gold-100 text-gold-700 rounded-full text-xs uppercase tracking-[0.2em]">
               Our vision
@@ -256,7 +256,7 @@ const AboutUsPage = () => {
           </div>
           <div className="rounded-3xl overflow-hidden shadow-2xl h-full">
             <img
-              src="https://i.ibb.co/MFCffjn/Chat-GPT-Image-May-19-2026-12-16-30-PM.png"
+              src="https://res.cloudinary.com/omoikkzf/image/upload/v1782899846/IMG-20260701-WA0036.jpg_ztezyx.jpg"
               alt="Close-up of elegant jewelry details"
               loading="lazy"
               className="w-full h-full min-h-[420px] object-cover"
