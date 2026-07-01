@@ -14,15 +14,15 @@ export default async function handler(req, res) {
 
     const db = admin.firestore();
     const configSnap = await db.collection('system_settings').doc('shiprocket').get();
-    let pickupPincode = '560001'; // Default Bangalore fallback
-    let defaultPickupLocation = process.env.SHIPROCKET_PICKUP_LOCATION || 'Primary';
+    let pickupPincode = '607303'; // Default Panstellia pincode fallback
+    let defaultPickupLocation = (process.env.SHIPROCKET_PICKUP_LOCATION || 'PANSTELLIA').trim().replace(/^"|"$/g, '');
 
     if (configSnap.exists) {
       const config = configSnap.data();
-      if (config.pickupPincode) {
+      if (config.pickupPincode && config.pickupPincode !== '560001') {
         pickupPincode = String(config.pickupPincode).trim();
       }
-      if (config.defaultPickupLocation) {
+      if (config.defaultPickupLocation && config.defaultPickupLocation !== 'Primary') {
         defaultPickupLocation = config.defaultPickupLocation;
       }
     }

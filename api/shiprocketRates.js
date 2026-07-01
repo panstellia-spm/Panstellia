@@ -42,12 +42,12 @@ export default async function handler(req, res) {
     // 2. Fetch Shiprocket Configuration
     const shiprocketConfigSnap = await db.collection('system_settings').doc('shiprocket').get();
     let shiprocketEnabled = false;
-    let pickupPincode = '560001';
+    let pickupPincode = '607303'; // Default to Panstellia pincode fallback
 
     if (shiprocketConfigSnap.exists) {
       const sData = shiprocketConfigSnap.data();
       shiprocketEnabled = sData.enabled ?? false;
-      if (sData.pickupPincode) {
+      if (sData.pickupPincode && sData.pickupPincode !== '560001') {
         pickupPincode = String(sData.pickupPincode).trim();
       }
     }

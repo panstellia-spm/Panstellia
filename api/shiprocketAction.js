@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
       // Read default dimensions & weights from config
       const configSnap = await db.collection('system_settings').doc('shiprocket').get();
-      let defaultPickupLocation = process.env.SHIPROCKET_PICKUP_LOCATION || 'Primary';
+      let defaultPickupLocation = (process.env.SHIPROCKET_PICKUP_LOCATION || 'PANSTELLIA').trim().replace(/^"|"$/g, '');
       let defaultWeight = 0.1;
       let defaultLength = 10;
       let defaultBreadth = 10;
