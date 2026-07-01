@@ -84,7 +84,7 @@ const defaultFaqs = [
 ];
 
 const Footer = () => {
-  const { visibleCollections } = useProducts();
+  const { visibleCollections, quickLinks = [] } = useProducts();
   const [openSection, setOpenSection] = useState({
     quickLinks: false,
     customerService: false,
@@ -185,16 +185,16 @@ const Footer = () => {
               openSection.quickLinks ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0 md:max-h-full md:opacity-100'
             }`}>
               <ul className="space-y-2 mt-2 md:mt-0 text-sm">
-                <li>
-                  <Link to="/" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/products" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    Shop
-                  </Link>
-                </li>
+                {/* Before-collection static links (Home, Shop, etc.) */}
+                {quickLinks.filter(l => l.placement === 'before').map(link => (
+                  <li key={link.id}>
+                    <Link to={link.to} className="text-luxury-300 hover:text-gold-400 transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+
+                {/* Dynamic collection links */}
                 {visibleCollections.map(col => {
                   const toUrl = col.category === 'Elegant Spark' ? '/category/elegant-spark' : `/products?category=${encodeURIComponent(col.category)}`;
                   return (
@@ -205,16 +205,15 @@ const Footer = () => {
                     </li>
                   );
                 })}
-                <li>
-                  <Link to="/about-us" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/careers" className="text-luxury-300 hover:text-gold-400 transition-colors">
-                    Careers
-                  </Link>
-                </li>
+
+                {/* After-collection static links (About Us, Careers, etc.) */}
+                {quickLinks.filter(l => l.placement === 'after').map(link => (
+                  <li key={link.id}>
+                    <Link to={link.to} className="text-luxury-300 hover:text-gold-400 transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { doc, getDoc, setDoc, collection, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { toast } from 'react-toastify';
-import { Filter, Sparkles, Plus, Trash2, Edit2, Save, ArrowUp, ArrowDown, Eye } from 'lucide-react';
+import { Filter, Sparkles, Plus, Trash2, Edit2, Save, ArrowUp, ArrowDown, Eye, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { useProducts } from '../../context/ProductContext';
 
 export default function AdminCollections() {
@@ -10,9 +11,16 @@ export default function AdminCollections() {
   const [loading, setLoading] = useState(true);
 
   // Visibility context fields
-  const { collections = [], updateCollectionConfig } = useProducts();
+  const { collections = [], updateCollectionConfig, quickLinksConfig = [], updateQuickLinksConfig } = useProducts();
   const [editingNameId, setEditingNameId] = useState(null);
   const [tempName, setTempName] = useState('');
+
+  // Quick Links editing state
+  const [editingQLId, setEditingQLId] = useState(null);
+  const [tempQLLabel, setTempQLLabel] = useState('');
+  const [tempQLTo, setTempQLTo] = useState('');
+  const [showAddQL, setShowAddQL] = useState(false);
+  const [newQL, setNewQL] = useState({ label: '', to: '', placement: 'after' });
 
   // Filters State
   const [filtersList, setFiltersList] = useState([]);
@@ -220,6 +228,90 @@ export default function AdminCollections() {
     }
   };
 
+  // ─── Quick Links Handlers ─────────────────────────────────────────────
+  const handleToggleQuickLink = async (id) => {
+    const link = quickLinksConfig.find(l => l.id === id);
+    if (!link) return;
+    const updated = quickLinksConfig.map(l => l.id === id ? { ...l, enabled: !l.enabled } : l);
+    try {
+      await updateQuickLinksConfig(updated);
+      toast.success(`"${link.label}" is now ${!link.enabled ? 'visible' : 'hidden'} in Quick Links`);
+    } catch (err) {
+      toast.error('Failed to update quick link visibility');
+    }
+  };
+
+  const handleEditQL = (link) => {
+    setEditingQLId(link.id);
+    setTempQLLabel(link.label);
+    setTempQLTo(link.to);
+  };
+
+  const handleSaveQL = async (id) => {
+    if (!tempQLLabel.trim() || !tempQLTo.trim()) return;
+    const updated = quickLinksConfig.map(l => l.id === id ? { ...l, label: tempQLLabel.trim(), to: tempQLTo.trim() } : l);
+    try {
+      await updateQuickLinksConfig(updated);
+      toast.success('Quick link updated!');
+      setEditingQLId(null);
+    } catch (err) {
+      toast.error('Failed to update quick link');
+    }
+  };
+
+  const handleMoveQL = async (index, direction) => {
+    const group = quickLinksConfig[index].placement;
+    const groupItems = quickLinksConfig.filter(l => l.placement === group);
+    const otherItems = quickLinksConfig.filter(l => l.placement !== group);
+    const groupIndex = groupItems.findIndex(l => l.id === quickLinksConfig[index].id);
+    const targetIndex = direction === 'up' ? groupIndex - 1 : groupIndex + 1;
+    if (targetIndex < 0 || targetIndex >= groupItems.length) return;
+    const reordered = [...groupItems];
+    const temp = reordered[groupIndex]; reordered[groupIndex] = reordered[targetIndex]; reordered[targetIndex] = temp;
+    const withOrder = reordered.map((l, i) => ({ ...l, order: i }));
+    const finalList = [...otherItems, ...withOrder].sort((a, b) => {
+      if (a.placement !== b.placement) return a.placement === 'before' ? -1 : 1;
+      return (a.order || 0) - (b.order || 0);
+    });
+    try {
+      await updateQuickLinksConfig(finalList);
+      toast.success('Order updated!');
+    } catch (err) {
+      toast.error('Failed to reorder quick links');
+    }
+  };
+
+  const handleDeleteQL = async (id) => {
+    const link = quickLinksConfig.find(l => l.id === id);
+    if (!link) return;
+    if (link.editable === false) { toast.error('This link cannot be deleted'); return; }
+    if (!window.confirm(`Delete "${link.label}" from Quick Links?`)) return;
+    const updated = quickLinksConfig.filter(l => l.id !== id);
+    try {
+      await updateQuickLinksConfig(updated);
+      toast.success('Quick link deleted');
+    } catch (err) {
+      toast.error('Failed to delete quick link');
+    }
+  };
+
+  const handleAddQL = async () => {
+    if (!newQL.label.trim() || !newQL.to.trim()) { toast.error('Please fill in both label and URL'); return; }
+    const id = `custom-${Date.now()}`;
+    const samePlacement = quickLinksConfig.filter(l => l.placement === newQL.placement);
+    const maxOrder = samePlacement.reduce((m, l) => Math.max(m, l.order || 0), -1);
+    const newLink = { id, label: newQL.label.trim(), to: newQL.to.trim().startsWith('/') ? newQL.to.trim() : '/' + newQL.to.trim(), enabled: true, order: maxOrder + 1, placement: newQL.placement, editable: true };
+    const updated = [...quickLinksConfig, newLink];
+    try {
+      await updateQuickLinksConfig(updated);
+      toast.success('Quick link added!');
+      setNewQL({ label: '', to: '', placement: 'after' });
+      setShowAddQL(false);
+    } catch (err) {
+      toast.error('Failed to add quick link');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -271,6 +363,17 @@ export default function AdminCollections() {
         >
           <Eye className="w-4 h-4" />
           Collection Visibility
+        </button>
+        <button
+          onClick={() => { setActiveTab('quicklinks'); setEditingQLId(null); setShowAddQL(false); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
+            activeTab === 'quicklinks'
+              ? 'bg-gold-500 text-white shadow-sm'
+              : 'text-luxury-600 hover:text-luxury-900 hover:bg-luxury-50'
+          }`}
+        >
+          <LinkIcon className="w-4 h-4" />
+          Quick Links
         </button>
       </div>
 
@@ -746,6 +849,142 @@ export default function AdminCollections() {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Quick Links Tab */}
+      {activeTab === 'quicklinks' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-luxury-900">Footer Quick Links</h3>
+              <p className="text-xs text-luxury-500 mt-0.5">Manage static links in the footer. Collection links are controlled via Collection Visibility tab.</p>
+            </div>
+            <button
+              onClick={() => setShowAddQL(v => !v)}
+              className="flex items-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-600 text-white text-xs font-bold rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Link
+            </button>
+          </div>
+
+          {showAddQL && (
+            <div className="bg-white rounded-2xl border border-luxury-100 shadow-sm p-5 space-y-4">
+              <h4 className="text-sm font-bold text-luxury-800 border-b border-luxury-100 pb-2">New Quick Link</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-luxury-600 mb-1">Label</label>
+                  <input type="text" value={newQL.label} onChange={e => setNewQL(v => ({ ...v, label: e.target.value }))} placeholder="e.g. Contact Us" className="w-full border border-luxury-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gold-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-luxury-600 mb-1">URL Path</label>
+                  <input type="text" value={newQL.to} onChange={e => setNewQL(v => ({ ...v, to: e.target.value }))} placeholder="e.g. /contact" className="w-full border border-luxury-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gold-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-luxury-600 mb-1">Position</label>
+                  <select value={newQL.placement} onChange={e => setNewQL(v => ({ ...v, placement: e.target.value }))} className="w-full border border-luxury-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gold-400">
+                    <option value="before">Before Collections (Home, Shop...)</option>
+                    <option value="after">After Collections (About Us...)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleAddQL} className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors">Add Link</button>
+                <button onClick={() => setShowAddQL(false)} className="px-4 py-2 border border-luxury-200 text-luxury-600 text-xs font-semibold rounded-lg hover:bg-luxury-50 transition-colors">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {['before', 'after'].map(placement => {
+            const group = quickLinksConfig.filter(l => l.placement === placement).sort((a, b) => (a.order || 0) - (b.order || 0));
+            if (group.length === 0) return null;
+            return (
+              <div key={placement} className="bg-white rounded-2xl border border-luxury-100 shadow-md overflow-hidden">
+                <div className="p-4 bg-luxury-50/40 border-b border-luxury-100">
+                  <span className="text-xs font-bold uppercase tracking-wider text-luxury-600">
+                    {placement === 'before' ? '⬆ Before Collections (Home, Shop...)' : '⬇ After Collections (About Us, Careers...)'}
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-luxury-100 text-xs font-bold text-luxury-600 uppercase tracking-wider bg-luxury-50/30">
+                        <th className="py-3 px-5">Order</th>
+                        <th className="py-3 px-5">Label</th>
+                        <th className="py-3 px-5">URL</th>
+                        <th className="py-3 px-5">Status</th>
+                        <th className="py-3 px-5">Visibility</th>
+                        <th className="py-3 px-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-luxury-100 text-sm">
+                      {group.map((link, idx) => (
+                        <tr key={link.id} className="hover:bg-luxury-50/30">
+                          <td className="py-3.5 px-5">
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleMoveQL(quickLinksConfig.findIndex(l => l.id === link.id), 'up')} disabled={idx === 0} className="p-1 rounded hover:bg-luxury-100 text-luxury-400 disabled:opacity-20"><ArrowUp className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleMoveQL(quickLinksConfig.findIndex(l => l.id === link.id), 'down')} disabled={idx === group.length - 1} className="p-1 rounded hover:bg-luxury-100 text-luxury-400 disabled:opacity-20"><ArrowDown className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-5">
+                            {editingQLId === link.id ? (
+                              <input type="text" value={tempQLLabel} onChange={e => setTempQLLabel(e.target.value)} className="border border-luxury-200 rounded px-2 py-1 text-xs w-32 focus:ring-gold-400 focus:ring-2 outline-none" autoFocus />
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-luxury-800">{link.label}</span>
+                                <button onClick={() => handleEditQL(link)} className="text-luxury-400 hover:text-gold-550"><Edit2 className="w-3 h-3" /></button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-5">
+                            {editingQLId === link.id ? (
+                              <input type="text" value={tempQLTo} onChange={e => setTempQLTo(e.target.value)} className="border border-luxury-200 rounded px-2 py-1 text-xs w-40 focus:ring-gold-400 focus:ring-2 outline-none" />
+                            ) : (
+                              <span className="text-xs text-luxury-500 font-mono">{link.to}</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-5">
+                            <span className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${link.enabled !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                              {link.enabled !== false ? 'Visible' : 'Hidden'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-5">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input type="checkbox" checked={link.enabled !== false} onChange={() => handleToggleQuickLink(link.id)} className="sr-only peer" />
+                              <div className="relative w-10 h-5 bg-luxury-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold-500"></div>
+                            </label>
+                          </td>
+                          <td className="py-3.5 px-5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {editingQLId === link.id ? (
+                                <>
+                                  <button onClick={() => handleSaveQL(link.id)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors">Save</button>
+                                  <button onClick={() => setEditingQLId(null)} className="px-3 py-1.5 border border-luxury-200 text-luxury-600 text-xs font-semibold rounded-lg hover:bg-luxury-50 transition-colors">Cancel</button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={() => handleEditQL(link)} className="p-1.5 rounded-lg border border-luxury-200 text-luxury-600 hover:border-gold-500 hover:text-gold-600 transition-colors" title="Edit"><Edit2 className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => handleDeleteQL(link.id)} disabled={link.editable === false} className="p-1.5 rounded-lg border border-luxury-200 text-luxury-400 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title={link.editable === false ? 'Cannot delete system link' : 'Delete'}><Trash2 className="w-3.5 h-3.5" /></button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+
+          {quickLinksConfig.length === 0 && (
+            <div className="bg-white rounded-2xl border border-luxury-100 shadow-sm p-12 text-center">
+              <LinkIcon className="w-10 h-10 text-luxury-300 mx-auto mb-3" />
+              <p className="text-luxury-500 text-sm">Loading quick links from Firestore...</p>
+            </div>
+          )}
         </div>
       )}
     </div>

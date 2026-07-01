@@ -93,6 +93,7 @@ export const ProductProvider = ({ children }) => {
 
   const [collectionsConfig, setCollectionsConfig] = useState([]);
   const [hideEmptyCollections, setHideEmptyCollections] = useState(false);
+  const [quickLinksConfig, setQuickLinksConfig] = useState([]);
 
   const DEFAULT_COLLECTIONS = [
     { id: 'gold', name: 'Luxe Ring', category: 'Gold', enabled: true, order: 0, icon: 'Gem', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817101/ChatGPT_Image_Jun_30_2026_03_33_25_PM_rmxgvr.png' },
@@ -100,6 +101,13 @@ export const ProductProvider = ({ children }) => {
     { id: 'lux-wear', name: 'Elite Series', category: 'Lux Wear', enabled: true, order: 2, icon: 'Crown', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817401/ChatGPT_Image_Jun_30_2026_03_34_47_PM_ugzgsu.png' },
     { id: 'elegant-spark', name: 'Elegant Spark', category: 'Elegant Spark', enabled: true, order: 3, icon: 'Sparkles', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817390/ChatGPT_Image_Jun_30_2026_03_33_55_PM_smfn9p.png' },
     { id: 'party-wear', name: 'Piercings', category: 'Party Wear', enabled: true, order: 4, icon: 'Diamond', image: 'https://res.cloudinary.com/omoikkzf/image/upload/v1782817380/ChatGPT_Image_Jun_30_2026_03_34_11_PM_hpvfmm.png' }
+  ];
+
+  const DEFAULT_QUICK_LINKS = [
+    { id: 'home', label: 'Home', to: '/', enabled: true, order: 0, placement: 'before', editable: false },
+    { id: 'shop', label: 'Shop', to: '/products', enabled: true, order: 1, placement: 'before', editable: false },
+    { id: 'about-us', label: 'About Us', to: '/about-us', enabled: true, order: 0, placement: 'after', editable: true },
+    { id: 'careers', label: 'Careers', to: '/careers', enabled: true, order: 1, placement: 'after', editable: true }
   ];
 
   useEffect(() => {
@@ -130,6 +138,16 @@ export const ProductProvider = ({ children }) => {
       }
     }, (err) => console.error('Error listing collections config:', err));
 
+    const unsubQuickLinks = onSnapshot(doc(db, 'system_settings', 'quickLinks'), (snap) => {
+      if (snap.exists() && snap.data().list) {
+        setQuickLinksConfig(snap.data().list);
+      } else {
+        setDoc(doc(db, 'system_settings', 'quickLinks'), { list: DEFAULT_QUICK_LINKS }, { merge: true })
+          .catch(err => console.error('Failed to seed default quick links in Firestore:', err));
+        setQuickLinksConfig(DEFAULT_QUICK_LINKS);
+      }
+    }, (err) => console.error('Error listing quick links config:', err));
+
     const unsubFilters = onSnapshot(doc(db, 'system_settings', 'filters'), (snap) => {
       if (snap.exists() && snap.data().hideEmptyCollections !== undefined) {
         setHideEmptyCollections(snap.data().hideEmptyCollections);
@@ -141,6 +159,7 @@ export const ProductProvider = ({ children }) => {
       unsubAssignments();
       unsubCollections();
       unsubFilters();
+      unsubQuickLinks();
     };
   }, []);
 
@@ -411,13 +430,34 @@ export const ProductProvider = ({ children }) => {
     });
   }, [collections, hideEmptyCollections]);
 
+  // Quick links – enabled items, sorted by order within each placement group
+  const quickLinks = useMemo(() => {
+    const base = quickLinksConfig.length > 0 ? quickLinksConfig : DEFAULT_QUICK_LINKS;
+    return base.filter(l => l.enabled !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [quickLinksConfig]);
+
   const updateCollectionConfig = async (updatedList) => {
     try {
       const cleanList = updatedList.map(({ count, status, ...rest }) => rest);
+      // Optimistic update – reflect immediately without waiting for Firestore snapshot
+      setCollectionsConfig(cleanList);
       await setDoc(doc(db, 'system_settings', 'collections'), { list: cleanList }, { merge: true });
       return { success: true };
     } catch (err) {
       console.error('Error saving collections configuration:', err);
+      throw new Error(err.message);
+    }
+  };
+
+  const updateQuickLinksConfig = async (updatedList) => {
+    try {
+      const cleanList = updatedList.map(l => ({ ...l }));
+      // Optimistic update
+      setQuickLinksConfig(cleanList);
+      await setDoc(doc(db, 'system_settings', 'quickLinks'), { list: cleanList }, { merge: true });
+      return { success: true };
+    } catch (err) {
+      console.error('Error saving quick links configuration:', err);
       throw new Error(err.message);
     }
   };
@@ -440,7 +480,10 @@ export const ProductProvider = ({ children }) => {
     resolveWarrantyForProduct,
     collections,
     visibleCollections,
-    updateCollectionConfig
+    updateCollectionConfig,
+    quickLinks,
+    quickLinksConfig,
+    updateQuickLinksConfig
   };
 
   return (
