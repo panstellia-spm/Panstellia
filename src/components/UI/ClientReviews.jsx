@@ -53,7 +53,7 @@ const ClientReviews = () => {
     }
   ];
 
-  const itemsPerView = isMobile ? 1 : 3;
+  const itemsPerView = isMobile ? 1 : 2;
   const totalSlides = Math.max(1, reviews.length - itemsPerView + 1);
 
   useEffect(() => {
