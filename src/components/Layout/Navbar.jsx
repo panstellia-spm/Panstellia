@@ -105,54 +105,28 @@ const Navbar = () => {
     return visibleCollections.some(col => col.category?.toLowerCase() === cat.toLowerCase());
   };
 
-  const navItems = dbNavItems.length > 0 
-    ? dbNavItems.filter(item => isUrlAllowed(item.to)).map(item => {
-        const IconComponent = ICON_MAP[item.icon] || Gem;
-        let toUrl = item.to;
-        if (toUrl === '/products?category=Piercings') {
-          toUrl = '/products?category=Party%20Wear';
-        }
+  // Always build from visibleCollections so admin's toggle is immediately reflected in the nav.
+  // dbNavItems (from CMS) is used only for non-collection static nav entries (Home, custom pages).
+  // Collection icons ALWAYS come from visibleCollections to stay in sync with admin panel.
+  const collectionNavItems = visibleCollections.map(col => {
+    const IconComponent = ICON_MAP[col.icon] || Gem;
+    const toUrl = col.category === 'Elegant Spark'
+      ? '/category/elegant-spark'
+      : `/products?category=${encodeURIComponent(col.category)}`;
+    return {
+      to: toUrl,
+      label: col.name,
+      icon: IconComponent,
+      isActive: (location.pathname === '/products' && currentCategory === col.category)
+        || (col.category === 'Elegant Spark' && location.pathname === '/category/elegant-spark')
+    };
+  });
 
-        let isActive = false;
-        if (toUrl === '/') {
-          isActive = location.pathname === '/';
-        } else if (toUrl === '/products') {
-          isActive = location.pathname === '/products' && !currentCategory;
-        } else {
-          const targetCat = new URLSearchParams(toUrl.split('?')[1]).get('category');
-          if (targetCat) {
-            isActive = location.pathname === '/products' && currentCategory === targetCat;
-          } else {
-            isActive = location.pathname === toUrl;
-          }
-        }
-
-        let label = item.label;
-        if (label === 'Gold Collection') label = 'Luxe Ring';
-        if (label === 'Silver Collection') label = 'Royal Bracelets';
-        if (label === 'Lux Wear') label = 'Elite series';
-
-        return {
-          to: toUrl,
-          label: label,
-          icon: IconComponent,
-          isActive
-        };
-      })
-    : [
-        { to: '/', label: 'Home', icon: Home, isActive: location.pathname === '/' },
-        { to: '/products', label: 'Shop', icon: Store, isActive: location.pathname === '/products' && !currentCategory },
-        ...visibleCollections.map(col => {
-          const IconComponent = ICON_MAP[col.icon] || Gem;
-          const toUrl = col.category === 'Elegant Spark' ? '/category/elegant-spark' : `/products?category=${encodeURIComponent(col.category)}`;
-          return {
-            to: toUrl,
-            label: col.name,
-            icon: IconComponent,
-            isActive: (location.pathname === '/products' && currentCategory === col.category) || (col.category === 'Elegant Spark' && location.pathname === '/category/elegant-spark')
-          };
-        })
-      ];
+  const navItems = [
+    { to: '/', label: 'Home', icon: Home, isActive: location.pathname === '/' },
+    { to: '/products', label: 'Shop', icon: Store, isActive: location.pathname === '/products' && !currentCategory },
+    ...collectionNavItems
+  ];
 
   return (
     <>

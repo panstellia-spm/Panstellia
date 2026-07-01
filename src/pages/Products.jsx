@@ -54,7 +54,7 @@ const ProductsPage = () => {
   };
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { products, loading, visibleCollections = [] } = useProducts();
+  const { products, loading, visibleCollections = [], visibleCollectionsForFilter = [] } = useProducts();
 
   const visibleProducts = useMemo(() => {
     return products.filter((p) => {
@@ -132,11 +132,12 @@ const ProductsPage = () => {
     }).length;
   };
 
-  // Derive categories dynamically from active visibleCollections
+  // Derive categories for the filter sidebar — uses visibleCollectionsForFilter
+  // so hideEmptyCollections setting is respected for the sidebar only.
   const categories = useMemo(() => {
-    const list = visibleCollections.map(col => col.category);
+    const list = visibleCollectionsForFilter.map(col => col.category);
     return ['All', ...list];
-  }, [visibleCollections]);
+  }, [visibleCollectionsForFilter]);
 
   // Sort options expanded
   const sortOptions = [

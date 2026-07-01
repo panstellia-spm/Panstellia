@@ -422,7 +422,14 @@ export const ProductProvider = ({ children }) => {
     }).sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [products, collectionsConfig]);
 
+  // visibleCollections: admin's toggle is the ONLY control. If enabled=true, always show it.
+  // Product count / hideEmptyCollections does NOT gate this — that only affects the Products page sidebar.
   const visibleCollections = useMemo(() => {
+    return collections.filter(col => col.enabled === true || col.enabled === undefined);
+  }, [collections]);
+
+  // For the Products page filter sidebar only — respects hideEmptyCollections setting
+  const visibleCollectionsForFilter = useMemo(() => {
     return collections.filter(col => {
       if (!col.enabled) return false;
       if (hideEmptyCollections && col.count === 0) return false;
@@ -480,6 +487,7 @@ export const ProductProvider = ({ children }) => {
     resolveWarrantyForProduct,
     collections,
     visibleCollections,
+    visibleCollectionsForFilter,
     updateCollectionConfig,
     quickLinks,
     quickLinksConfig,
