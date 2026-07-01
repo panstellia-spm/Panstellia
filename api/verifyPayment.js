@@ -250,6 +250,7 @@ export default async function handler(req, res) {
           items: pData.items,
           subtotal: pData.subtotal,
           shipping: pData.shipping,
+          codCharge: pData.codCharge || 0,
           tax: pData.tax,
           couponCode: pData.couponCode || null,
           couponDiscount: pData.couponDiscount || 0,

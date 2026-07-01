@@ -3,6 +3,8 @@ import { doc, setDoc, getDoc, serverTimestamp, deleteDoc, onSnapshot } from 'fir
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 
+import { calculateShipping } from '../utils/checkoutCalculations';
+
 const CartContext = createContext();
 
 export const useCart = () => {
@@ -20,7 +22,7 @@ export const CartProvider = ({ children }) => {
   const [shippingSettings, setShippingSettings] = useState({
     shippingEnabled: true,
     freeShippingEnabled: true,
-    shippingCharge: 99,
+    shippingCharge: 49,
     freeShippingThreshold: 999
   });
 
@@ -32,7 +34,7 @@ export const CartProvider = ({ children }) => {
         setShippingSettings({
           shippingEnabled: data.shippingEnabled ?? true,
           freeShippingEnabled: data.freeShippingEnabled ?? true,
-          shippingCharge: Number(data.shippingCharge ?? 99),
+          shippingCharge: Number(data.shippingCharge ?? 49),
           freeShippingThreshold: Number(data.freeShippingThreshold ?? 999)
         });
       } else {
@@ -40,7 +42,7 @@ export const CartProvider = ({ children }) => {
         setShippingSettings({
           shippingEnabled: true,
           freeShippingEnabled: true,
-          shippingCharge: 99,
+          shippingCharge: 49,
           freeShippingThreshold: 999
         });
       }
@@ -51,26 +53,11 @@ export const CartProvider = ({ children }) => {
     return () => unsub();
   }, []);
 
-  // Calculate totals
+  // Calculate totals using centralized engine
   const subtotal = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  
-  let shipping = 0;
-  if (shippingSettings.shippingEnabled) {
-    if (shippingSettings.freeShippingEnabled) {
-      if (shippingSettings.freeShippingThreshold === 0) {
-        shipping = 0;
-      } else {
-        shipping = subtotal >= shippingSettings.freeShippingThreshold ? 0 : shippingSettings.shippingCharge;
-      }
-    } else {
-      shipping = shippingSettings.shippingCharge;
-    }
-  } else {
-    shipping = 0;
-  }
-
-  const tax = subtotal * 0.05; // 5% tax
-  const total = subtotal + shipping + tax;
+  const shipping = calculateShipping(subtotal, 'standard');
+  const tax = 0; // Tax is inclusive, no extra charge added
+  const total = subtotal + shipping;
 
   // Load cart from Firestore when user logs in
   useEffect(() => {

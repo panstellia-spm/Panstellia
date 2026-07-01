@@ -1,6 +1,8 @@
 import admin from './_firebaseAdmin.js';
 import Razorpay from 'razorpay';
 import { handleCors } from './_cors.js';
+import { calculateCheckout, calculateShipping } from './_checkoutCalculations.js';
+import { validateCoupon, calculateCouponDiscount } from './_couponEngine.js';
 
 const FieldValue = admin.firestore.FieldValue;
 
@@ -189,31 +191,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // Fetch shipping settings securely from db to verify shipping charge
-    const shipSettingsSnap = await db.collection('ShippingSettings').doc('config').get();
-    let shippingCharge = 99;
-    let freeShippingThreshold = 999;
-    let shippingEnabled = true;
-    let freeShippingEnabled = true;
-    if (shipSettingsSnap.exists) {
-      const sData = shipSettingsSnap.data();
-      shippingCharge = Number(sData.shippingCharge ?? 99);
-      freeShippingThreshold = Number(sData.freeShippingThreshold ?? 999);
-      shippingEnabled = sData.shippingEnabled ?? true;
-      freeShippingEnabled = sData.freeShippingEnabled ?? true;
-    }
-
-    let calculatedShipping = 0;
-    if (shippingEnabled) {
-      if (freeShippingEnabled) {
-        if (freeShippingThreshold === 0) {
-          calculatedShipping = 0;
-        } else {
-          calculatedShipping = calculatedSubtotal >= freeShippingThreshold ? 0 : shippingCharge;
-        }
-      } else {
-        calculatedShipping = shippingCharge;
-      }
+    // Verify user order eligibility (one-time usage check)
+    let userOrdersCount = 0;
+    if (totals.couponCode) {
+      const orderSnaps = await db.collection('orders')
+        .where('userId', '==', authUser.uid)
+        .where('couponCode', '==', String(totals.couponCode).toUpperCase())
+        .get();
+      const activeOrders = orderSnaps.docs.filter(d => d.data().status !== 'cancelled');
+      userOrdersCount = activeOrders.length;
     }
 
     // Recalculate coupon discount securely
@@ -223,45 +209,37 @@ export default async function handler(req, res) {
       const couponSnap = await couponRef.get();
       if (couponSnap.exists) {
         const coupon = couponSnap.data();
-        const isNotExpired = !coupon.endDate || new Date(coupon.endDate) >= new Date();
-        const isStarted = !coupon.startDate || new Date(coupon.startDate) <= new Date();
-        const isEnabled = coupon.enabled && !coupon.archived;
-        const currentUses = Number(coupon.currentUses || 0);
-        const maxUses = Number(coupon.maxUses || 100);
-        const isUsesAvailable = currentUses < maxUses;
-        const hasMinCart = calculatedSubtotal >= (coupon.minCartValue || 0);
-
-        if (isNotExpired && isStarted && isEnabled && isUsesAvailable && hasMinCart) {
-          if (coupon.type === 'percentage') {
-            calculatedDiscount = Math.round((calculatedSubtotal * Number(coupon.value || 0)) / 100);
-          } else if (coupon.type === 'flat') {
-            calculatedDiscount = Number(coupon.value || 0);
-          } else if (coupon.type === 'buy_x_get_y') {
-            const buyQty = Number(coupon.buyQty || 2);
-            const getQty = Number(coupon.getQty || 1);
-            const totalQty = verifiedItems.reduce((sum, item) => sum + item.quantity, 0);
-            if (totalQty >= buyQty) {
-              const itemPrices = [];
-              verifiedItems.forEach(item => {
-                for (let i = 0; i < item.quantity; i++) {
-                  itemPrices.push(item.price);
-                }
-              });
-              itemPrices.sort((a, b) => a - b);
-              const freeItemsCount = Math.min(getQty, itemPrices.length);
-              for (let i = 0; i < freeItemsCount; i++) {
-                calculatedDiscount += itemPrices[i];
-              }
-            }
-          }
-          calculatedDiscount = Math.min(calculatedDiscount, calculatedSubtotal);
+        const validation = validateCoupon(coupon, {
+          subtotal: calculatedSubtotal,
+          cartItems: verifiedItems,
+          userOrdersCount
+        });
+        if (!validation.valid) {
+          return res.status(400).json({ error: validation.error });
         }
+        calculatedDiscount = calculateCouponDiscount(coupon, {
+          subtotal: calculatedSubtotal,
+          cartItems: verifiedItems
+        });
+      } else {
+        return res.status(400).json({ error: "Invalid coupon code" });
       }
     }
 
-    const calculatedTax = calculatedSubtotal * 0.05;
-    const calculatedTotal = Math.max(0, calculatedSubtotal + calculatedShipping + calculatedTax - calculatedDiscount);
-    const amountNum = Math.round(calculatedTotal * 100); // Override with securely calculated amount in paise
+    // Use centralized shipping and checkout totals calculations
+    const shippingMethod = totals.shippingMethod || 'standard';
+    const totalsObj = calculateCheckout({
+      subtotal: calculatedSubtotal,
+      shippingMethod,
+      paymentMethod: 'razorpay',
+      discount: calculatedDiscount
+    });
+
+    const calculatedShipping = totalsObj.shipping;
+    const calculatedCodCharge = totalsObj.codCharge; // 0
+    const calculatedTax = totalsObj.tax; // 0
+    const calculatedTotal = totalsObj.total;
+    const amountNum = Math.round(calculatedTotal * 100); // securely calculated amount in paise
 
     console.log("[api/createOrder] Creating Razorpay order", {
       amount: amountNum,
@@ -296,6 +274,7 @@ export default async function handler(req, res) {
       items: verifiedItems,
       subtotal: calculatedSubtotal,
       shipping: calculatedShipping,
+      codCharge: calculatedCodCharge,
       tax: calculatedTax,
       couponCode: totals.couponCode || null,
       couponDiscount: calculatedDiscount,
