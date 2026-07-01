@@ -138,7 +138,7 @@ const Navbar = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center">
               <img 
-                src="https://res.cloudinary.com/omoikkzf/image/upload/v1782889678/ChatGPT_Image_Jun_29_2026_09_35_54_AM_m0pjej.png" 
+                src="https://res.cloudinary.com/omoikkzf/image/upload/v1782807091/582758AE-6631-4766-BFCA-34594061A683_fycfgc.png" 
                 alt="Panstellia" 
                 className={`transition-all duration-150 ease-out object-contain w-auto ${scrolled ? 'h-10 md:h-12' : 'h-16 md:h-20'} py-1`} 
               />
@@ -439,7 +439,7 @@ const Navbar = () => {
               {/* Drawer Top */}
               <div className="p-6 border-b border-luxury-100 flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                  <img src="https://res.cloudinary.com/omoikkzf/image/upload/v1782889678/ChatGPT_Image_Jun_29_2026_09_35_54_AM_m0pjej.png" alt="Panstellia" className="h-16 md:h-20 w-auto object-contain py-1" />
+                  <img src="https://res.cloudinary.com/omoikkzf/image/upload/v1782807091/582758AE-6631-4766-BFCA-34594061A683_fycfgc.png" alt="Panstellia" className="h-16 md:h-20 w-auto object-contain py-1" />
                 </Link>
                 <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-full hover:bg-luxury-50 text-luxury-500">
                   <X className="w-5 h-5" />
