@@ -143,7 +143,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="flex flex-col justify-start">
-            <img src="/favicon.svg" alt="Panstellia" className="h-12 w-auto mb-4 self-start" />
+            <img src="https://res.cloudinary.com/omoikkzf/image/upload/v1782889678/ChatGPT_Image_Jun_29_2026_09_35_54_AM_m0pjej.png" alt="Panstellia" className="h-12 w-auto mb-4 self-start object-contain" />
             <p className="text-luxury-300 text-sm leading-relaxed">
               {cms.about?.story || "Discover exquisite necklace jewelry for every occasion. From Elite Series elegance to piercing glamour, we bring you the finest pieces."}
             </p>

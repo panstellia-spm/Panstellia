@@ -47,7 +47,9 @@ export default async function handler(req, res) {
 
       if (configSnap.exists) {
         const config = configSnap.data();
-        if (config.defaultPickupLocation) defaultPickupLocation = config.defaultPickupLocation;
+        if (config.defaultPickupLocation && config.defaultPickupLocation !== 'Primary') {
+          defaultPickupLocation = config.defaultPickupLocation;
+        }
         if (config.defaultWeight) defaultWeight = Number(config.defaultWeight);
         if (config.defaultLength) defaultLength = Number(config.defaultLength);
         if (config.defaultBreadth) defaultBreadth = Number(config.defaultBreadth);
@@ -171,7 +173,8 @@ export default async function handler(req, res) {
           shipmentId: response.shipment_id
         });
       } else {
-        throw new Error('Invalid response received from Shiprocket order creation API');
+        const errorDetails = response ? (response.errors || response.message || JSON.stringify(response)) : 'Empty response';
+        throw new Error(`Shiprocket API rejected order: ${typeof errorDetails === 'object' ? JSON.stringify(errorDetails) : errorDetails}`);
       }
     }
 

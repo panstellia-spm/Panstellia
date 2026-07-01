@@ -225,6 +225,25 @@ service cloud.firestore {
       allow write: if hasRole(['super_admin', 'admin', 'content_manager']);
     }
 
+    // Warranty Templates
+    match /warranties/{warrantyId} {
+      allow read: if true; // Publicly readable
+      allow write: if hasRole(['super_admin', 'admin', 'content_manager']);
+    }
+
+    // Warranty Assignments mapping rules
+    match /warranty_assignments/{assignmentId} {
+      allow read: if true; // Publicly readable
+      allow write: if hasRole(['super_admin', 'admin', 'content_manager']);
+    }
+
+    // Warranty History audit logs
+    match /warranty_history/{historyId} {
+      allow read: if hasRole(['super_admin', 'admin', 'content_manager']);
+      allow create: if hasRole(['super_admin', 'admin', 'content_manager']);
+      allow update, delete: if false; // Immutable
+    }
+
     // ─── Default: Deny Everything Else ──────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
